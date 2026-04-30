@@ -1,0 +1,1430 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BI PC's Não Autorizados · Viação Catedral</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      /* ── CATEDRAL DESIGN SYSTEM ─────────────────────────────── */
+      :root {
+        --preto: #0a0a0a;
+        --preto2: #111111;
+        --preto3: #1a1a1a;
+        --preto4: #242424;
+        --laranja: #f47920;
+        --laranja2: #e06510;
+        --laranja3: rgba(244, 121, 32, 0.15);
+        --laranja4: rgba(244, 121, 32, 0.08);
+        --cinza: #2e2e2e;
+        --cinza2: #3d3d3d;
+        --cinza3: #555555;
+        --borda: rgba(255, 255, 255, 0.07);
+        --borda2: rgba(255, 255, 255, 0.12);
+        --borda-l: rgba(244, 121, 32, 0.3);
+        --texto: #f0f0f0;
+        --texto2: #aaaaaa;
+        --texto3: #666666;
+        --verde: #22c97a;
+        --vermelho: #e05050;
+        --amarelo: #f0c040;
+        --radius: 10px;
+        --radius-sm: 6px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+
+      /* ── TOPBAR ─────────────────────────────────────────── */
+      .topbar { background: var(--laranja); height: 4px; width: 100%; }
+
+      /* ── HEADER ─────────────────────────────────────────── */
+      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .header-logo { display: flex; align-items: center; gap: 16px; }
+      .logo-icon { width: 44px; height: 44px; background: var(--laranja); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .logo-icon svg { width: 26px; height: 26px; fill: #fff; }
+      .logo-text h1 { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto); line-height: 1; }
+      .logo-text h1 span { color: var(--laranja); }
+      .logo-text p { font-size: 11px; color: var(--texto3); margin-top: 3px; }
+      .header-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .badge-pill { font-size: 11px; padding: 5px 13px; border-radius: 20px; font-weight: 500; border: 1px solid; }
+      .pill-loading { background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.35); color: var(--amarelo); }
+      .pill-ok { background: rgba(34,201,122,0.1); border-color: rgba(34,201,122,0.35); color: var(--verde); }
+      .pill-err { background: rgba(224,80,80,0.1); border-color: rgba(224,80,80,0.35); color: var(--vermelho); }
+
+      /* ── FILTROS ─────────────────────────────────────────── */
+      .filter-wrap { background: var(--preto2); border-bottom: 1px solid var(--borda); padding: 16px 28px; }
+      .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+      .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+      .filter-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 600; }
+      .filter-group input[type="date"],
+      .filter-group select,
+      .filter-group input[type="text"] {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
+        padding: 9px 12px; outline: none; transition: border-color 0.15s; width: 100%;
+      }
+      .filter-group select {
+        appearance: none; -webkit-appearance: none; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+      }
+      .filter-group input[type="date"] { color-scheme: dark; }
+      .filter-group input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(330deg); cursor: pointer; }
+      .filter-group input:focus, .filter-group select:focus { border-color: var(--laranja); background: var(--preto4); }
+      .filter-group select option { background: var(--preto3); color: var(--texto); }
+
+      .btn-group { display: flex; gap: 8px; align-self: flex-end; flex-shrink: 0; }
+      .btn { font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); }
+      .btn-primary:hover { background: var(--laranja2); }
+      .btn-primary:active { transform: scale(0.97); }
+      .btn-ghost { background: transparent; color: var(--texto2); border-color: var(--cinza2); }
+      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); }
+
+      /* Botão apresentação */
+      .btn-modo-apresentacao { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; border: 1px solid rgba(244,121,32,0.45); background: radial-gradient(circle at 0% 0%, rgba(244,121,32,0.18), rgba(15,23,42,0.96)); color: #f9fafb; font-family: "Barlow", sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; cursor: pointer; overflow: hidden; transition: all 0.2s; }
+      .btn-modo-apresentacao:hover { border-color: var(--laranja); background: radial-gradient(circle at 0% 0%, rgba(244,121,32,0.32), rgba(15,23,42,0.96)); transform: translateY(-1px); }
+      .btn-apres-icon { width: 16px; height: 16px; fill: var(--laranja); }
+
+      /* ── MAIN ────────────────────────────────────────────── */
+      .main { padding: 24px 28px 40px; max-width: 1400px; }
+
+      /* ── KPIs ────────────────────────────────────────────── */
+      .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+      .kpi { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+      .kpi:hover { border-color: var(--borda-l); }
+      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kpi-c, var(--laranja)); }
+      .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 600; margin-bottom: 8px; }
+      .kpi-value { font-family: "Barlow Condensed", sans-serif; font-size: 36px; font-weight: 700; color: var(--kpi-c, var(--texto)); letter-spacing: -0.01em; line-height: 1; }
+      .kpi-sub { font-size: 11px; color: var(--texto3); margin-top: 6px; }
+
+      /* ── CARDS ───────────────────────────────────────────── */
+      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+      .card { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; margin-bottom: 10px; }
+      .card:hover { border-color: rgba(255,255,255,0.1); }
+      .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
+      .chart-wrap { position: relative; width: 100%; }
+
+      /* ── MAPA ────────────────────────────────────────────── */
+      #mapa { height: 420px; border-radius: var(--radius-sm); background: #1a1a1a; }
+      .leaflet-container { font-family: "Barlow", sans-serif !important; }
+      .leaflet-popup-content-wrapper { background: var(--preto3); color: var(--texto); border: 1px solid var(--borda2); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+      .leaflet-popup-tip { background: var(--preto3); }
+      .leaflet-popup-content { font-family: "Barlow", sans-serif; font-size: 12px; }
+      .popup-nome { font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 700; color: var(--laranja); margin-bottom: 6px; }
+      .popup-linha { display: flex; justify-content: space-between; gap: 12px; color: var(--texto2); margin-top: 3px; }
+      .popup-valor { font-weight: 600; color: var(--texto); }
+      .leaflet-tile-pane { filter: brightness(0.6) saturate(0.4); }
+
+      /* ── RANKING TABLE ───────────────────────────────────── */
+      .rank-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .rank-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--texto3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--borda2); }
+      .rank-table td { padding: 9px 10px; border-bottom: 1px solid var(--borda); color: var(--texto2); vertical-align: middle; }
+      .rank-table tr:last-child td { border-bottom: none; }
+      .rank-table tr:hover td { background: var(--preto3); }
+      .rank-pos { font-size: 10px; color: var(--texto3); font-weight: 700; }
+      .rank-bar-bg { width: 80px; height: 4px; background: var(--cinza); border-radius: 2px; overflow: hidden; display: inline-block; }
+      .rank-bar { height: 4px; border-radius: 2px; background: var(--laranja); }
+
+      /* ── TABELA HISTÓRICO ────────────────────────────────── */
+      .table-filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+      .table-filters input { background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; outline: none; flex: 1; min-width: 140px; }
+      .table-filters input:focus { border-color: var(--laranja); }
+      .table-filters input::placeholder { color: var(--texto3); }
+      .hist-table-wrap { overflow-x: auto; }
+      .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .hist-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--texto3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--borda2); white-space: nowrap; }
+      .hist-table td { padding: 8px 10px; border-bottom: 1px solid var(--borda); color: var(--texto2); vertical-align: middle; white-space: nowrap; }
+      .hist-table tr:hover td { background: var(--preto3); }
+      .hist-table tr:last-child td { border-bottom: none; }
+      .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--laranja3); color: var(--laranja); letter-spacing: 0.03em; }
+
+      /* Paginação */
+      .paginacao { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; flex-wrap: wrap; gap: 8px; }
+      .pag-info { font-size: 11px; color: var(--texto3); }
+      .pag-btns { display: flex; gap: 6px; }
+      .pag-btn { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto2); font-family: "Barlow", sans-serif; font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+      .pag-btn:hover { border-color: var(--laranja); color: var(--laranja); }
+      .pag-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+      /* ── RANK LIST (gráfico simples) ─────────────────────── */
+      .rank-list { list-style: none; }
+      .rank-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--borda); font-size: 12px; }
+      .rank-item:last-child { border-bottom: none; }
+      .rank-n { font-size: 10px; color: var(--texto3); font-weight: 700; min-width: 18px; }
+      .rank-nome { flex: 1; color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rank-val { font-size: 11px; color: var(--texto3); font-weight: 600; min-width: 28px; text-align: right; }
+
+      /* ── FOOTER ──────────────────────────────────────────── */
+      footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 20px 28px; margin-top: 8px; }
+      .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+      .footer-left { font-size: 11px; color: var(--texto3); line-height: 1.7; }
+      .footer-left strong { color: var(--texto2); font-weight: 600; }
+      .footer-brand { font-family: "Barlow Condensed", sans-serif; font-size: 13px; font-weight: 700; color: var(--laranja); letter-spacing: 0.04em; text-transform: uppercase; }
+      .footer-right { font-size: 10px; color: var(--texto3); text-align: right; line-height: 1.6; }
+      .footer-divider { height: 1px; background: var(--borda); margin: 12px 0; }
+      .footer-copy { font-size: 10px; color: var(--texto3); text-align: center; }
+      .footer-copy span { color: var(--laranja); font-weight: 600; }
+
+      /* ── FREQ BADGE ─────────────────────────────────────── */
+      .freq-badge {
+        display: inline-block; min-width: 26px; text-align: center;
+        padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: 700;
+        background: var(--laranja3); color: var(--laranja);
+        border: 1px solid rgba(244,121,32,0.3);
+      }
+      .freq-badge-high {
+        background: rgba(224,80,80,0.12); color: #f08080;
+        border-color: rgba(224,80,80,0.3);
+      }
+
+      /* ── BASES POR REGIÃO ────────────────────────────────── */
+      .regiao-bloco { margin-bottom: 12px; }
+      .regiao-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 6px;
+      }
+      .regiao-nome { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto2); }
+      .regiao-total { font-size: 10px; color: var(--texto3); }
+      .base-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 4px 0; font-size: 11px; color: var(--texto2);
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+      }
+      .base-item:last-child { border-bottom: none; }
+      .base-nome { flex: 1; }
+      .base-count { font-weight: 700; color: var(--texto); font-size: 11px; min-width: 24px; text-align: right; }
+      .base-bar-wrap { width: 60px; height: 3px; background: var(--cinza); border-radius: 2px; overflow: hidden; }
+      .base-bar-fill { height: 3px; border-radius: 2px; background: var(--laranja); }
+
+      /* ── VAZIO / ERRO ────────────────────────────────────── */
+      .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
+
+      /* ── DETECÇÃO AUTOMÁTICA ─────────────────────────────── */
+      .det-upload-zone { border: 2px dashed var(--cinza2); border-radius: var(--radius); padding: 36px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; color: var(--texto3); user-select: none; }
+      .det-upload-zone:hover, .det-upload-zone.drag-over { border-color: var(--laranja); background: var(--laranja4); color: var(--laranja); }
+      .det-upload-zone svg { display: block; margin: 0 auto 12px; opacity: 0.5; transition: opacity 0.2s; }
+      .det-upload-zone:hover svg, .det-upload-zone.drag-over svg { opacity: 1; }
+      .det-upload-icon-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+      .det-upload-sub { font-size: 11px; color: var(--texto3); }
+      .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-top: 14px; font-size: 13px; flex-wrap: wrap; }
+      .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .det-result { margin-top: 16px; }
+      .dur-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid; letter-spacing: 0.03em; }
+      .hist-table tr.riscado td { opacity: 0.3; text-decoration: line-through; }
+      .hist-table tr.riscado td .dur-tag { text-decoration: none; }
+      .det-prefixo { cursor: pointer; border-bottom: 1px dashed var(--cinza2); transition: color 0.15s, border-color 0.15s; }
+      .det-prefixo:hover { color: var(--laranja) !important; border-color: var(--laranja); }
+      .det-ponto-wrap { display: flex; align-items: center; gap: 8px; }
+      .det-copy-desc { opacity: 0; pointer-events: none; cursor: pointer; font-size: 11px; color: var(--texto3); border: 1px solid var(--cinza2); border-radius: 4px; padding: 1px 6px; white-space: nowrap; transition: opacity 0.15s, color 0.15s, border-color 0.15s; flex-shrink: 0; }
+      .hist-table tr:hover .det-copy-desc { opacity: 1; pointer-events: auto; }
+      .det-copy-desc:hover { color: var(--laranja); border-color: var(--laranja); }
+
+      /* ── GRUPO DE VEÍCULO (detecção CSV) ────────────────────── */
+      .det-grupo-header td {
+        background: var(--preto3);
+        color: var(--laranja);
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 6px 10px;
+        border-top: 2px solid var(--cinza2);
+        border-bottom: 1px solid var(--borda2);
+        cursor: default;
+      }
+      .det-grupo-header:first-child td { border-top: none; }
+      .det-grupo-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--texto3);
+        font-family: "Barlow", sans-serif;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      /* ── RESPONSIVE ──────────────────────────────────────── */
+      @media (max-width: 960px) {
+        .kpi-row { grid-template-columns: repeat(2, 1fr); }
+        .row2, .row3 { grid-template-columns: 1fr; }
+        .main { padding: 16px; }
+      }
+      @media (max-width: 600px) {
+        .kpi-row { grid-template-columns: 1fr 1fr; }
+        .header { padding: 12px 16px; }
+        .filter-wrap { padding: 12px 16px; }
+        .main { padding: 12px; }
+        .btn-apres-texto { display: none; }
+        #mapa { height: 280px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar"></div>
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Viação <span>Catedral</span></h1>
+          <p id="subheader">Carregando dados...</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div id="badgeStatus" class="badge-pill pill-loading">⏳ Carregando</div>
+        <button class="btn-modo-apresentacao" onclick="abrirModoApresentacao()">
+          <svg class="btn-apres-icon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+          <span class="btn-apres-texto">Modo apresentação</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- FILTROS -->
+    <div class="filter-wrap">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>Data inicial</label>
+          <input type="date" id="fDataIni" />
+        </div>
+        <div class="filter-group">
+          <label>Data final</label>
+          <input type="date" id="fDataFim" />
+        </div>
+        <div class="filter-group">
+          <label>Região</label>
+          <select id="fRegiao">
+            <option value="">Todas as regiões</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>UF</label>
+          <select id="fUF">
+            <option value="">Todos os estados</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Base</label>
+          <select id="fBase">
+            <option value="">Todas as bases</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Local (PC)</label>
+          <input type="text" id="fLocal" placeholder="Buscar local..." />
+        </div>
+        <div class="filter-group">
+          <label>Motorista</label>
+          <input type="text" id="fMotorista" placeholder="Buscar motorista..." />
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
+          <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi" style="--kpi-c: var(--laranja)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Total de visitas</div>
+          <div class="kpi-value" id="kTotal">—</div>
+          <div class="kpi-sub" id="kPeriodo">aguardando dados</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--amarelo)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Locais únicos</div>
+          <div class="kpi-value" id="kLocais">—</div>
+          <div class="kpi-sub">PCs diferentes visitados</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Motoristas envolvidos</div>
+          <div class="kpi-value" id="kMotoristas">—</div>
+          <div class="kpi-sub">motoristas distintos</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--verde)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Base mais ativa</div>
+          <div class="kpi-value" id="kBaseMais" style="font-size:20px;padding-top:6px">—</div>
+          <div class="kpi-sub" id="kBaseSub">—</div>
+        </div>
+      </div>
+
+      <!-- Gráficos linha 1 -->
+      <div class="row2">
+        <div class="card">
+          <div class="card-title">Top 10 locais mais visitados</div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="chartLocais"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Distribuição por região</div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="chartRegiao"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráficos linha 2 -->
+      <div class="row2">
+        <div class="card">
+          <div class="card-title">Top 10 motoristas com mais visitas</div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="chartMotoristas"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Visitas por dia no período</div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="chartTimeline"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mapa -->
+      <div class="card">
+        <div class="card-title">Mapa de locais não autorizados</div>
+        <div id="mapa"></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--texto3)">
+          ● Laranja = visitado no período &nbsp;|&nbsp; ● Cinza = sem visita no período &nbsp;|&nbsp; Tamanho proporcional ao nº de visitas
+        </div>
+      </div>
+
+      <!-- Ranking motoristas -->
+      <div class="card">
+        <div class="card-title">Ranking de motoristas</div>
+        <div class="hist-table-wrap">
+          <table class="rank-table" id="rankTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Motorista</th>
+                <th>Base</th>
+                <th>UF</th>
+                <th>Visitas</th>
+                <th>Locais distintos</th>
+                <th>Progresso</th>
+              </tr>
+            </thead>
+            <tbody id="rankBody">
+              <tr><td colspan="7" class="estado-vazio">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Frequência Motorista×Local + Distribuição Bases por Região -->
+      <div class="row2">
+
+        <!-- Painel de Frequência -->
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title" id="freqTitulo">Painel de Frequência — Motorista × Local</div>
+          <div class="hist-table-wrap">
+            <table class="hist-table" id="freqTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Motorista</th>
+                  <th>Local (PC)</th>
+                  <th style="text-align:center">Freq.</th>
+                  <th>Barra</th>
+                </tr>
+              </thead>
+              <tbody id="freqBody">
+                <tr><td colspan="5" class="estado-vazio">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Ocorrências por base -->
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Ocorrências por base</div>
+          <div class="chart-wrap" style="height:220px">
+            <canvas id="chartBasesRegiao"></canvas>
+          </div>
+          <div style="margin-top:14px">
+            <div id="listBasesRegiao"></div>
+          </div>
+        </div>
+
+        <!-- Ranking de linhas -->
+        <div class="card" style="margin-bottom:0;margin-top:12px">
+          <div class="card-title" id="linhasTitulo">Ranking de linhas com mais paradas irregulares</div>
+          <table class="hist-table" id="linhasTable">
+            <thead><tr><th>#</th><th>Linha</th><th>Ocorrências</th><th>Locais distintos</th></tr></thead>
+            <tbody id="linhasBody"><tr><td colspan="4" class="estado-vazio">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Tabela histórico -->
+      <div class="card">
+        <div class="card-title">Histórico de visitas</div>
+        <div class="table-filters">
+          <input type="text" id="tLocal" placeholder="Filtrar por local..." oninput="filtrarTabela()" />
+          <input type="text" id="tMotorista" placeholder="Filtrar por motorista..." oninput="filtrarTabela()" />
+          <input type="text" id="tBase" placeholder="Filtrar por base..." oninput="filtrarTabela()" />
+        </div>
+        <div class="hist-table-wrap">
+          <table class="hist-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Local</th>
+                <th>Região</th>
+                <th>Motorista</th>
+                <th>Carro</th>
+                <th>Base</th>
+              </tr>
+            </thead>
+            <tbody id="histBody">
+              <tr><td colspan="6" class="estado-vazio">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="paginacao">
+          <div class="pag-info" id="pagInfo">—</div>
+          <div class="pag-btns">
+            <button class="pag-btn" id="pagAnterior" onclick="mudarPagina(-1)" disabled>← Anterior</button>
+            <button class="pag-btn" id="pagProximo" onclick="mudarPagina(1)" disabled>Próximo →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detecção Automática de Paradas Irregulares -->
+      <div class="card">
+        <div class="card-title">Detecção automática — rastreamento</div>
+
+        <input type="file" id="detFileInput" accept=".csv" style="display:none" onchange="handleDeteccaoUpload(event)" />
+
+        <div class="det-upload-zone" id="detUploadZone"
+          onclick="document.getElementById('detFileInput').click()"
+          ondragover="event.preventDefault(); this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="this.classList.remove('drag-over'); handleDeteccaoDrop(event)">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 16V8m0 0-3 3m3-3 3 3"/><rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M8 17H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3"/>
+          </svg>
+          <div class="det-upload-icon-label">Clique ou arraste o arquivo CSV do rastreamento</div>
+          <div class="det-upload-sub">Exportado do sistema de rastreamento · paradas &gt; 5 min serão analisadas</div>
+        </div>
+
+        <div class="det-status" id="detStatus"></div>
+        <div class="det-result" id="detResult"></div>
+      </div>
+
+    </div><!-- /main -->
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-left">
+          <div class="footer-brand">BI PC's Não Autorizados · Viação Catedral</div>
+          <div>Monitoramento de Locais Não Autorizados · Sistema de Análise Interna</div>
+          <div id="footerPeriodo" style="margin-top:2px"></div>
+        </div>
+        <div class="footer-right">
+          <div>Desenvolvido por</div>
+          <div style="color:var(--texto);font-weight:600;font-size:13px;margin:2px 0">Lucas Inácio</div>
+          <div>Analista de Dados · Viação Catedral</div>
+        </div>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-copy">© <span id="anoAtual"></span> <span>Lucas Inácio</span> · Uso exclusivo interno · Viação Catedral</div>
+    </footer>
+
+    <script>
+      document.getElementById("anoAtual").textContent = new Date().getFullYear();
+
+      // ─────────────────────────────────────────────────────────
+      //  Estado global
+      // ─────────────────────────────────────────────────────────
+      let todosRegistros  = [];
+      let todosPCs        = [];
+      let registrosFiltrados = [];
+      let charts          = {};
+      let mapa            = null;
+      let webAppBaseUrl   = "";
+
+      // Paginação da tabela histórico
+      let pagAtual        = 1;
+      const LINHAS_PAG    = 25;
+      let tabelaFiltrada  = [];
+
+      const CORES_PAL = ["#f47920","#3b82c4","#22c97a","#f0c040","#e05050","#8b5cf6","#38bdf8","#ec4899","#a3e635","#fb923c"];
+      const GC = "#2e2e2e";
+      const GT = "#555555";
+
+      // ─────────────────────────────────────────────────────────
+      //  Bootstrap
+      // ─────────────────────────────────────────────────────────
+      window.onload = function () {
+        document.getElementById("anoAtual").textContent = new Date().getFullYear();
+
+        google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
+
+        // Datas padrão: mês corrente
+        const hoje = new Date();
+        const ano  = hoje.getFullYear();
+        const mes  = String(hoje.getMonth() + 1).padStart(2, "0");
+        const ini  = ano + "-" + mes + "-01";
+        const fim  = ano + "-" + mes + "-" + String(hoje.getDate()).padStart(2, "0");
+
+        document.getElementById("fDataIni").value = ini;
+        document.getElementById("fDataFim").value = fim;
+
+        setBadge("loading");
+        iniciarMapa();
+        carregarDados(ini, fim);
+      };
+
+      // ─────────────────────────────────────────────────────────
+      //  Badge de status
+      // ─────────────────────────────────────────────────────────
+      function setBadge(estado, txt) {
+        const el = document.getElementById("badgeStatus");
+        el.className = "badge-pill";
+        if (estado === "loading") { el.classList.add("pill-loading"); el.textContent = "⏳ " + (txt || "Carregando"); }
+        else if (estado === "ok")  { el.classList.add("pill-ok");      el.textContent = "✓ " + (txt || "Atualizado"); }
+        else                       { el.classList.add("pill-err");     el.textContent = "✗ " + (txt || "Erro"); }
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Carregar dados do backend
+      // ─────────────────────────────────────────────────────────
+      function carregarDados(ini, fim) {
+        setBadge("loading");
+        // Carrega PCs e histórico em paralelo via duas chamadas encadeadas
+        google.script.run
+          .withSuccessHandler(function (jsonPCs) {
+            todosPCs = JSON.parse(jsonPCs || "[]");
+            google.script.run
+              .withSuccessHandler(function (jsonHist) {
+                todosRegistros = JSON.parse(jsonHist || "[]");
+                popularFiltrosDinamicos();
+                aplicarFiltrosLocais();
+                setBadge("ok", todosRegistros.length + " registros");
+                const ini2 = document.getElementById("fDataIni").value;
+                const fim2 = document.getElementById("fDataFim").value;
+                document.getElementById("subheader").textContent =
+                  "PC's Não Autorizados · " + fmtDataBR(ini2) + " até " + fmtDataBR(fim2);
+                document.getElementById("footerPeriodo").textContent =
+                  "Período: " + fmtDataBR(ini2) + " a " + fmtDataBR(fim2);
+              })
+              .withFailureHandler(function (err) { setBadge("err", "Erro ao carregar histórico"); console.error(err); })
+              .getDadosBI(ini, fim);
+          })
+          .withFailureHandler(function (err) { setBadge("err", "Erro ao carregar PCs"); console.error(err); })
+          .getPCs();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Popular filtros dinâmicos (região, UF, base)
+      // ─────────────────────────────────────────────────────────
+      function popularFiltrosDinamicos() {
+        const regioes = [...new Set(todosRegistros.map(r => r.regiao).filter(Boolean))].sort();
+        const ufs     = [...new Set(todosRegistros.map(r => r.uf).filter(Boolean))].sort();
+        const bases   = [...new Set(todosRegistros.map(r => r.base).filter(Boolean))].sort();
+
+        popularSelect("fRegiao", regioes, "Todas as regiões");
+        popularSelect("fUF",     ufs,     "Todos os estados");
+        popularSelect("fBase",   bases,   "Todas as bases");
+      }
+
+      function popularSelect(id, valores, placeholderTxt) {
+        const sel = document.getElementById(id);
+        const valorAtual = sel.value;
+        sel.innerHTML = '<option value="">' + placeholderTxt + '</option>';
+        valores.forEach(function (v) {
+          const opt = document.createElement("option");
+          opt.value = v; opt.textContent = v;
+          if (v === valorAtual) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Filtros
+      // ─────────────────────────────────────────────────────────
+      function aplicarFiltros() {
+        const ini = document.getElementById("fDataIni").value;
+        const fim = document.getElementById("fDataFim").value;
+        if (!ini || !fim) { alert("Selecione o período de datas."); return; }
+        setBadge("loading");
+        carregarDados(ini, fim);
+      }
+
+      function limparFiltros() {
+        const hoje = new Date();
+        const ano  = hoje.getFullYear();
+        const mes  = String(hoje.getMonth() + 1).padStart(2, "0");
+        document.getElementById("fDataIni").value = ano + "-" + mes + "-01";
+        document.getElementById("fDataFim").value = ano + "-" + mes + "-" + String(hoje.getDate()).padStart(2, "0");
+        document.getElementById("fRegiao").value   = "";
+        document.getElementById("fUF").value       = "";
+        document.getElementById("fBase").value     = "";
+        document.getElementById("fLocal").value    = "";
+        document.getElementById("fMotorista").value = "";
+        aplicarFiltros();
+      }
+
+      function aplicarFiltrosLocais() {
+        const regiao   = document.getElementById("fRegiao").value.toLowerCase();
+        const uf       = document.getElementById("fUF").value.toLowerCase();
+        const base     = document.getElementById("fBase").value.toLowerCase();
+        const local    = document.getElementById("fLocal").value.toLowerCase();
+        const motorista = document.getElementById("fMotorista").value.toLowerCase();
+
+        registrosFiltrados = todosRegistros.filter(function (r) {
+          if (regiao   && !r.regiao.toLowerCase().includes(regiao))     return false;
+          if (uf       && !r.uf.toLowerCase().includes(uf))             return false;
+          if (base     && !r.base.toLowerCase().includes(base))         return false;
+          if (local    && !r.local.toLowerCase().includes(local))       return false;
+          if (motorista && !r.motorista.toLowerCase().includes(motorista)) return false;
+          return true;
+        });
+
+        renderizarTudo();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Renderização geral
+      // ─────────────────────────────────────────────────────────
+      function renderizarTudo() {
+        renderKPIs(registrosFiltrados);
+        renderGraficos(registrosFiltrados);
+        renderMapa(registrosFiltrados);
+        renderRanking(registrosFiltrados);
+        renderFrequencia(registrosFiltrados);
+        renderBasesRegiao(registrosFiltrados);
+        renderRankingLinhas(registrosFiltrados);
+        tabelaFiltrada = [...registrosFiltrados];
+        pagAtual = 1;
+        renderTabelaHistorico();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  KPIs
+      // ─────────────────────────────────────────────────────────
+      function renderKPIs(regs) {
+        document.getElementById("kTotal").textContent = regs.length;
+
+        const locaisUnicos = new Set(regs.map(r => r.idLocal || r.local)).size;
+        document.getElementById("kLocais").textContent = locaisUnicos;
+
+        const motoristasUnicos = new Set(regs.map(r => r.motorista).filter(Boolean)).size;
+        document.getElementById("kMotoristas").textContent = motoristasUnicos;
+
+        // Base mais ativa
+        const contBase = {};
+        regs.forEach(r => { if (r.base) contBase[r.base] = (contBase[r.base] || 0) + 1; });
+        const baseMais = Object.entries(contBase).sort((a,b) => b[1]-a[1])[0];
+        if (baseMais) {
+          document.getElementById("kBaseMais").textContent = baseMais[0];
+          document.getElementById("kBaseSub").textContent  = baseMais[1] + " visita" + (baseMais[1] > 1 ? "s" : "");
+        } else {
+          document.getElementById("kBaseMais").textContent = "—";
+          document.getElementById("kBaseSub").textContent  = "sem dados";
+        }
+
+        const ini = document.getElementById("fDataIni").value;
+        const fim = document.getElementById("fDataFim").value;
+        document.getElementById("kPeriodo").textContent =
+          fmtDataBR(ini) + " → " + fmtDataBR(fim);
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Gráficos
+      // ─────────────────────────────────────────────────────────
+      function destruirChart(id) {
+        if (charts[id]) { charts[id].destroy(); charts[id] = null; }
+      }
+
+      function renderGraficos(regs) {
+        renderChartLocais(regs);
+        renderChartRegiao(regs);
+        renderChartMotoristas(regs);
+        renderChartTimeline(regs);
+      }
+
+      function renderChartLocais(regs) {
+        destruirChart("locais");
+        const cont = {};
+        regs.forEach(r => { const k = r.descResumida || r.local; cont[k] = (cont[k]||0)+1; });
+        const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        if (!sorted.length) return;
+        charts["locais"] = new Chart(document.getElementById("chartLocais"), {
+          type: "bar",
+          data: {
+            labels: sorted.map(e=>e[0]),
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[0] + "cc", borderColor: CORES_PAL[0], borderWidth: 1, borderRadius: 4 }]
+          },
+          options: chartOpts("Visitas", false)
+        });
+      }
+
+      function renderChartRegiao(regs) {
+        destruirChart("regiao");
+        const cont = {};
+        regs.forEach(r => { const k = r.regiao || "Não informado"; cont[k] = (cont[k]||0)+1; });
+        const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]);
+        if (!sorted.length) return;
+        charts["regiao"] = new Chart(document.getElementById("chartRegiao"), {
+          type: "doughnut",
+          data: {
+            labels: sorted.map(e=>e[0]),
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL.slice(0, sorted.length).map(c=>c+"cc"), borderColor: "transparent", borderWidth: 0 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: "right", labels: { color: "#aaa", font: { family:"Barlow", size:11 }, boxWidth:12, padding:10 } } },
+            cutout: "65%"
+          }
+        });
+      }
+
+      function renderChartMotoristas(regs) {
+        destruirChart("motoristas");
+        const cont = {};
+        regs.forEach(r => { if (r.motorista) cont[r.motorista] = (cont[r.motorista]||0)+1; });
+        const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+        if (!sorted.length) return;
+        charts["motoristas"] = new Chart(document.getElementById("chartMotoristas"), {
+          type: "bar",
+          data: {
+            labels: sorted.map(e=>e[0]),
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[4]+"cc", borderColor: CORES_PAL[4], borderWidth:1, borderRadius:4 }]
+          },
+          options: chartOpts("Visitas", true)
+        });
+      }
+
+      function renderChartTimeline(regs) {
+        destruirChart("timeline");
+        const cont = {};
+        regs.forEach(r => { cont[r.data] = (cont[r.data]||0)+1; });
+        const dias = Object.keys(cont).sort();
+        if (!dias.length) return;
+        charts["timeline"] = new Chart(document.getElementById("chartTimeline"), {
+          type: "line",
+          data: {
+            labels: dias.map(d => fmtDataBR(d)),
+            datasets: [{
+              data: dias.map(d=>cont[d]),
+              borderColor: CORES_PAL[0], backgroundColor: "rgba(244,121,32,0.08)",
+              borderWidth: 2, pointRadius: 3, pointBackgroundColor: CORES_PAL[0],
+              fill: true, tension: 0.3
+            }]
+          },
+          options: chartOpts("Visitas", false)
+        });
+      }
+
+      function chartOpts(label, horizontal) {
+        return {
+          responsive: true, maintainAspectRatio: false,
+          indexAxis: horizontal ? "y" : "x",
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: GC }, ticks: { color: GT, font: { family:"Barlow", size:10 } } },
+            y: { grid: { color: GC }, ticks: { color: GT, font: { family:"Barlow", size:10 } } }
+          }
+        };
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Mapa Leaflet
+      // ─────────────────────────────────────────────────────────
+      function iniciarMapa() {
+        mapa = L.map("mapa", { center: [-12.5, -41.5], zoom: 6 });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+          maxZoom: 18
+        }).addTo(mapa);
+      }
+
+      let mapaLayerGroup = null;
+
+      function renderMapa(regs) {
+        if (!mapa) return;
+        if (mapaLayerGroup) { mapaLayerGroup.clearLayers(); }
+        mapaLayerGroup = L.layerGroup().addTo(mapa);
+
+        // Contagem de visitas por PC (usando idLocal)
+        const contPC = {};
+        regs.forEach(r => {
+          const k = r.idLocal || r.local;
+          if (!contPC[k]) contPC[k] = { visitas: 0, motoristas: new Set(), local: r.descResumida || r.local };
+          contPC[k].visitas++;
+          if (r.motorista) contPC[k].motoristas.add(r.motorista);
+        });
+
+        const maxVisitas = Math.max(...Object.values(contPC).map(v=>v.visitas), 1);
+
+        // Plota todos os PCs
+        todosPCs.forEach(function (pc) {
+          if (!pc.lat || !pc.lng) return;
+          const info = contPC[pc.codigo] || null;
+          const visitas = info ? info.visitas : 0;
+          const raio = visitas > 0 ? 8 + (visitas / maxVisitas) * 22 : 5;
+          const cor  = visitas > 0 ? "#f47920" : "#555555";
+          const opacidade = visitas > 0 ? 0.85 : 0.35;
+
+          const circ = L.circleMarker([pc.lat, pc.lng], {
+            radius: raio, fillColor: cor, color: visitas > 0 ? "#fff" : "#333",
+            weight: visitas > 0 ? 1.5 : 1, opacity: 0.8, fillOpacity: opacidade
+          });
+
+          const nomeExib = pc.descResumida || pc.descCompleta || pc.codigo;
+          const motoristasStr = info ? [...info.motoristas].slice(0,5).join(", ") + (info.motoristas.size > 5 ? "..." : "") : "—";
+          const popup = '<div class="popup-nome">' + nomeExib + '</div>' +
+            '<div class="popup-linha"><span>' + (pc.uf || "—") + ' — ' + (pc.regiao || "—") + '</span></div>' +
+            '<div class="popup-linha"><span>Visitas no período:</span><span class="popup-valor">' + visitas + '</span></div>' +
+            (visitas > 0 ? '<div class="popup-linha"><span>Motoristas:</span><span class="popup-valor">' + info.motoristas.size + '</span></div>' +
+              '<div style="margin-top:6px;font-size:11px;color:#aaa">' + motoristasStr + '</div>' : '');
+
+          circ.bindPopup(popup, { maxWidth: 260 });
+          mapaLayerGroup.addLayer(circ);
+        });
+
+        // Ajusta o zoom se houver pontos visitados
+        const pontosVisitados = todosPCs.filter(pc => pc.lat && pc.lng && contPC[pc.codigo]);
+        if (pontosVisitados.length > 0) {
+          const bounds = L.latLngBounds(pontosVisitados.map(pc => [pc.lat, pc.lng]));
+          mapa.fitBounds(bounds, { padding: [40, 40] });
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Ranking motoristas
+      // ─────────────────────────────────────────────────────────
+      function renderRanking(regs) {
+        const map = {};
+        regs.forEach(r => {
+          if (!r.motorista) return;
+          if (!map[r.motorista]) map[r.motorista] = { visitas: 0, locais: new Set(), base: r.base, uf: r.uf };
+          map[r.motorista].visitas++;
+          map[r.motorista].locais.add(r.idLocal || r.local);
+          if (r.base && !map[r.motorista].base) map[r.motorista].base = r.base;
+        });
+
+        const sorted = Object.entries(map).sort((a,b)=>b[1].visitas-a[1].visitas);
+        const maxV   = sorted.length ? sorted[0][1].visitas : 1;
+        const tbody  = document.getElementById("rankBody");
+
+        if (!sorted.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="estado-vazio">Nenhum dado no período</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = sorted.slice(0,20).map(function([nome, d], i) {
+          const pct = Math.round((d.visitas / maxV) * 100);
+          return '<tr>' +
+            '<td class="rank-pos">' + (i+1) + '</td>' +
+            '<td style="color:var(--texto)">' + nome + '</td>' +
+            '<td>' + (d.base || "—") + '</td>' +
+            '<td>' + (d.uf || "—") + '</td>' +
+            '<td style="font-weight:600;color:var(--laranja)">' + d.visitas + '</td>' +
+            '<td>' + d.locais.size + '</td>' +
+            '<td><div class="rank-bar-bg"><div class="rank-bar" style="width:' + pct + '%"></div></div></td>' +
+            '</tr>';
+        }).join("");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Painel de Frequência — Motorista × Local
+      // ─────────────────────────────────────────────────────────
+      function renderFrequencia(regs) {
+        // Monta pares motorista+local com contagem
+        const pares = {};
+        regs.forEach(function (r) {
+          if (!r.motorista) return;
+          const local = r.descResumida || r.local || "—";
+          const chave = r.motorista + "|||" + local;
+          pares[chave] = (pares[chave] || 0) + 1;
+        });
+
+        const sorted = Object.entries(pares)
+          .sort(function (a, b) { return b[1] - a[1]; })
+          .slice(0, 25);
+
+        const maxFreq = sorted.length ? sorted[0][1] : 1;
+
+        // Atualiza título com período
+        const ini = document.getElementById("fDataIni").value;
+        const fim = document.getElementById("fDataFim").value;
+        document.getElementById("freqTitulo").textContent =
+          "Painel de Frequência — Motorista × Local · " + fmtDataBR(ini) + " a " + fmtDataBR(fim);
+
+        const tbody = document.getElementById("freqBody");
+        if (!sorted.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="estado-vazio">Nenhum dado no período</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = sorted.map(function ([chave, freq], i) {
+          const partes   = chave.split("|||");
+          const motorista = partes[0];
+          const local     = partes[1] || "—";
+          const pct       = Math.round((freq / maxFreq) * 100);
+          const alto      = freq >= 3;
+          const badgeClass = "freq-badge" + (alto ? " freq-badge-high" : "");
+          return '<tr>' +
+            '<td class="rank-pos">' + (i + 1) + '</td>' +
+            '<td style="color:var(--texto);font-weight:500">' + motorista + '</td>' +
+            '<td style="color:var(--texto2)">' + local + '</td>' +
+            '<td style="text-align:center"><span class="' + badgeClass + '">' + freq + '</span></td>' +
+            '<td><div class="rank-bar-bg" style="width:70px"><div class="rank-bar" style="width:' + pct + '%"></div></div></td>' +
+            '</tr>';
+        }).join("");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Ocorrências por base (usando baseNorm do mapa Configurações)
+      // ─────────────────────────────────────────────────────────
+      function renderBasesRegiao(regs) {
+        // Agrupa por baseNorm (nome canônico da base)
+        const cont = {};
+        regs.forEach(function (r) {
+          const base = r.baseNorm || r.base || "Não informado";
+          cont[base] = (cont[base] || 0) + 1;
+        });
+
+        const bases  = Object.entries(cont).sort(function (a, b) { return b[1] - a[1]; });
+        const labels = bases.map(function (b) { return b[0]; });
+        const values = bases.map(function (b) { return b[1]; });
+
+        // ── Gráfico de barras horizontal ───────────────────────
+        destruirChart("basesRegiao");
+        if (bases.length) {
+          charts["basesRegiao"] = new Chart(document.getElementById("chartBasesRegiao"), {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [{
+                data: values,
+                backgroundColor: labels.map(function (_, i) { return CORES_PAL[i % CORES_PAL.length] + "bb"; }),
+                borderColor:     labels.map(function (_, i) { return CORES_PAL[i % CORES_PAL.length]; }),
+                borderWidth: 1,
+                borderRadius: 4,
+              }]
+            },
+            options: {
+              indexAxis: "y",
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { grid: { color: GC }, ticks: { color: GT, font: { family: "Barlow", size: 11 } } },
+                y: { grid: { color: "transparent" }, ticks: { color: GT, font: { family: "Barlow", size: 11 } } }
+              }
+            }
+          });
+        }
+
+        // ── Lista com barra de progresso ───────────────────────
+        const listEl = document.getElementById("listBasesRegiao");
+        if (!bases.length) { listEl.innerHTML = ""; return; }
+        const max = bases[0][1];
+        listEl.innerHTML = bases.map(function ([base, cnt]) {
+          const pct = Math.round((cnt / max) * 100);
+          return '<div class="base-item">' +
+            '<span class="base-nome">' + base + '</span>' +
+            '<div class="base-bar-wrap"><div class="base-bar-fill" style="width:' + pct + '%"></div></div>' +
+            '<span class="base-count">' + cnt + '</span>' +
+          '</div>';
+        }).join("");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Ranking de linhas
+      // ─────────────────────────────────────────────────────────
+      function _fmtLinha(raw) {
+        if (!raw) return raw;
+        const parts = raw.split("|");
+        if (parts.length < 2) return raw;
+        return parts.slice(1).join(" — ");
+      }
+
+      function renderRankingLinhas(regs) {
+        const cont = {};
+        regs.forEach(function (r) {
+          const linha = (r.linha || "").trim();
+          if (!linha) return;
+          if (!cont[linha]) cont[linha] = { ocorrencias: 0, locais: new Set() };
+          cont[linha].ocorrencias++;
+          cont[linha].locais.add(r.idLocal || r.local);
+        });
+
+        const sorted = Object.entries(cont)
+          .sort(function (a, b) { return b[1].ocorrencias - a[1].ocorrencias; })
+          .slice(0, 20);
+
+        const titulo = document.getElementById("linhasTitulo");
+        const tbody  = document.getElementById("linhasBody");
+        if (!tbody) return;
+
+        if (!sorted.length) {
+          if (titulo) titulo.textContent = "Ranking de linhas com mais paradas irregulares";
+          tbody.innerHTML = '<tr><td colspan="4" class="estado-vazio">Nenhum dado de linha no período</td></tr>';
+          return;
+        }
+
+        if (titulo) titulo.textContent = "Ranking de linhas — top " + sorted.length + " com mais paradas irregulares";
+
+        tbody.innerHTML = sorted.map(function ([linha, d], i) {
+          return '<tr>' +
+            '<td><strong style="color:var(--laranja)">' + (i + 1) + '</strong></td>' +
+            '<td><strong>' + _fmtLinha(linha) + '</strong></td>' +
+            '<td>' + d.ocorrencias + '</td>' +
+            '<td>' + d.locais.size + '</td>' +
+          '</tr>';
+        }).join("");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Tabela histórico
+      // ─────────────────────────────────────────────────────────
+      function filtrarTabela() {
+        const tLocal    = document.getElementById("tLocal").value.toLowerCase();
+        const tMot      = document.getElementById("tMotorista").value.toLowerCase();
+        const tBase     = document.getElementById("tBase").value.toLowerCase();
+
+        tabelaFiltrada = registrosFiltrados.filter(function(r) {
+          if (tLocal  && !r.local.toLowerCase().includes(tLocal))        return false;
+          if (tMot    && !r.motorista.toLowerCase().includes(tMot))      return false;
+          if (tBase   && !r.base.toLowerCase().includes(tBase))          return false;
+          return true;
+        });
+        pagAtual = 1;
+        renderTabelaHistorico();
+      }
+
+      function renderTabelaHistorico() {
+        const tbody   = document.getElementById("histBody");
+        const total   = tabelaFiltrada.length;
+        const totalPags = Math.max(1, Math.ceil(total / LINHAS_PAG));
+        pagAtual = Math.min(pagAtual, totalPags);
+
+        const ini  = (pagAtual - 1) * LINHAS_PAG;
+        const page = tabelaFiltrada.slice(ini, ini + LINHAS_PAG);
+
+        if (!page.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="estado-vazio">Nenhum registro encontrado</td></tr>';
+        } else {
+          tbody.innerHTML = page.map(function(r) {
+            return '<tr>' +
+              '<td>' + fmtDataBR(r.data) + '</td>' +
+              '<td style="color:var(--texto)">' + (r.descResumida || r.local) + '</td>' +
+              '<td>' + (r.regiao || "—") + '</td>' +
+              '<td>' + r.motorista + '</td>' +
+              '<td>' + r.carro + '</td>' +
+              '<td>' + (r.base || "—") + '</td>' +
+              '</tr>';
+          }).join("");
+        }
+
+        document.getElementById("pagInfo").textContent =
+          total + " registro" + (total !== 1 ? "s" : "") + " · Página " + pagAtual + " de " + totalPags;
+        document.getElementById("pagAnterior").disabled = pagAtual <= 1;
+        document.getElementById("pagProximo").disabled  = pagAtual >= totalPags;
+      }
+
+      function mudarPagina(delta) {
+        pagAtual += delta;
+        renderTabelaHistorico();
+        window.scrollTo({ top: document.getElementById("histBody").parentElement.parentElement.offsetTop - 20, behavior: "smooth" });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Modo apresentação
+      // ─────────────────────────────────────────────────────────
+      function abrirModoApresentacao() {
+        const url = webAppBaseUrl ? webAppBaseUrl + "?view=apresentacao" : "?view=apresentacao";
+        window.open(url, "_blank");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Utils
+      // ─────────────────────────────────────────────────────────
+      function fmtDataBR(iso) {
+        if (!iso) return "—";
+        const parts = iso.split("-");
+        if (parts.length === 3) return parts[2] + "/" + parts[1] + "/" + parts[0];
+        return iso;
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Detecção Automática — Rastreamento
+      // ─────────────────────────────────────────────────────────
+      function _normDet(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase().trim().replace(/\s+/g, " ");
+      }
+
+      function _parseDurSeg(str) {
+        var p = String(str || "").trim().split(":");
+        if (p.length !== 3) return 0;
+        return parseInt(p[0] || 0) * 3600 + parseInt(p[1] || 0) * 60 + parseInt(p[2] || 0);
+      }
+
+      function _fmtHM(dtStr) {
+        if (!dtStr) return "—";
+        var m = String(dtStr).match(/(\d{2}:\d{2})(?::\d{2})?/);
+        return m ? m[1] : dtStr;
+      }
+
+      function handleDeteccaoDrop(evt) {
+        evt.preventDefault();
+        var file = evt.dataTransfer.files[0];
+        if (file) processarArquivo(file);
+      }
+
+      function handleDeteccaoUpload(evt) {
+        var file = evt.target.files[0];
+        evt.target.value = "";
+        if (file) processarArquivo(file);
+      }
+
+      function processarArquivo(file) {
+        var statusEl = document.getElementById("detStatus");
+        var resultEl = document.getElementById("detResult");
+        statusEl.innerHTML = '<span class="det-spinner"></span> Analisando <strong>' + file.name + '</strong>...';
+        resultEl.innerHTML = "";
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            var rows = _parseCSVRastr(e.target.result);
+            var lista = _detectarIrregulares(rows);
+            _renderDeteccao(lista);
+          } catch(ex) {
+            statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
+          }
+        };
+        reader.readAsText(file, "windows-1252");
+      }
+
+      function _parseCSVRastr(text) {
+        var lines = text.replace(/\r/g, "").split("\n");
+        if (lines.length < 2) return [];
+
+        function splitCSV(line) {
+          var fields = []; var f = ""; var q = false;
+          for (var i = 0; i < line.length; i++) {
+            var c = line[i];
+            if (c === '"') { q = !q; }
+            else if (c === ',' && !q) { fields.push(f.trim()); f = ""; }
+            else f += c;
+          }
+          fields.push(f.trim());
+          return fields;
+        }
+
+        var header = splitCSV(lines[0]).map(function(h) { return _normDet(h); });
+        var idx = function(terms) {
+          return header.findIndex(function(h) { return terms.some(function(t) { return h.includes(t); }); });
+        };
+
+        var iV = idx(["VEICULO","VECULO","PREFIXO"]);
+        var iP = idx(["PONTO","CONTROLE"]);
+        var iE = idx(["ENTRADA","CHEGADA"]);
+        var iS = idx(["SAIDA","SADA"]);
+        var iD = idx(["PARADA","DURACAO","DURA"]);
+
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var l = lines[i].trim();
+          if (!l) continue;
+          var f = splitCSV(l);
+          rows.push({
+            veiculo: (f[iV] || "").trim(),
+            ponto:   (f[iP] || "").trim(),
+            entrada: (f[iE] || "").trim(),
+            saida:   (f[iS] || "").trim(),
+            parada:  (f[iD] || "").trim(),
+          });
+        }
+        return rows;
+      }
+
+      function _detectarIrregulares(rows) {
+        var MIN = 5 * 60;
+        var lista = [];
+
+        rows.forEach(function(r) {
+          var seg = _parseDurSeg(r.parada);
+          if (seg <= MIN || !r.ponto) return;
+
+          var normPonto = _normDet(r.ponto);
+          var pc = null;
+          for (var i = 0; i < todosPCs.length; i++) {
+            var p = todosPCs[i];
+            var nd = _normDet(p.descCompleta || p.descResumida || "");
+            if (!nd) continue;
+            if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) {
+              pc = p; break;
+            }
+          }
+          if (!pc) return;
+
+          lista.push({
+            veiculo:      r.veiculo,
+            ponto:        r.ponto,
+            descResumida: (pc.descResumida || "").trim(),
+            regiao:       pc.regiao || pc.uf || "—",
+            entrada:      r.entrada,
+            saida:        r.saida,
+            parada:       r.parada,
+            seg:          seg,
+          });
+        });
+
+        lista.sort(function(a, b) { return b.seg - a.seg; });
+        return lista;
+      }
+
+      function _renderDeteccao(lista) {
+        var statusEl = document.getElementById("detStatus");
+        var resultEl = document.getElementById("detResult");
+
+        if (!lista.length) {
+          statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma parada irregular identificada.';
+          resultEl.innerHTML = "";
+          return;
+        }
+
+        // Extrai data do arquivo
+        var dataArq = "—";
+        var primeiraEntrada = lista[0] && lista[0].entrada;
+        if (primeiraEntrada) {
+          var dm = String(primeiraEntrada).match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (dm) dataArq = dm[3] + "/" + dm[2] + "/" + dm[1];
+        }
+
+        var nV = new Set(lista.map(function(r) { return r.veiculo; })).size;
+        var nL = new Set(lista.map(function(r) { return r.ponto; })).size;
+
+        statusEl.innerHTML =
+          '<strong style="color:var(--texto2);font-size:12px">' + dataArq + '</strong>' +
+          '&nbsp;&nbsp;<span class="tag">' + lista.length + ' irregular' + (lista.length !== 1 ? 'es' : '') + '</span>' +
+          '&nbsp; <span style="color:var(--texto2)">' + nV + ' veículo' + (nV !== 1 ? 's' : '') + '</span>' +
+          '&nbsp;·&nbsp;<span style="color:var(--texto2)">' + nL + ' local' + (nL !== 1 ? 'is' : '') + '</span>' +
+          '&nbsp;&nbsp;<button class="pag-btn" onclick="copiarDeteccao()" style="font-size:11px;padding:3px 10px;margin-left:4px">⎘ Copiar</button>' +
+          '&nbsp;<span style="color:var(--texto3);font-size:11px">· clique na linha para riscar</span>';
+
+        // Agrupa por veículo, ordena grupos por nº de ocorrências desc
+        var grupos = {};
+        var ordemGrupos = [];
+        lista.forEach(function(r) {
+          if (!grupos[r.veiculo]) { grupos[r.veiculo] = []; ordemGrupos.push(r.veiculo); }
+          grupos[r.veiculo].push(r);
+        });
+        ordemGrupos.sort(function(a, b) { return grupos[b].length - grupos[a].length; });
+
+        var linhasHTML = [];
+        ordemGrupos.forEach(function(veiculo) {
+          var items = grupos[veiculo];
+          linhasHTML.push(
+            '<tr class="det-grupo-header">' +
+            '<td colspan="6">' +
+              'Veículo&ensp;<span style="color:var(--texto)">' + veiculo + '</span>' +
+              '&ensp;<span class="det-grupo-count">· ' + items.length + ' ocorrência' + (items.length !== 1 ? 's' : '') + '</span>' +
+            '</td></tr>'
+          );
+          items.forEach(function(r) {
+            var cor = r.seg >= 30*60 ? 'var(--vermelho)' : r.seg >= 15*60 ? 'var(--amarelo)' : 'var(--laranja)';
+            linhasHTML.push(
+              '<tr style="cursor:pointer" onclick="this.classList.toggle(\'riscado\')">' +
+              '<td><strong class="det-prefixo" style="color:var(--texto)" ' +
+                'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + r.veiculo.replace(/'/g,"") + '\')" ' +
+                'title="Clique para copiar prefixo">' + r.veiculo + '</strong></td>' +
+              '<td style="color:var(--texto);white-space:normal">' +
+                '<div class="det-ponto-wrap">' +
+                  '<span>' + r.ponto + '</span>' +
+                  (r.descResumida ? '<span class="det-copy-desc" onclick="event.stopPropagation();_copiarDesc(this,\'' + r.descResumida.replace(/'/g, "") + '\')" title="Copiar: ' + r.descResumida.replace(/"/g, "") + '">⎘ ' + r.descResumida + '</span>' : '') +
+                '</div>' +
+              '</td>' +
+              '<td style="color:var(--texto2)">' + r.regiao + '</td>' +
+              '<td>' + _fmtHM(r.entrada) + '</td>' +
+              '<td>' + _fmtHM(r.saida) + '</td>' +
+              '<td><span class="dur-tag" style="color:' + cor + ';border-color:' + cor + '">' + r.parada + '</span></td>' +
+              '</tr>'
+            );
+          });
+        });
+
+        resultEl.innerHTML =
+          '<div class="hist-table-wrap">' +
+          '<table class="hist-table" id="detTable">' +
+          '<thead><tr>' +
+          '<th>Veículo</th><th>Ponto de controle</th><th>Região</th>' +
+          '<th>Entrada</th><th>Saída</th><th>Duração</th>' +
+          '</tr></thead><tbody>' +
+          linhasHTML.join("") +
+          '</tbody></table></div>';
+      }
+
+      function _copiarDesc(el, desc) {
+        navigator.clipboard.writeText(desc).then(function() {
+          var orig = el.textContent;
+          el.textContent = "✓ Copiado";
+          el.style.color = "var(--verde)";
+          el.style.borderColor = "var(--verde)";
+          setTimeout(function() {
+            el.textContent = orig;
+            el.style.color = "";
+            el.style.borderColor = "";
+          }, 1500);
+        });
+      }
+
+      function _copiarPrefixo(el, prefixo) {
+        navigator.clipboard.writeText(prefixo).then(function() {
+          var orig = el.textContent;
+          el.textContent = "✓";
+          el.style.color = "var(--verde)";
+          setTimeout(function() {
+            el.textContent = orig;
+            el.style.color = "";
+          }, 1200);
+        });
+      }
+
+      function copiarDeteccao() {
+        var tbl = document.getElementById("detTable");
+        if (!tbl) return;
+        var linhas = Array.from(tbl.querySelectorAll("tr")).map(function(tr) {
+          return Array.from(tr.querySelectorAll("th,td")).map(function(c) { return c.textContent.trim(); }).join("\t");
+        });
+        navigator.clipboard.writeText(linhas.join("\n")).then(function() {
+          var btn = document.querySelector("[onclick='copiarDeteccao()']");
+          if (!btn) return;
+          var orig = btn.textContent;
+          btn.textContent = "✓ Copiado!";
+          setTimeout(function() { btn.textContent = orig; }, 2000);
+        });
+      }
+    </script>
+  </body>
+</html>

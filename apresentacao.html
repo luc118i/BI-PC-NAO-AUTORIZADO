@@ -1,0 +1,2221 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modo Apresentação · BI PC's · Viação Catedral</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      :root {
+        --laranja: #f47920;
+        --laranja2: #e06510;
+        --preto: #080808;
+        --preto2: #101010;
+        --preto3: #181818;
+        --preto4: #222222;
+        --cinza: #2a2a2a;
+        --cinza2: #3a3a3a;
+        --borda: rgba(255, 255, 255, 0.09);
+        --borda2: rgba(255, 255, 255, 0.15);
+        --texto: #ffffff;
+        --texto2: #cccccc;
+        --texto3: #888888;
+        --verde: #22c97a;
+        --vermelho: #e05050;
+        --amarelo: #f0c040;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Barlow", sans-serif;
+        background: var(--preto);
+        color: var(--texto);
+        cursor: default;
+        transition: cursor 0s;
+      }
+      /* Modo idle: cursor e controles somem */
+      body.ui-oculta {
+        cursor: none !important;
+      }
+
+      /* ── TOPBAR ─────────────────────────────────────────── */
+      .topbar {
+        background: var(--laranja);
+        height: 5px;
+      }
+
+      /* ── HEADER ─────────────────────────────────────────── */
+      .ap-header {
+        background: var(--preto2);
+        border-bottom: 1px solid var(--borda2);
+        padding: 10px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+        flex-shrink: 0;
+      }
+      .ap-logo {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .ap-logo-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--laranja);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .ap-logo-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: #fff;
+      }
+      .ap-logo-text h1 {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 22px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #fff;
+        line-height: 1;
+      }
+      .ap-logo-text h1 span {
+        color: var(--laranja);
+      }
+      .ap-logo-text p {
+        font-size: 12px;
+        color: var(--texto3);
+        margin-top: 2px;
+      }
+      .ap-meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .ap-periodo-label {
+        font-size: 13px;
+        color: var(--texto2);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.25);
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-weight: 500;
+      }
+      .ap-badge {
+        font-size: 11px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        background: rgba(34, 201, 122, 0.12);
+        border: 1px solid rgba(34, 201, 122, 0.35);
+        color: var(--verde);
+      }
+      .ap-relogio {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--laranja);
+        letter-spacing: 0.06em;
+        min-width: 90px;
+        text-align: right;
+      }
+
+      /* Botão config */
+      .btn-config {
+        background: transparent;
+        border: 1px solid var(--cinza2);
+        color: var(--texto3);
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-config:hover {
+        border-color: var(--laranja);
+        color: var(--laranja);
+      }
+      .btn-config svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      /* Dots */
+      .ap-indicators {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .ap-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--cinza2);
+        transition: all 0.3s;
+      }
+      .ap-dot.ativo {
+        background: var(--laranja);
+        width: 22px;
+        border-radius: 3px;
+      }
+
+      /* ── SLIDES ─────────────────────────────────────────── */
+      .slide {
+        display: none;
+        height: calc(100vh - 60px - 5px);
+        padding: 20px 32px 14px;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .slide.ativo {
+        display: flex;
+      }
+
+      .slide-titulo {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--texto3);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .slide-titulo::before {
+        content: "";
+        display: inline-block;
+        width: 4px;
+        height: 16px;
+        background: var(--laranja);
+        border-radius: 2px;
+      }
+      .slide-titulo strong {
+        color: var(--texto2);
+      }
+
+      /* ── SLIDE 1 — KPIs ─────────────────────────────────── */
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 14px;
+        flex-shrink: 0;
+      }
+      .kpi-card {
+        background: var(--preto2);
+        border: 1px solid var(--borda);
+        border-radius: 14px;
+        padding: 22px 26px;
+        position: relative;
+        overflow: hidden;
+      }
+      .kpi-stripe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: var(--kpi-c, var(--laranja));
+      }
+      .kpi-label {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--texto3);
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+      .kpi-val {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 72px;
+        font-weight: 900;
+        color: var(--kpi-c, #fff);
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .kpi-sub {
+        font-size: 14px;
+        color: var(--texto3);
+        margin-top: 8px;
+      }
+
+      .kpi-extra-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+      }
+      .kpi-extra-card {
+        background: var(--preto2);
+        border: 1px solid var(--borda);
+        border-radius: 14px;
+        padding: 18px 22px;
+        overflow: hidden;
+      }
+      .kpi-extra-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--texto3);
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .kpi-extra-label::before {
+        content: "";
+        display: inline-block;
+        width: 3px;
+        height: 13px;
+        background: var(--laranja);
+        border-radius: 2px;
+      }
+      .kpi-extra-list {
+        list-style: none;
+      }
+      .kpi-extra-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--borda);
+      }
+      .kpi-extra-item:last-child {
+        border-bottom: none;
+      }
+      .kpi-extra-nome {
+        font-size: 17px;
+        font-weight: 600;
+        color: #fff;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .kpi-extra-cnt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--laranja);
+        flex-shrink: 0;
+      }
+
+      /* ── SLIDES DE RANK (texto grande, sem gráfico) ──────── */
+      .tv-rank-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .tv-rank-col {
+        background: var(--preto2);
+        border: 1px solid var(--borda);
+        border-radius: 14px;
+        padding: 18px 22px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .tv-rank-col-title {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--texto3);
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .tv-rank-col-title::before {
+        content: "";
+        display: inline-block;
+        width: 3px;
+        height: 13px;
+        background: var(--laranja);
+        border-radius: 2px;
+      }
+      .tv-rank-list {
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .tv-rank-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--borda);
+      }
+      .tv-rank-item:last-child {
+        border-bottom: none;
+      }
+      .tv-rank-pos {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--texto3);
+        min-width: 30px;
+        text-align: center;
+      }
+      .tv-rank-pos.top3 {
+        color: var(--laranja);
+      }
+      .tv-rank-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .tv-rank-nome {
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+      }
+      .tv-rank-sub {
+        font-size: 13px;
+        color: var(--texto3);
+        margin-top: 2px;
+      }
+      .tv-rank-cnt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        border-radius: 8px;
+        padding: 4px 12px;
+        flex-shrink: 0;
+      }
+
+      /* ── SLIDE MAPA ─────────────────────────────────────── */
+      #mapaWrapper {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+        border-radius: 12px;
+        overflow: hidden; /* clip mapa */
+      }
+      #mapaApres {
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+      }
+      /* Botões de zoom */
+      #mapaZoomControls {
+        position: absolute;
+        bottom: 18px;
+        right: 18px;
+        z-index: 700;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: all;
+        opacity: 1;
+        transition: opacity 0.6s ease;
+      }
+      body.ui-oculta #mapaZoomControls {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #mapaZoomControls button {
+        width: 42px;
+        height: 42px;
+        background: rgba(20, 20, 20, 0.88);
+        border: 1.5px solid rgba(255,255,255,0.18);
+        border-radius: 10px;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+        transition: background 0.15s, border-color 0.15s, transform 0.1s;
+        font-family: "Barlow Condensed", sans-serif;
+        letter-spacing: 0;
+      }
+      #mapaZoomControls button:hover {
+        background: var(--laranja);
+        border-color: var(--laranja);
+        transform: scale(1.08);
+      }
+      #mapaZoomControls button:active {
+        transform: scale(0.95);
+      }
+
+      /* Cards organizados flutuando acima do mapa */
+      #mapaCardsOverlay {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        z-index: 700;
+        pointer-events: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        align-items: flex-end;
+      }
+      /* SVG de linhas guia */
+      #mapaSvgOverlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 600;
+        overflow: visible;
+      }
+      /* Card individual */
+      .mapa-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #f47920;
+        border-radius: 10px;
+        padding: 7px 13px 8px;
+        border: 1px solid rgba(255,255,255,0.18);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.65);
+        min-width: 68px;
+      }
+      .mapa-card.t1 {
+        background: #c94e00;
+        box-shadow: 0 0 0 2.5px rgba(255,255,255,0.30), 0 6px 22px rgba(0,0,0,0.75);
+      }
+      .mapa-card.t2 {
+        background: #e06810;
+        box-shadow: 0 0 0 1.5px rgba(255,255,255,0.16), 0 5px 16px rgba(0,0,0,0.65);
+      }
+      .mc-rank {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.55);
+        letter-spacing: 0.06em;
+        line-height: 1;
+        margin-bottom: 2px;
+      }
+      .mc-nome {
+        font-family: "Barlow", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.92);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 110px;
+        text-align: center;
+        line-height: 1.25;
+        margin-bottom: 1px;
+      }
+      .mc-num {
+        font-family: "Barlow Condensed", sans-serif;
+        font-weight: 900;
+        color: #fff;
+        line-height: 1;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.45);
+        text-align: center;
+      }
+      .leaflet-tile-pane {
+        filter: brightness(0.75) saturate(0.4);
+      }
+      .leaflet-popup-content-wrapper {
+        background: #161616;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      }
+      .leaflet-popup-tip {
+        background: #161616;
+      }
+      .leaflet-popup-content {
+        font-family: "Barlow", sans-serif;
+        font-size: 13px;
+        margin: 12px 16px;
+      }
+      .popup-nome {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--laranja);
+        margin-bottom: 6px;
+      }
+      .popup-linha {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: #aaa;
+        margin-top: 3px;
+      }
+      .popup-val {
+        font-weight: 700;
+        color: #fff;
+      }
+
+      /* Bandeirinhas TV */
+      .flag-tv {
+        position: relative;
+      }
+      .flag-tv-body {
+        background: var(--laranja);
+        border-radius: 8px 8px 8px 0;
+        padding: 6px 10px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+        min-width: 80px;
+      }
+      .flag-tv-nome {
+        font-family: "Barlow", sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+        line-height: 1.2;
+        margin-bottom: 2px;
+      }
+      .flag-tv-cnt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 26px;
+        font-weight: 900;
+        color: #fff;
+        line-height: 1;
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+      .flag-tv-pole {
+        width: 3px;
+        height: 22px;
+        background: var(--laranja);
+        border-radius: 0 0 2px 2px;
+        margin-left: 10px;
+      }
+
+      /* ── SLIDE FREQUÊNCIA ───────────────────────────────── */
+      .freq-tv-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .freq-tv-col {
+        background: var(--preto2);
+        border: 1px solid var(--borda);
+        border-radius: 14px;
+        padding: 18px 22px;
+        overflow: hidden;
+      }
+      .freq-tv-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--borda);
+      }
+      .freq-tv-item:last-child {
+        border-bottom: none;
+      }
+      .freq-tv-pos {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 18px;
+        font-weight: 900;
+        color: var(--texto3);
+        min-width: 26px;
+        text-align: center;
+      }
+      .freq-tv-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .freq-tv-mot {
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .freq-tv-loc {
+        font-size: 13px;
+        color: var(--texto3);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+      }
+      .freq-tv-cnt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 26px;
+        font-weight: 900;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        border-radius: 7px;
+        padding: 3px 12px;
+        flex-shrink: 0;
+      }
+
+      /* ── SLIDE BASES POR REGIÃO ─────────────────────────── */
+      .bases-tv-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .bases-tv-card {
+        background: var(--preto2);
+        border: 1px solid var(--borda);
+        border-radius: 14px;
+        padding: 18px 22px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .bases-tv-regiao {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 20px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--laranja);
+        margin-bottom: 6px;
+      }
+      .bases-tv-total {
+        font-size: 13px;
+        color: var(--texto3);
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--borda);
+      }
+      .bases-tv-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .bases-tv-item:last-child {
+        border-bottom: none;
+      }
+      .bases-tv-nome {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--texto2);
+        flex: 1;
+      }
+      .bases-tv-cnt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 22px;
+        font-weight: 800;
+        color: #fff;
+      }
+
+      /* ── BARRA PROGRESSO ────────────────────────────────── */
+      .progress-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        height: 4px;
+        background: var(--laranja);
+        opacity: 0.75;
+        pointer-events: none;
+      }
+
+      /* ── HINT NAVEGAÇÃO ─────────────────────────────────── */
+      .nav-hint {
+        position: fixed;
+        bottom: 12px;
+        right: 16px;
+        font-size: 11px;
+        color: var(--texto3);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.6s ease;
+      }
+      body.ui-oculta .nav-hint {
+        opacity: 0;
+      }
+      .nav-key {
+        background: var(--preto3);
+        border: 1px solid var(--cinza2);
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-size: 10px;
+        color: var(--texto3);
+        font-family: monospace;
+      }
+
+      /* ══════════════════════════════════════════════════════
+         MODAL DE CONFIGURAÇÃO
+         ══════════════════════════════════════════════════════ */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(5px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-overlay.oculto {
+        display: none;
+      }
+      .modal-box {
+        background: var(--preto2);
+        border: 1px solid var(--borda2);
+        border-radius: 16px;
+        width: 500px;
+        max-width: calc(100vw - 40px);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+        cursor: default;
+      }
+      .modal-header {
+        background: var(--preto3);
+        border-bottom: 1px solid var(--borda);
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .modal-icon {
+        width: 36px;
+        height: 36px;
+        background: var(--laranja);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-icon svg {
+        width: 18px;
+        height: 18px;
+        fill: #fff;
+      }
+      .modal-title {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 20px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #fff;
+      }
+      .modal-sub {
+        font-size: 12px;
+        color: var(--texto3);
+        margin-top: 2px;
+      }
+      .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--texto3);
+        font-size: 22px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        line-height: 1;
+      }
+      .modal-close:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .modal-body {
+        padding: 24px;
+      }
+      .modal-section-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--texto3);
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+      .modal-atalhos {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+      }
+      .atalho-btn {
+        font-family: "Barlow", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid var(--cinza2);
+        background: transparent;
+        color: var(--texto2);
+        transition: all 0.15s;
+      }
+      .atalho-btn:hover {
+        border-color: var(--laranja);
+        color: var(--laranja);
+      }
+      .atalho-btn.ativo {
+        border-color: var(--laranja);
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.12);
+      }
+      .modal-divider {
+        height: 1px;
+        background: var(--borda);
+        margin: 0 0 20px;
+      }
+      .modal-datas {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+      .modal-field label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--texto3);
+        font-weight: 700;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .modal-field input[type="date"] {
+        width: 100%;
+        background: var(--preto3);
+        border: 1px solid var(--cinza2);
+        border-radius: 8px;
+        color: #fff;
+        font-family: "Barlow", sans-serif;
+        font-size: 14px;
+        padding: 10px 14px;
+        outline: none;
+        color-scheme: dark;
+        transition: border-color 0.15s;
+      }
+      .modal-field input[type="date"]:focus {
+        border-color: var(--laranja);
+      }
+      .modal-field input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.6) sepia(1) saturate(3) hue-rotate(330deg);
+        cursor: pointer;
+      }
+      .vel-opcoes {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 22px;
+      }
+      .vel-btn {
+        font-family: "Barlow", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid var(--cinza2);
+        background: transparent;
+        color: var(--texto2);
+        transition: all 0.15s;
+      }
+      .vel-btn:hover {
+        border-color: var(--laranja);
+        color: var(--laranja);
+      }
+      .vel-btn.ativo {
+        border-color: var(--laranja);
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.12);
+      }
+      .modal-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding-top: 4px;
+      }
+      .btn-iniciar {
+        font-family: "Barlow", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 11px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: var(--laranja);
+        color: #fff;
+        border: none;
+        transition: background 0.15s;
+        letter-spacing: 0.02em;
+      }
+      .btn-iniciar:hover {
+        background: var(--laranja2);
+      }
+      .btn-cancelar {
+        font-family: "Barlow", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 11px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: transparent;
+        color: var(--texto2);
+        border: 1px solid var(--cinza2);
+        transition: all 0.15s;
+      }
+      .btn-cancelar:hover {
+        border-color: var(--texto2);
+        color: #fff;
+      }
+      .btn-cancelar.oculto {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar"></div>
+
+    <!-- HEADER -->
+    <div class="ap-header">
+      <div class="ap-logo">
+        <div class="ap-logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+            />
+          </svg>
+        </div>
+        <div class="ap-logo-text">
+          <h1>Viação <span>Catedral</span></h1>
+          <p>PC's Não Autorizados · Modo Apresentação</p>
+        </div>
+      </div>
+      <div class="ap-meta">
+        <div class="ap-indicators" id="apDots"></div>
+        <div class="ap-periodo-label" id="apPeriodoLabel">—</div>
+        <div class="ap-badge" id="apBadge">⏳ Carregando</div>
+        <button
+          class="btn-config"
+          title="Configurações (S)"
+          onclick="abrirModal()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+            />
+          </svg>
+        </button>
+        <div class="ap-relogio" id="apRelogio">00:00:00</div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 0: KPIs ══════════════════════════════════════ -->
+    <div class="slide ativo" id="slide0">
+      <div class="slide-titulo" id="tituloSlide0">Resumo do período</div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--kpi-c: var(--laranja)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Total de visitas</div>
+          <div class="kpi-val" id="apKTotal">—</div>
+          <div class="kpi-sub">registros no período</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--amarelo)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Locais únicos</div>
+          <div class="kpi-val" id="apKLocais">—</div>
+          <div class="kpi-sub">PCs diferentes visitados</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Motoristas</div>
+          <div class="kpi-val" id="apKMotoristas">—</div>
+          <div class="kpi-sub">envolvidos no período</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--verde)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Base mais ativa</div>
+          <div
+            class="kpi-val"
+            id="apKBase"
+            style="font-size: 34px; padding-top: 10px"
+          >
+            —
+          </div>
+          <div class="kpi-sub" id="apKBaseSub">—</div>
+        </div>
+      </div>
+      <div class="kpi-extra-row">
+        <div class="kpi-extra-card">
+          <div class="kpi-extra-label">Top 5 locais</div>
+          <ul class="kpi-extra-list" id="kpiTopLocais"></ul>
+        </div>
+        <div class="kpi-extra-card">
+          <div class="kpi-extra-label">Top 5 motoristas</div>
+          <ul class="kpi-extra-list" id="kpiTopMotoristas"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 1: Rank Locais + Rank Motoristas (texto) ═════ -->
+    <div class="slide" id="slide1">
+      <div class="slide-titulo">Ranking — locais e motoristas</div>
+      <div class="tv-rank-grid">
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Top 10 locais mais visitados</div>
+          <div class="tv-rank-list" id="tvRankLocais"></div>
+        </div>
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Top 10 motoristas</div>
+          <div class="tv-rank-list" id="tvRankMotoristas"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 2: Mapa ══════════════════════════════════════ -->
+    <div class="slide" id="slide2">
+      <div class="slide-titulo">Mapa do Brasil — locais não autorizados</div>
+      <div id="mapaWrapper">
+        <div id="mapaApres"></div>
+        <div id="mapaCardsOverlay"></div>
+        <svg id="mapaSvgOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        <!-- Controles de zoom -->
+        <div id="mapaZoomControls">
+          <button id="btnZoomIn"  title="Aproximar">+</button>
+          <button id="btnZoomOut" title="Afastar">−</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 3: Ranking Motoristas detalhado (texto) ══════ -->
+    <div class="slide" id="slide3">
+      <div class="slide-titulo">Ranking detalhado de motoristas</div>
+      <div class="tv-rank-grid">
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Posições 1–10</div>
+          <div class="tv-rank-list" id="tvRankMot1"></div>
+        </div>
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Posições 11–20</div>
+          <div class="tv-rank-list" id="tvRankMot2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 4: Painel de Frequência ═════════════════════ -->
+    <div class="slide" id="slide4">
+      <div class="slide-titulo">Painel de frequência — motorista × local</div>
+      <div class="freq-tv-grid">
+        <div class="freq-tv-col">
+          <div class="tv-rank-col-title">Posições 1–12</div>
+          <div id="tvFreq1"></div>
+        </div>
+        <div class="freq-tv-col">
+          <div class="tv-rank-col-title">Posições 13–24</div>
+          <div id="tvFreq2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 5: Ocorrências por Base ════════════════════ -->
+    <div class="slide" id="slide5">
+      <div class="slide-titulo">Ocorrências por base operacional</div>
+      <div class="bases-tv-grid" id="tvBasesRegiao"></div>
+    </div>
+
+    <!-- ══ SLIDE 6: Ranking de Linhas ═══════════════════════ -->
+    <div class="slide" id="slide6">
+      <div class="slide-titulo">Ranking de linhas com mais paradas irregulares</div>
+      <div class="tv-rank-grid" id="tvLinhasGrid">
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Posições 1–10</div>
+          <div class="tv-rank-list" id="tvLinhas1"></div>
+        </div>
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Posições 11–20</div>
+          <div class="tv-rank-list" id="tvLinhas2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra progresso -->
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+
+    <!-- Hint navegação -->
+    <div class="nav-hint">
+      <span class="nav-key">←</span><span class="nav-key">→</span> navegar
+      &nbsp;·&nbsp; <span class="nav-key">clique</span> avançar &nbsp;·&nbsp;
+      <span class="nav-key">S</span> configurar
+    </div>
+
+    <!-- ══════════════ MODAL ══════════════════════════════════ -->
+    <div class="modal-overlay" id="modalConfig">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <div class="modal-icon">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                />
+              </svg>
+            </div>
+            <div>
+              <div class="modal-title">Configurar apresentação</div>
+              <div class="modal-sub">
+                Defina o período e a velocidade dos slides
+              </div>
+            </div>
+          </div>
+          <button
+            class="modal-close"
+            id="modalCloseBtn"
+            onclick="fecharModal()"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-section-label">Período rápido</div>
+          <div class="modal-atalhos">
+            <button
+              class="atalho-btn ativo"
+              id="atalho-mes"
+              onclick="aplicarAtalho('mes')"
+            >
+              Mês corrente
+            </button>
+            <button
+              class="atalho-btn"
+              id="atalho-mesant"
+              onclick="aplicarAtalho('mesant')"
+            >
+              Mês anterior
+            </button>
+            <button
+              class="atalho-btn"
+              id="atalho-7d"
+              onclick="aplicarAtalho('7d')"
+            >
+              Últimos 7 dias
+            </button>
+            <button
+              class="atalho-btn"
+              id="atalho-30d"
+              onclick="aplicarAtalho('30d')"
+            >
+              Últimos 30 dias
+            </button>
+            <button
+              class="atalho-btn"
+              id="atalho-custom"
+              onclick="aplicarAtalho('custom')"
+            >
+              Personalizado
+            </button>
+          </div>
+          <div class="modal-divider"></div>
+          <div class="modal-datas">
+            <div class="modal-field">
+              <label>Data inicial</label>
+              <input type="date" id="modalIni" onchange="marcarCustom()" />
+            </div>
+            <div class="modal-field">
+              <label>Data final</label>
+              <input type="date" id="modalFim" onchange="marcarCustom()" />
+            </div>
+          </div>
+          <div class="modal-section-label">Tempo por slide</div>
+          <div class="vel-opcoes">
+            <button class="vel-btn" id="vel-30" onclick="setVelocidade(30000)">
+              30 seg
+            </button>
+            <button
+              class="vel-btn ativo"
+              id="vel-60"
+              onclick="setVelocidade(60000)"
+            >
+              1 min
+            </button>
+            <button class="vel-btn" id="vel-90" onclick="setVelocidade(90000)">
+              1,5 min
+            </button>
+            <button
+              class="vel-btn"
+              id="vel-120"
+              onclick="setVelocidade(120000)"
+            >
+              2 min
+            </button>
+          </div>
+          <div class="modal-footer">
+            <button
+              class="btn-cancelar oculto"
+              id="btnCancelarModal"
+              onclick="fecharModal()"
+            >
+              Cancelar
+            </button>
+            <button class="btn-iniciar" onclick="confirmarConfig()">
+              ▶ Iniciar apresentação
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ═══════════════════════════════════════════════════════
+      //  Estado
+      // ═══════════════════════════════════════════════════════
+      let registros = [];
+      let todosPCs = [];
+      let slideAtual = 0;
+      const TOTAL_SLIDES = 7;
+
+      let DURACAO_SLIDE = 60000;
+      const REFRESH_MS = 15 * 60 * 1000;
+
+      let chartsApres = {};
+      let mapaApres = null;
+      let mapaLayer = null;
+      let progressTimer = null;
+      let progressStart = null;
+      let slideTimer = null;
+      let isPaused = false;
+      let cfgIni = "",
+        cfgFim = "";
+
+      const CORES = [
+        "#f47920",
+        "#3b82c4",
+        "#22c97a",
+        "#f0c040",
+        "#e05050",
+        "#8b5cf6",
+        "#38bdf8",
+        "#ec4899",
+        "#a3e635",
+        "#fb923c",
+      ];
+
+      // ═══════════════════════════════════════════════════════
+      //  Boot
+      // ═══════════════════════════════════════════════════════
+      window.onload = function () {
+        iniciarRelogio();
+        iniciarDots();
+        iniciarMapaApres();
+        aplicarAtalho("mes");
+        setVelocidade(60000);
+        registrarNavegacao();
+        abrirModal(true);
+      };
+
+      // ═══════════════════════════════════════════════════════
+      //  Idle: esconde cursor + controles após 3 s sem mover
+      // ═══════════════════════════════════════════════════════
+      (function () {
+        var idleTimer = null;
+        var IDLE_MS = 3000; // 3 segundos parado → some
+
+        function mostrarUI() {
+          document.body.classList.remove("ui-oculta");
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(esconderUI, IDLE_MS);
+        }
+
+        function esconderUI() {
+          document.body.classList.add("ui-oculta");
+        }
+
+        document.addEventListener("mousemove", mostrarUI);
+        document.addEventListener("mousedown", mostrarUI);
+
+        // Inicia já no modo idle (TV não tem mouse)
+        idleTimer = setTimeout(esconderUI, IDLE_MS);
+      })();
+
+      // ═══════════════════════════════════════════════════════
+      //  Navegação por teclado e clique
+      // ═══════════════════════════════════════════════════════
+      function registrarNavegacao() {
+        // Teclado
+        document.addEventListener("keydown", function (e) {
+          if (isPaused) return;
+          if (
+            e.key === "ArrowRight" ||
+            e.key === "ArrowDown" ||
+            e.key === " "
+          ) {
+            e.preventDefault();
+            avancarSlide();
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            voltarSlide();
+          } else if (e.key === "s" || e.key === "S") {
+            abrirModal(false);
+          }
+        });
+
+        // Clique em qualquer lugar (exceto modal, header **e mapa**)
+        document.addEventListener("click", function (e) {
+          if (isPaused) return;
+
+          if (
+            e.target.closest("#modalConfig") ||
+            e.target.closest(".ap-header") ||
+            e.target.closest("#mapaApres") // <- ignore cliques no mapa
+          ) {
+            return;
+          }
+
+          avancarSlide();
+        });
+      }
+
+      function avancarSlide() {
+        reiniciarTimer();
+        mostrarSlide((slideAtual + 1) % TOTAL_SLIDES);
+      }
+
+      function voltarSlide() {
+        reiniciarTimer();
+        mostrarSlide((slideAtual - 1 + TOTAL_SLIDES) % TOTAL_SLIDES);
+      }
+
+      function reiniciarTimer() {
+        if (slideTimer) {
+          clearInterval(slideTimer);
+        }
+        slideTimer = setInterval(function () {
+          if (!isPaused) mostrarSlide((slideAtual + 1) % TOTAL_SLIDES);
+        }, DURACAO_SLIDE);
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Relógio
+      // ═══════════════════════════════════════════════════════
+      function iniciarRelogio() {
+        function tick() {
+          const n = new Date();
+          document.getElementById("apRelogio").textContent =
+            String(n.getHours()).padStart(2, "0") +
+            ":" +
+            String(n.getMinutes()).padStart(2, "0") +
+            ":" +
+            String(n.getSeconds()).padStart(2, "0");
+        }
+        tick();
+        setInterval(tick, 1000);
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Dots
+      // ═══════════════════════════════════════════════════════
+      function iniciarDots() {
+        const cont = document.getElementById("apDots");
+        for (let i = 0; i < TOTAL_SLIDES; i++) {
+          const d = document.createElement("div");
+          d.className = "ap-dot" + (i === 0 ? " ativo" : "");
+          d.id = "dot" + i;
+          cont.appendChild(d);
+        }
+      }
+      function atualizarDots(idx) {
+        for (let i = 0; i < TOTAL_SLIDES; i++) {
+          document.getElementById("dot" + i).className =
+            "ap-dot" + (i === idx ? " ativo" : "");
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Rotação
+      // ═══════════════════════════════════════════════════════
+      function mostrarSlide(idx) {
+        document.querySelectorAll(".slide").forEach(function (s, i) {
+          s.classList.toggle("ativo", i === idx);
+        });
+        slideAtual = idx;
+        atualizarDots(idx);
+        if (idx === 2 && mapaApres)
+          setTimeout(function () {
+            mapaApres.invalidateSize();
+            /* Redesenha as linhas guia depois que o mapa recalcular o tamanho */
+            setTimeout(_redesenharLinhasMapa, 200);
+          }, 150);
+        iniciarProgress();
+      }
+
+      function iniciarRotacao() {
+        if (slideTimer) clearInterval(slideTimer);
+        slideTimer = setInterval(function () {
+          if (!isPaused) mostrarSlide((slideAtual + 1) % TOTAL_SLIDES);
+        }, DURACAO_SLIDE);
+        mostrarSlide(0);
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Barra de progresso
+      // ═══════════════════════════════════════════════════════
+      function iniciarProgress() {
+        if (progressTimer) cancelAnimationFrame(progressTimer);
+        progressStart = performance.now();
+        const bar = document.getElementById("progressBar");
+        function passo(now) {
+          if (isPaused) {
+            progressTimer = null;
+            return;
+          }
+          const pct = Math.min(
+            ((now - progressStart) / DURACAO_SLIDE) * 100,
+            100,
+          );
+          bar.style.width = pct + "%";
+          if (pct < 100) progressTimer = requestAnimationFrame(passo);
+        }
+        progressTimer = requestAnimationFrame(passo);
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Modal
+      // ═══════════════════════════════════════════════════════
+      function abrirModal(primeiraVez) {
+        isPaused = true;
+        if (slideTimer) {
+          clearInterval(slideTimer);
+          slideTimer = null;
+        }
+        if (progressTimer) {
+          cancelAnimationFrame(progressTimer);
+          progressTimer = null;
+        }
+        document.getElementById("modalConfig").classList.remove("oculto");
+        document
+          .getElementById("btnCancelarModal")
+          .classList.toggle("oculto", !!primeiraVez);
+        document.getElementById("modalCloseBtn").style.display = primeiraVez
+          ? "none"
+          : "";
+      }
+
+      function fecharModal() {
+        document.getElementById("modalConfig").classList.add("oculto");
+        isPaused = false;
+        if (!slideTimer) {
+          slideTimer = setInterval(function () {
+            if (!isPaused) mostrarSlide((slideAtual + 1) % TOTAL_SLIDES);
+          }, DURACAO_SLIDE);
+          iniciarProgress();
+        }
+      }
+
+      function confirmarConfig() {
+        const ini = document.getElementById("modalIni").value;
+        const fim = document.getElementById("modalFim").value;
+        if (!ini || !fim || ini > fim) {
+          alert("Período inválido.");
+          return;
+        }
+        cfgIni = ini;
+        cfgFim = fim;
+        document.getElementById("modalConfig").classList.add("oculto");
+        isPaused = false;
+        document.getElementById("apBadge").textContent = "⏳ Carregando";
+        carregarDados(cfgIni, cfgFim);
+        setInterval(function () {
+          carregarDados(cfgIni, cfgFim);
+        }, REFRESH_MS);
+      }
+
+      function aplicarAtalho(tipo) {
+        const h = new Date();
+        const a = h.getFullYear();
+        const m = String(h.getMonth() + 1).padStart(2, "0");
+        const d = String(h.getDate()).padStart(2, "0");
+        let ini, fim;
+        if (tipo === "mes") {
+          ini = a + "-" + m + "-01";
+          fim = a + "-" + m + "-" + d;
+        } else if (tipo === "mesant") {
+          const dt = new Date(a, h.getMonth() - 1, 1);
+          const am = String(dt.getMonth() + 1).padStart(2, "0");
+          const aa = dt.getFullYear();
+          const ul = new Date(a, h.getMonth(), 0).getDate();
+          ini = aa + "-" + am + "-01";
+          fim = aa + "-" + am + "-" + String(ul).padStart(2, "0");
+        } else if (tipo === "7d") {
+          const dt = new Date(h);
+          dt.setDate(dt.getDate() - 6);
+          ini =
+            dt.getFullYear() +
+            "-" +
+            String(dt.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(dt.getDate()).padStart(2, "0");
+          fim = a + "-" + m + "-" + d;
+        } else if (tipo === "30d") {
+          const dt = new Date(h);
+          dt.setDate(dt.getDate() - 29);
+          ini =
+            dt.getFullYear() +
+            "-" +
+            String(dt.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(dt.getDate()).padStart(2, "0");
+          fim = a + "-" + m + "-" + d;
+        } else {
+          document
+            .querySelectorAll(".atalho-btn")
+            .forEach((b) => b.classList.remove("ativo"));
+          document.getElementById("atalho-custom").classList.add("ativo");
+          return;
+        }
+        document.getElementById("modalIni").value = ini;
+        document.getElementById("modalFim").value = fim;
+        document
+          .querySelectorAll(".atalho-btn")
+          .forEach((b) => b.classList.remove("ativo"));
+        document.getElementById("atalho-" + tipo).classList.add("ativo");
+      }
+      function marcarCustom() {
+        document
+          .querySelectorAll(".atalho-btn")
+          .forEach((b) => b.classList.remove("ativo"));
+        document.getElementById("atalho-custom").classList.add("ativo");
+      }
+      function setVelocidade(ms) {
+        DURACAO_SLIDE = ms;
+        document
+          .querySelectorAll(".vel-btn")
+          .forEach((b) => b.classList.remove("ativo"));
+        ({
+          30000: "vel-30",
+          60000: "vel-60",
+          90000: "vel-90",
+          120000: "vel-120",
+        })[ms] &&
+          document
+            .getElementById(
+              {
+                30000: "vel-30",
+                60000: "vel-60",
+                90000: "vel-90",
+                120000: "vel-120",
+              }[ms],
+            )
+            .classList.add("ativo");
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Dados
+      // ═══════════════════════════════════════════════════════
+      function carregarDados(ini, fim) {
+        google.script.run
+          .withSuccessHandler(function (jsonPCs) {
+            todosPCs = JSON.parse(jsonPCs || "[]");
+            google.script.run
+              .withSuccessHandler(function (jsonH) {
+                registros = JSON.parse(jsonH || "[]");
+                document.getElementById("apBadge").textContent =
+                  "✓ " + registros.length + " registros";
+                document.getElementById("apPeriodoLabel").textContent =
+                  fmtBR(ini) + " → " + fmtBR(fim);
+                document.getElementById("tituloSlide0").textContent =
+                  "Resumo · " + fmtBR(ini) + " a " + fmtBR(fim);
+                renderizarTudo();
+                if (!slideTimer) iniciarRotacao();
+              })
+              .withFailureHandler(function (e) {
+                document.getElementById("apBadge").textContent = "✗ Erro";
+                console.error(e);
+              })
+              .getDadosBI(ini, fim);
+          })
+          .withFailureHandler(function (e) {
+            console.error(e);
+          })
+          .getPCs();
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Renderização geral
+      // ═══════════════════════════════════════════════════════
+      function renderizarTudo() {
+        renderKPIs();
+        renderRankLocaisMotoristas();
+        renderMapaApres();
+        renderRankingDetalhadoMotoristas();
+        renderFrequenciaTV();
+        renderBasesRegiaoTV();
+        renderRankingLinhasTV();
+      }
+
+      // ─── KPIs (Slide 0) ───────────────────────────────────
+      function renderKPIs() {
+        document.getElementById("apKTotal").textContent = registros.length;
+        document.getElementById("apKLocais").textContent = new Set(
+          registros.map((r) => r.idLocal || r.local),
+        ).size;
+        document.getElementById("apKMotoristas").textContent = new Set(
+          registros.map((r) => r.motorista).filter(Boolean),
+        ).size;
+
+        const cB = {};
+        registros.forEach((r) => {
+          if (r.base) cB[r.base] = (cB[r.base] || 0) + 1;
+        });
+        const top = Object.entries(cB).sort((a, b) => b[1] - a[1])[0];
+        document.getElementById("apKBase").textContent = top ? top[0] : "—";
+        document.getElementById("apKBaseSub").textContent = top
+          ? top[1] + " visita" + (top[1] > 1 ? "s" : "")
+          : "sem dados";
+
+        // Top 5 locais e motoristas no slide 0
+        const cLoc = {},
+          cMot = {};
+        registros.forEach((r) => {
+          const k = r.descResumida || r.local;
+          cLoc[k] = (cLoc[k] || 0) + 1;
+          if (r.motorista) cMot[r.motorista] = (cMot[r.motorista] || 0) + 1;
+        });
+
+        function renderMini(elId, dados) {
+          const el = document.getElementById(elId);
+          const top5 = Object.entries(dados)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+          el.innerHTML = top5.length
+            ? top5
+                .map(
+                  ([n, v]) =>
+                    '<li class="kpi-extra-item"><span class="kpi-extra-nome">' +
+                    n +
+                    '</span><span class="kpi-extra-cnt">' +
+                    v +
+                    "</span></li>",
+                )
+                .join("")
+            : '<li style="color:#555;padding:8px 0;font-size:14px">Sem dados</li>';
+        }
+        renderMini("kpiTopLocais", cLoc);
+        renderMini("kpiTopMotoristas", cMot);
+      }
+
+      // ─── Rank Locais + Motoristas (Slide 1, texto) ────────
+      function renderRankLocaisMotoristas() {
+        const cLoc = {},
+          cMot = {};
+        registros.forEach((r) => {
+          const k = r.descResumida || r.local || "—";
+          cLoc[k] = (cLoc[k] || 0) + 1;
+          if (r.motorista) cMot[r.motorista] = (cMot[r.motorista] || 0) + 1;
+        });
+
+        function renderTVList(elId, dados, top) {
+          const el = document.getElementById(elId);
+          const sorted = Object.entries(dados)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, top);
+          el.innerHTML =
+            sorted
+              .map(function ([nome, cnt], i) {
+                return (
+                  '<div class="tv-rank-item">' +
+                  '<div class="tv-rank-pos' +
+                  (i < 3 ? " top3" : "") +
+                  '">' +
+                  (i + 1) +
+                  "</div>" +
+                  '<div class="tv-rank-info"><div class="tv-rank-nome">' +
+                  nome +
+                  "</div></div>" +
+                  '<div class="tv-rank-cnt">' +
+                  cnt +
+                  "</div>" +
+                  "</div>"
+                );
+              })
+              .join("") ||
+            '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+        }
+        renderTVList("tvRankLocais", cLoc, 10);
+        renderTVList("tvRankMotoristas", cMot, 10);
+      }
+
+      // ─── Mapa ─────────────────────────────────────────────
+      function iniciarMapaApres() {
+        mapaApres = L.map("mapaApres", {
+          center: [-14.2, -51.9],
+          zoom: 4,
+          zoomControl: false,
+          attributionControl: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          attribution: "© OpenStreetMap",
+        }).addTo(mapaApres);
+        mapaApres.fitBounds([
+          [-33.7, -73.9],
+          [5.3, -34.8],
+        ]);
+
+        /* Conectar botões +/- ao mapa */
+        document.getElementById("btnZoomIn").addEventListener("click", function (e) {
+          e.stopPropagation(); // não avança slide
+          mapaApres.zoomIn();
+          setTimeout(_redesenharLinhasMapa, 350);
+        });
+        document.getElementById("btnZoomOut").addEventListener("click", function (e) {
+          e.stopPropagation(); // não avança slide
+          mapaApres.zoomOut();
+          setTimeout(_redesenharLinhasMapa, 350);
+        });
+      }
+
+      /* ── Cache para redesenho de linhas após invalidateSize ── */
+      var _visitadosCache = [];
+      var _contPCCache = {};
+
+      /* ── Tier helper ─────────────────────────────────────── */
+      function _getTier(rank) {
+        if (rank === 0) return 1;
+        if (rank <= 2) return 2;
+        if (rank <= 7) return 3;
+        return 4;
+      }
+      var _TIER_COLORS = { 1: "#c94e00", 2: "#e06810", 3: "#f47920", 4: "#f47920" };
+      var _TIER_NUM_SIZE = { 1: 46, 2: 36, 3: 28, 4: 21 };
+      var _TIER_DOT_R = { 1: 11, 2: 9, 3: 7, 4: 5 };
+
+      function renderMapaApres() {
+        if (!mapaApres) return;
+        if (mapaLayer) mapaLayer.clearLayers();
+        mapaLayer = L.layerGroup().addTo(mapaApres);
+
+        /* Limpar overlays anteriores */
+        var cardsDiv = document.getElementById("mapaCardsOverlay");
+        var svgEl   = document.getElementById("mapaSvgOverlay");
+        if (cardsDiv) cardsDiv.innerHTML = "";
+        if (svgEl)   svgEl.innerHTML = "";
+
+        /* 1. Contagem por PC */
+        var contPC = {};
+        registros.forEach(function (r) {
+          var k = r.idLocal || r.local;
+          if (!contPC[k]) contPC[k] = { visitas: 0, motoristas: new Set() };
+          contPC[k].visitas++;
+          if (r.motorista) contPC[k].motoristas.add(r.motorista);
+        });
+
+        /* 2. Filtrar visitados com coords */
+        var visitados = todosPCs.filter(function (pc) {
+          return pc.lat && pc.lng && contPC[pc.codigo] && contPC[pc.codigo].visitas > 0;
+        });
+        visitados.sort(function (a, b) {
+          return contPC[b.codigo].visitas - contPC[a.codigo].visitas;
+        });
+
+        /* Salvar cache para redesenho */
+        _visitadosCache = visitados;
+        _contPCCache = contPC;
+
+        if (visitados.length === 0) {
+          mapaApres.fitBounds([[-33.7, -73.9], [5.3, -34.8]]);
+          return;
+        }
+
+        /* 3. Dots no mapa — top 10 com cor/tamanho, demais como ponto menor neutro */
+        visitados.slice().reverse().forEach(function (pc, revIdx) {
+          var rank = visitados.length - 1 - revIdx;
+          var isTop10 = rank < 10;
+          var tier = _getTier(rank);
+          var info = contPC[pc.codigo];
+          var v    = info.visitas;
+          var nome = pc.descResumida || pc.descCompleta || pc.codigo;
+          var col  = isTop10 ? _TIER_COLORS[tier] : "#888888";
+          var r    = isTop10 ? _TIER_DOT_R[tier]  : 4;
+
+          var dot = L.circleMarker([pc.lat, pc.lng], {
+            radius: r,
+            fillColor: col,
+            color: isTop10 ? "#ffffff" : "#555555",
+            weight: isTop10 ? 2.5 : 1.5,
+            fillOpacity: isTop10 ? 1 : 0.7,
+            zIndexOffset: rank * 100,
+          });
+          var motStr = [...info.motoristas].slice(0, 5).join("<br>") +
+            (info.motoristas.size > 5 ? "<br><em>+" + (info.motoristas.size - 5) + " outros</em>" : "");
+          dot.bindPopup(
+            '<div class="popup-nome">' + nome + "</div>" +
+            '<div class="popup-linha"><span>' + (pc.uf || "—") + " · " + (pc.regiao || "—") + "</span></div>" +
+            '<div class="popup-linha" style="margin-top:5px"><span>Visitas:</span>' +
+              '<span class="popup-val">' + v + "</span></div>" +
+            '<div class="popup-linha"><span>Motoristas:</span>' +
+              '<span class="popup-val">' + info.motoristas.size + "</span></div>" +
+            '<div style="margin-top:7px;font-size:11px;color:#888;line-height:1.8">' + motStr + "</div>",
+            { maxWidth: 280 }
+          );
+          mapaLayer.addLayer(dot);
+        });
+
+        /* 4. Cards no overlay — apenas top 10 */
+        if (cardsDiv) {
+          visitados.slice(0, 10).forEach(function (pc, rank) {
+            var tier  = _getTier(rank);
+            var v     = contPC[pc.codigo].visitas;
+            var nome  = pc.descResumida || pc.descCompleta || pc.codigo;
+            var maxCh = tier <= 2 ? 14 : 12;
+            var nCurto = nome.length > maxCh ? nome.substring(0, maxCh - 1) + "…" : nome;
+            var card  = document.createElement("div");
+            card.className = "mapa-card t" + tier;
+            card.dataset.rank = String(rank);
+            card.innerHTML =
+              '<div class="mc-rank">#' + (rank + 1) + '</div>' +
+              '<div class="mc-nome">' + nCurto + '</div>' +
+              '<div class="mc-num" style="font-size:' + _TIER_NUM_SIZE[tier] + 'px">' + v + '</div>';
+            cardsDiv.appendChild(card);
+          });
+        }
+
+        /* 5. Zoom focado nos top 10 (padding extra no topo para os cards) */
+        var topZoom = visitados.slice(0, Math.min(10, visitados.length));
+        mapaApres.fitBounds(
+          L.latLngBounds(topZoom.map(function (pc) { return [pc.lat, pc.lng]; })),
+          { paddingTopLeft: [60, 160], paddingBottomRight: [60, 60], maxZoom: 9 }
+        );
+
+        /* 6. Linhas guia após o DOM e o mapa estabilizarem */
+        setTimeout(function () { _redesenharLinhasMapa(); }, 400);
+      }
+
+      /* Redesenha as curvas bezier card → dot no mapa.
+         Chamada também após invalidateSize para reposicionar. */
+      function _redesenharLinhasMapa() {
+        var wrapper  = document.getElementById("mapaWrapper");
+        var svgEl    = document.getElementById("mapaSvgOverlay");
+        var cardsDiv = document.getElementById("mapaCardsOverlay");
+        if (!wrapper || !svgEl || !cardsDiv || !mapaApres) return;
+        svgEl.innerHTML = "";
+
+        var wRect = wrapper.getBoundingClientRect();
+        var mapaEl = document.getElementById("mapaApres");
+        if (!mapaEl) return;
+        var mapaRect = mapaEl.getBoundingClientRect();
+
+        Array.from(cardsDiv.children).forEach(function (card, rank) {
+          if (rank >= _visitadosCache.length) return;
+          var pc = _visitadosCache[rank];
+          if (!pc || !pc.lat || !pc.lng) return;
+
+          /* Posição do fundo-centro do card no espaço do wrapper */
+          var cRect = card.getBoundingClientRect();
+          var cx = cRect.left - wRect.left + cRect.width / 2;
+          var cy = cRect.bottom - wRect.top;
+
+          /* Posição do dot no mapa → converte para espaço do wrapper */
+          var pPx = mapaApres.latLngToContainerPoint([pc.lat, pc.lng]);
+          var mx  = pPx.x + (mapaRect.left - wRect.left);
+          var my  = pPx.y + (mapaRect.top  - wRect.top);
+
+          var tier    = _getTier(rank);
+          var col     = _TIER_COLORS[tier];
+          var opacity = tier === 1 ? 0.90 : tier === 2 ? 0.72 : tier === 3 ? 0.52 : 0.38;
+          var sw      = tier === 1 ? 2.5  : tier === 2 ? 2    : 1.5;
+          var dash    = tier === 1 ? ""   : "6 4";
+
+          /* Curva cúbica: controles verticais para suavidade */
+          var mid = cy + (my - cy) * 0.45;
+          var d   = "M " + cx + " " + cy +
+                    " C " + cx + " " + mid + ", " +
+                            mx + " " + mid + ", " +
+                            mx + " " + my;
+
+          var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("d", d);
+          path.setAttribute("stroke", col);
+          path.setAttribute("stroke-width", String(sw));
+          if (dash) path.setAttribute("stroke-dasharray", dash);
+          path.setAttribute("fill", "none");
+          path.setAttribute("opacity", String(opacity));
+          svgEl.appendChild(path);
+
+          /* Ponto de chegada destacado */
+          var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          dot.setAttribute("cx", String(mx));
+          dot.setAttribute("cy", String(my));
+          dot.setAttribute("r", "4");
+          dot.setAttribute("fill", col);
+          dot.setAttribute("opacity", String(opacity));
+          svgEl.appendChild(dot);
+        });
+      }
+
+      // ─── Ranking detalhado motoristas (Slide 3) ───────────
+      function renderRankingDetalhadoMotoristas() {
+        const map = {};
+        registros.forEach((r) => {
+          if (!r.motorista) return;
+          if (!map[r.motorista])
+            map[r.motorista] = {
+              visitas: 0,
+              locais: new Set(),
+              base: r.base || "",
+              uf: r.uf || "",
+            };
+          map[r.motorista].visitas++;
+          map[r.motorista].locais.add(r.idLocal || r.local);
+        });
+        const sorted = Object.entries(map).sort(
+          (a, b) => b[1].visitas - a[1].visitas,
+        );
+
+        function renderCol(elId, fatia) {
+          const el = document.getElementById(elId);
+          if (!fatia.length) {
+            el.innerHTML =
+              '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+            return;
+          }
+          el.innerHTML = fatia
+            .map(function ([nome, d], i) {
+              return (
+                '<div class="tv-rank-item">' +
+                '<div class="tv-rank-pos' +
+                (i < 3 ? " top3" : "") +
+                '">' +
+                (i + 1) +
+                "</div>" +
+                '<div class="tv-rank-info">' +
+                '<div class="tv-rank-nome">' +
+                nome +
+                "</div>" +
+                '<div class="tv-rank-sub">' +
+                (d.base || "—") +
+                " · " +
+                (d.locais.size !== 1 ? d.locais.size + " locais" : "1 local") +
+                "</div>" +
+                "</div>" +
+                '<div class="tv-rank-cnt">' +
+                d.visitas +
+                "</div>" +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+        renderCol("tvRankMot1", sorted.slice(0, 10));
+        renderCol("tvRankMot2", sorted.slice(10, 20));
+        // Esconde a segunda coluna se não houver motoristas além de 10
+        const col2 = document.getElementById("tvRankMot2");
+        if (col2) col2.closest(".tv-rank-col").style.display = sorted.length > 10 ? "" : "none";
+      }
+
+      // ─── Painel de Frequência (Slide 4) ───────────────────
+      function renderFrequenciaTV() {
+        const pares = {};
+        registros.forEach((r) => {
+          if (!r.motorista) return;
+          const loc = r.descResumida || r.local || "—";
+          const k = r.motorista + "|||" + loc;
+          pares[k] = (pares[k] || 0) + 1;
+        });
+        const sorted = Object.entries(pares).sort((a, b) => b[1] - a[1]);
+
+        function renderFreqCol(elId, fatia) {
+          const el = document.getElementById(elId);
+          if (!fatia.length) {
+            el.innerHTML =
+              '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+            return;
+          }
+          el.innerHTML = fatia
+            .map(function ([chave, freq], i) {
+              const [mot, loc] = chave.split("|||");
+              return (
+                '<div class="freq-tv-item">' +
+                '<div class="freq-tv-pos">' +
+                (i + 1) +
+                "</div>" +
+                '<div class="freq-tv-info">' +
+                '<div class="freq-tv-mot">' +
+                mot +
+                "</div>" +
+                '<div class="freq-tv-loc">' +
+                loc +
+                "</div>" +
+                "</div>" +
+                '<div class="freq-tv-cnt">' +
+                freq +
+                "</div>" +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+
+        const offsetCol2 = Math.ceil(sorted.length / 2);
+        renderFreqCol("tvFreq1", sorted.slice(0, 12));
+        renderFreqCol("tvFreq2", sorted.slice(12, 24));
+      }
+
+      // ─── Ocorrências por Base Operacional (Slide 5) ───────
+      function renderBasesRegiaoTV() {
+        const cont = {};
+        registros.forEach((r) => {
+          const base = r.baseNorm || r.base || "Não informado";
+          cont[base] = (cont[base] || 0) + 1;
+        });
+
+        const bases  = Object.entries(cont).sort((a, b) => b[1] - a[1]);
+        const el     = document.getElementById("tvBasesRegiao");
+
+        if (!bases.length) {
+          el.innerHTML = '<div style="color:#555;padding:40px;font-size:18px;grid-column:1/-1;text-align:center">Sem dados de base</div>';
+          return;
+        }
+
+        const max = bases[0][1];
+        const cols = Math.min(bases.length, 3);
+        el.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+
+        // Distribui bases em até 3 colunas equilibradas
+        const grupos = [[], [], []];
+        bases.forEach(([base, cnt], i) => grupos[i % cols].push([base, cnt]));
+
+        el.innerHTML = grupos.slice(0, cols).map((grupo) => {
+          if (!grupo.length) return "";
+          return '<div class="bases-tv-card">' +
+            grupo.map(([base, cnt]) => {
+              const pct = Math.round((cnt / max) * 100);
+              return '<div class="bases-tv-item" style="flex-direction:column;align-items:flex-start;gap:4px">' +
+                '<div style="display:flex;justify-content:space-between;width:100%">' +
+                  '<span class="bases-tv-nome">' + base + '</span>' +
+                  '<span class="bases-tv-cnt">' + cnt + '</span>' +
+                '</div>' +
+                '<div style="width:100%;height:4px;background:rgba(255,255,255,0.08);border-radius:2px">' +
+                  '<div style="width:' + pct + '%;height:100%;background:var(--laranja);border-radius:2px"></div>' +
+                '</div>' +
+              '</div>';
+            }).join("") +
+          '</div>';
+        }).join("");
+      }
+
+      // ─── Ranking de Linhas (Slide 6) ──────────────────────
+      function _fmtLinha(raw) {
+        if (!raw) return raw;
+        const parts = raw.split("|");
+        if (parts.length < 2) return raw;
+        return parts.slice(1).join(" — ");
+      }
+
+      function renderRankingLinhasTV() {
+        const cont = {};
+        registros.forEach((r) => {
+          const linha = (r.linha || "").trim();
+          if (!linha) return;
+          if (!cont[linha]) cont[linha] = { ocorrencias: 0, locais: new Set() };
+          cont[linha].ocorrencias++;
+          cont[linha].locais.add(r.idLocal || r.local);
+        });
+
+        const sorted = Object.entries(cont)
+          .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias);
+
+        function renderCol(elId, fatia) {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          if (!fatia.length) {
+            el.innerHTML = '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+            return;
+          }
+          el.innerHTML = fatia.map(([linha, d], i) =>
+            '<div class="tv-rank-item">' +
+              '<div class="tv-rank-pos' + (i < 3 ? " top3" : "") + '">' + (i + 1) + '</div>' +
+              '<div class="tv-rank-info">' +
+                '<div class="tv-rank-nome">' + _fmtLinha(linha) + '</div>' +
+                '<div class="tv-rank-sub">' +
+                  (d.locais.size !== 1 ? d.locais.size + " locais distintos" : "1 local") +
+                '</div>' +
+              '</div>' +
+              '<div class="tv-rank-cnt">' + d.ocorrencias + '</div>' +
+            '</div>'
+          ).join("");
+        }
+
+        renderCol("tvLinhas1", sorted.slice(0, 10));
+        renderCol("tvLinhas2", sorted.slice(10, 20));
+        const col2 = document.getElementById("tvLinhas2");
+        if (col2) col2.closest(".tv-rank-col").style.display = sorted.length > 10 ? "" : "none";
+      }
+
+      // ═══════════════════════════════════════════════════════
+      //  Utils
+      // ═══════════════════════════════════════════════════════
+      function fmtBR(iso) {
+        if (!iso) return "—";
+        const p = iso.split("-");
+        return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso;
+      }
+    </script>
+  </body>
+</html>

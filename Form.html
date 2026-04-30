@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_top" />
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-hover: #155ab6;
+    --bg: #f9fafb;
+    --surface: #ffffff;
+    --text: #202124;
+    --muted: #5f6368;
+    --border: #e0e0e0;
+    --radius: 10px;
+    --shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  body {
+    font-family: "Google Sans", "Roboto", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    text-align: center;
+    color: var(--primary);
+  }
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    margin: 14px 0 6px;
+    display: block;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    transition: border 0.2s, box-shadow 0.2s;
+    height: 42px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  input:focus,
+  select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+    outline: none;
+  }
+
+  /* ===== BLOCO INLINE ===== */
+
+  .inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .inline input,
+  .inline select {
+    height: 42px;
+    border-radius: var(--radius);
+    padding: 0 10px;
+  }
+
+  /* Input de ID (menor e sem setinhas) */
+  .inline input[type="number"] {
+    flex: 0 0 60px; /* antes era 75px */
+    max-width: 60px;
+    text-align: center;
+    -moz-appearance: textfield; /* remove setas no Firefox */
+  }
+
+  .inline input[type="number"]::-webkit-inner-spin-button,
+  .inline input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none; /* remove setas no Chrome, Edge e Safari */
+    margin: 0;
+  }
+
+  .inline select {
+    flex: 1;
+  }
+
+  /* ===== BOTÃO ADICIONAR ===== */
+  .add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    width: 42px;
+    height: 42px;
+    font-size: 22px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 0;
+    flex: 0 0 42px;
+  }
+
+
+  .add-btn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25);
+  }
+
+  .add-btn:active {
+    transform: scale(0.96);
+  }
+
+  /* ===== BOTÕES GERAIS (exceto o +) ===== */
+  button:not(.add-btn) {
+    width: 100%;
+    margin-top: 18px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  button:not(.add-btn):hover {
+    background: var(--primary-hover);
+  }
+
+  button:not(.add-btn):active {
+    transform: scale(0.98);
+  }
+
+  /* ===== STATUS ===== */
+  .status {
+    margin-top: 10px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .ok { color: #188038; }
+  .err { color: #d93025; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  /* ===== TRANSIÇÃO ===== */
+  .hidden { display: none; }
+  .fade-in { animation: fadeIn 0.25s ease-in-out; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+  </head>
+
+  <body>
+    <!-- Tela Principal -->
+    <div id="telaPrincipal" class="card fade-in">
+      <h2>Registrar Ocorrência</h2>
+
+      <label>Local</label>
+      <div class="inline">
+        <input id="localIdInput" type="number" placeholder="ID" onblur="buscarLocal()" />
+        <select id="localSelect" onchange="sincronizarIdLocal()">
+          <option value="">Selecione o local...</option>
+        </select>
+      </div>
+
+      <label>Número do carro</label>
+      <input id="carroInput" type="text" placeholder="Ex.: 24614" />
+
+      <label>Motorista</label>
+      <div class="inline">
+        <input id="motoristaIdInput" type="number" placeholder="ID" onblur="buscarMotorista()" />
+        <select id="motoristaSelect" onchange="sincronizarIdMotorista()">
+          <option value="">Selecione o motorista...</option>
+        </select>
+        <button class="add-btn" title="Adicionar motorista" onclick="abrirCadastroMotorista()">+</button>
+      </div>
+
+      <button onclick="salvar()">💾 Salvar ocorrência</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <!-- Tela de Cadastro de Motorista -->
+    <div id="telaCadastroMotorista" class="card hidden fade-in">
+      <h2>➕ Cadastrar Motorista</h2>
+
+      <label>ID do motorista</label>
+      <input id="novoMotoristaId" type="number" placeholder="Ex.: 5028" />
+
+      <label>Nome completo</label>
+      <input id="novoMotoristaNome" type="text" placeholder="Ex.: NILSON LAGO SANTOS" />
+      <label>Base do motorista</label>
+      <select id="novoMotoristaBase">
+        <option value="">Selecione a base...</option>
+      </select>
+
+      <button onclick="salvarMotorista()">💾 Salvar motorista</button>
+      <button style="background:#ccc; color:#333;" onclick="voltarParaPrincipal()">⬅ Voltar</button>
+
+      <div id="statusMotorista" class="status"></div>
+    </div>
+
+    <footer>© Lucas Inacio Monitoramente - Registro de Ocorrências</footer>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      let locaisCache = [], motoristasCache = [];
+
+      google.script.run.withSuccessHandler((locais) => {
+        locaisCache = locais;
+        const sel = $("#localSelect");
+        sel.innerHTML = '<option value="">Selecione o local...</option>';
+        locais.forEach((l) => {
+          const opt = document.createElement("option");
+          opt.value = `${l.id}::${l.nome}`;
+          opt.textContent = l.nome;
+          sel.appendChild(opt);
+        });
+      }).getLocais();
+
+      google.script.run.withSuccessHandler((motoristas) => {
+        motoristasCache = motoristas;
+        const sel = $("#motoristaSelect");
+        sel.innerHTML = '<option value="">Selecione o motorista...</option>';
+        motoristas.forEach((m) => {
+          const opt = document.createElement("option");
+          opt.value = `${m.id}::${m.nome}`;
+          opt.textContent = m.nome;
+          sel.appendChild(opt);
+        });
+      }).getMotoristas();
+
+      // ====== Carregar bases de motorista ======
+      google.script.run
+        .withSuccessHandler((bases) => {
+          const sel = $("#novoMotoristaBase");
+          sel.innerHTML = '<option value="">Selecione a base...</option>';
+          bases.forEach((b) => {
+            const opt = document.createElement("option");
+            opt.value = b.nome;
+            opt.textContent = b.nome;
+            sel.appendChild(opt);
+          });
+        })
+        .withFailureHandler((err) => {
+          const sel = $("#novoMotoristaBase");
+          sel.innerHTML = `<option value="">⚠️ Erro ao carregar bases</option>`;
+          console.error(err.message);
+        })
+        .getBasesMotorista();
+
+
+
+
+
+
+      function buscarLocal() {
+        const id = $("#localIdInput").value.trim();
+        if (!id) return;
+        const local = locaisCache.find((l) => l.id === id);
+        $("#localSelect").value = local ? `${local.id}::${local.nome}` : "";
+      }
+
+      function sincronizarIdLocal() {
+        const val = $("#localSelect").value;
+        if (!val) return;
+        const [id] = val.split("::");
+        $("#localIdInput").value = id;
+      }
+
+      function buscarMotorista() {
+        const id = $("#motoristaIdInput").value.trim();
+        if (!id) return;
+        const mot = motoristasCache.find((m) => m.id === id);
+        $("#motoristaSelect").value = mot ? `${mot.id}::${mot.nome}` : "";
+      }
+
+      function sincronizarIdMotorista() {
+        const val = $("#motoristaSelect").value;
+        if (!val) return;
+        const [id] = val.split("::");
+        $("#motoristaIdInput").value = id;
+      }
+
+      function abrirCadastroMotorista() {
+        $("#telaPrincipal").classList.add("hidden");
+        $("#telaCadastroMotorista").classList.remove("hidden");
+      }
+
+      function voltarParaPrincipal() {
+        $("#telaCadastroMotorista").classList.add("hidden");
+        $("#telaPrincipal").classList.remove("hidden");
+      }
+
+      function salvarMotorista() {
+        const id = $("#novoMotoristaId").value.trim();
+        const nome = $("#novoMotoristaNome").value.trim();
+        const base = $("#novoMotoristaBase").value.trim();
+        const status = $("#statusMotorista");
+
+        if (!id || !nome || !base) {
+          status.textContent = "Preencha ID, Nome e Base do motorista.";
+          status.className = "status err";
+          return;
+        }
+
+
+        google.script.run
+          .withSuccessHandler(() => {
+            status.textContent = "✅ Motorista adicionado com sucesso!";
+            status.className = "status ok";
+            $("#novoMotoristaId").value = "";
+            $("#novoMotoristaNome").value = "";
+            $("#novoMotoristaBase").value = "";
+
+            google.script.run.withSuccessHandler((motoristas) => {
+              motoristasCache = motoristas;
+              const sel = $("#motoristaSelect");
+              sel.innerHTML = '<option value="">Selecione o motorista...</option>';
+              motoristas.forEach((m) => {
+                const opt = document.createElement("option");
+                opt.value = `${m.id}::${m.nome}`;
+                opt.textContent = m.nome;
+                sel.appendChild(opt);
+              });
+            }).getMotoristas();
+          })
+          .withFailureHandler((err) => {
+            status.textContent = err.message || "Erro ao salvar.";
+            status.className = "status err";
+          })
+          .addMotorista({ id, nome, base });
+      }
+
+      function salvar() {
+        const localRaw = $("#localSelect").value;
+        const carro = $("#carroInput").value.trim();
+        const motoristaRaw = $("#motoristaSelect").value;
+        const status = $("#status");
+        status.textContent = "";
+
+        if (!localRaw || !carro || !motoristaRaw) {
+          status.textContent = "Preencha todos os campos obrigatórios.";
+          status.className = "status err";
+          return;
+        }
+
+        const [localId, localNome] = localRaw.split("::");
+        const [motoristaId, motoristaNome] = motoristaRaw.split("::");
+
+        google.script.run
+          .withSuccessHandler(() => {
+            status.textContent = "✅ Registro salvo com sucesso!";
+            status.className = "status ok";
+            $("#carroInput").focus();
+          })
+          .withFailureHandler((err) => {
+            status.textContent = err.message || "Erro ao salvar.";
+            status.className = "status err";
+          })
+          .addOcorrencia({ localId, localNome, carro, motoristaId, motoristaNome });
+      }
+    </script>
+  </body>
+</html>
