@@ -133,6 +133,7 @@ function addOcorrencia(payload) {
     motoristaNome,
     base,
     dataRelatorio,
+    linha,
   } = payload || {};
   if (!localId || !localNome || !carro || !motoristaId || !motoristaNome)
     throw new Error("Preencha todos os campos.");
@@ -151,6 +152,7 @@ function addOcorrencia(payload) {
       "Motorista",
       "Data do Relatório",
       "Base",
+      "Linha",
     ]);
   }
 
@@ -163,6 +165,7 @@ function addOcorrencia(payload) {
     motoristaNome,
     dataRelatorio,
     base ?? "",
+    linha ?? "",
   ]);
 
   return { ok: true };
@@ -224,6 +227,7 @@ function doPost(e) {
       motoristaNome: payload.motoristaNome,
       base: payload.base,
       dataRelatorio: payload.dataRelatorio,
+      linha: payload.linha,
     });
 
     return ContentService.createTextOutput(
