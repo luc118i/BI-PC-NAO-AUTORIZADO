@@ -758,6 +758,138 @@
         color: #fff;
       }
 
+      /* ── SLIDE 6 — LINHA CARDS ─────────────────────────── */
+      .linha-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .linha-card:last-child { border-bottom: none; }
+
+      .linha-medal {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 20px;
+        font-weight: 900;
+        flex-shrink: 0;
+      }
+      .linha-medal.pos1 {
+        background: linear-gradient(135deg, #f47920, #ff9a3c);
+        box-shadow: 0 4px 16px rgba(244, 121, 32, 0.45);
+        color: #fff;
+      }
+      .linha-medal.pos2 {
+        background: linear-gradient(135deg, #6b7280, #9ca3af);
+        color: #fff;
+      }
+      .linha-medal.pos3 {
+        background: linear-gradient(135deg, #9d6830, #c4844a);
+        color: #fff;
+      }
+      .linha-medal.other {
+        background: rgba(244, 121, 32, 0.08);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        color: var(--laranja);
+      }
+
+      .linha-info { flex: 1; min-width: 0; }
+
+      .linha-topo {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+        flex-wrap: nowrap;
+      }
+      .linha-codigo {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.28);
+        border-radius: 5px;
+        padding: 1px 7px;
+        letter-spacing: 0.06em;
+        flex-shrink: 0;
+      }
+      .linha-sentido-ida {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--verde);
+        background: rgba(34, 201, 122, 0.1);
+        border: 1px solid rgba(34, 201, 122, 0.28);
+        border-radius: 4px;
+        padding: 1px 7px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .linha-sentido-volta {
+        font-size: 10px;
+        font-weight: 700;
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        border-radius: 4px;
+        padding: 1px 7px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .linha-horario {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        color: var(--texto3);
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+      }
+
+      .linha-rota {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.25;
+        margin-bottom: 5px;
+      }
+      .linha-barra-wrap {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .linha-barra {
+        height: 100%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--laranja2), var(--laranja));
+      }
+
+      .linha-metricas { text-align: center; flex-shrink: 0; }
+      .linha-count {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 30px;
+        font-weight: 900;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        border-radius: 8px;
+        padding: 3px 14px;
+        line-height: 1;
+      }
+      .linha-locais {
+        font-size: 11px;
+        color: var(--texto3);
+        margin-top: 4px;
+      }
+
       /* ── BARRA PROGRESSO ────────────────────────────────── */
       .progress-bar {
         position: fixed;
@@ -2161,11 +2293,14 @@
       }
 
       // ─── Ranking de Linhas (Slide 6) ──────────────────────
-      function _fmtLinha(raw) {
-        if (!raw) return raw;
-        const parts = raw.split("|");
-        if (parts.length < 2) return raw;
-        return parts.slice(1).join(" — ");
+      function _parseLinha(raw) {
+        const p = raw.split("|");
+        return {
+          codigo: p[0] || "",
+          rota:   p[1] || (p.length < 2 ? raw : ""),
+          hora:   p[2] || "",
+          dir:    p[3] || "",
+        };
       }
 
       function renderRankingLinhasTV() {
@@ -2181,29 +2316,58 @@
         const sorted = Object.entries(cont)
           .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias);
 
-        function renderCol(elId, fatia) {
+        const maxOcc = sorted.length ? sorted[0][1].ocorrencias : 1;
+
+        function medalClass(i) {
+          if (i === 0) return "pos1";
+          if (i === 1) return "pos2";
+          if (i === 2) return "pos3";
+          return "other";
+        }
+
+        function renderCol(elId, fatia, offset) {
           const el = document.getElementById(elId);
           if (!el) return;
           if (!fatia.length) {
-            el.innerHTML = '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+            el.innerHTML = '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados de linha</div>';
             return;
           }
-          el.innerHTML = fatia.map(([linha, d], i) =>
-            '<div class="tv-rank-item">' +
-              '<div class="tv-rank-pos' + (i < 3 ? " top3" : "") + '">' + (i + 1) + '</div>' +
-              '<div class="tv-rank-info">' +
-                '<div class="tv-rank-nome">' + _fmtLinha(linha) + '</div>' +
-                '<div class="tv-rank-sub">' +
-                  (d.locais.size !== 1 ? d.locais.size + " locais distintos" : "1 local") +
+          el.innerHTML = fatia.map(([linha, d], i) => {
+            const p    = _parseLinha(linha);
+            const pct  = Math.round((d.ocorrencias / maxOcc) * 100);
+            const ri   = offset + i;
+            const dirCls = p.dir === "IDA" ? "linha-sentido-ida"
+                         : p.dir === "VOLTA" ? "linha-sentido-volta"
+                         : "";
+            const locTxt = d.locais.size !== 1
+              ? d.locais.size + " locais"
+              : "1 local";
+
+            return (
+              '<div class="linha-card">' +
+                '<div class="linha-medal ' + medalClass(ri) + '">' + (ri + 1) + '</div>' +
+                '<div class="linha-info">' +
+                  '<div class="linha-topo">' +
+                    (p.codigo ? '<span class="linha-codigo">' + p.codigo + '</span>' : '') +
+                    (p.dir && dirCls ? '<span class="' + dirCls + '">' + p.dir + '</span>' : '') +
+                    (p.hora ? '<span class="linha-horario">' + p.hora + '</span>' : '') +
+                  '</div>' +
+                  '<div class="linha-rota">' + (p.rota || p.codigo || linha) + '</div>' +
+                  '<div class="linha-barra-wrap">' +
+                    '<div class="linha-barra" style="width:' + pct + '%"></div>' +
+                  '</div>' +
                 '</div>' +
-              '</div>' +
-              '<div class="tv-rank-cnt">' + d.ocorrencias + '</div>' +
-            '</div>'
-          ).join("");
+                '<div class="linha-metricas">' +
+                  '<div class="linha-count">' + d.ocorrencias + '</div>' +
+                  '<div class="linha-locais">' + locTxt + '</div>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join("");
         }
 
-        renderCol("tvLinhas1", sorted.slice(0, 10));
-        renderCol("tvLinhas2", sorted.slice(10, 20));
+        renderCol("tvLinhas1", sorted.slice(0, 10), 0);
+        renderCol("tvLinhas2", sorted.slice(10, 20), 10);
         const col2 = document.getElementById("tvLinhas2");
         if (col2) col2.closest(".tv-rank-col").style.display = sorted.length > 10 ? "" : "none";
       }
