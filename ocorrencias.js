@@ -135,7 +135,7 @@ function addOcorrencia(payload) {
     dataRelatorio,
     linha,
   } = payload || {};
-  if (!localId || !localNome || !carro || !motoristaId || !motoristaNome)
+  if (!localNome || !carro || !motoristaId || !motoristaNome)
     throw new Error("Preencha todos os campos.");
 
   const ss = SpreadsheetApp.getActive();
