@@ -152,11 +152,10 @@ function addOcorrencia(payload) {
       "Motorista",
       "Data do Relatório",
       "Base",
-      "Linha",
     ]);
   }
 
-  // ✅ usa direto o base que vem do Node, sem buscar na aba
+  // Colunas A–G (H=UF e I=Região são fórmulas — não sobrescrever)
   shHist.appendRow([
     localId,
     localNome,
@@ -165,8 +164,10 @@ function addOcorrencia(payload) {
     motoristaNome,
     dataRelatorio,
     base ?? "",
-    linha ?? "",
   ]);
+
+  // Coluna J (10) = Linha — escrita separada para não deslocar H e I
+  shHist.getRange(shHist.getLastRow(), 10).setValue(linha ?? "");
 
   return { ok: true };
 }
