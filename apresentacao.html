@@ -16,22 +16,25 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       :root {
-        --laranja: #f47920;
-        --laranja2: #e06510;
-        --preto: #080808;
-        --preto2: #101010;
-        --preto3: #181818;
-        --preto4: #222222;
-        --cinza: #2a2a2a;
-        --cinza2: #3a3a3a;
-        --borda: rgba(255, 255, 255, 0.09);
-        --borda2: rgba(255, 255, 255, 0.15);
+        /* ── Tema Copa do Mundo · Seleção Brasileira ──
+           --laranja = destaque principal (agora AMARELO canarinho) */
+        --laranja: #ffdf00;
+        --laranja2: #009c3b;
+        --preto: #060806;
+        --preto2: #0c110c;
+        --preto3: #131a13;
+        --preto4: #1c241c;
+        --cinza: #243024;
+        --cinza2: #33442f;
+        --borda: rgba(255, 223, 0, 0.12);
+        --borda2: rgba(255, 223, 0, 0.22);
         --texto: #ffffff;
-        --texto2: #cccccc;
-        --texto3: #888888;
-        --verde: #22c97a;
+        --texto2: #d7e2cf;
+        --texto3: #8aa085;
+        --verde: #009c3b;
         --vermelho: #e05050;
-        --amarelo: #f0c040;
+        --amarelo: #ffdf00;
+        --azul: #2456c9;
       }
       * {
         box-sizing: border-box;
@@ -54,10 +57,25 @@
         cursor: none !important;
       }
 
-      /* ── TOPBAR ─────────────────────────────────────────── */
+      /* ── TOPBAR (faixa bandeira) ────────────────────────── */
       .topbar {
-        background: var(--laranja);
-        height: 5px;
+        height: 6px;
+        background: linear-gradient(
+          90deg,
+          #009c3b 0%,
+          #009c3b 33%,
+          #ffdf00 33%,
+          #ffdf00 66%,
+          #2456c9 66%,
+          #2456c9 100%
+        );
+        background-size: 300% 100%;
+        animation: faixaCopa 12s linear infinite;
+      }
+      @keyframes faixaCopa {
+        to {
+          background-position: 300% 0;
+        }
       }
 
       /* ── HEADER ─────────────────────────────────────────── */
@@ -79,7 +97,8 @@
       .ap-logo-icon {
         width: 40px;
         height: 40px;
-        background: var(--laranja);
+        background: var(--verde);
+        border: 2px solid var(--amarelo);
         border-radius: 8px;
         display: flex;
         align-items: center;
@@ -116,8 +135,8 @@
       .ap-periodo-label {
         font-size: 13px;
         color: var(--texto2);
-        background: rgba(244, 121, 32, 0.1);
-        border: 1px solid rgba(244, 121, 32, 0.25);
+        background: rgba(255, 223, 0,0.1);
+        border: 1px solid rgba(255, 223, 0,0.25);
         padding: 5px 14px;
         border-radius: 20px;
         font-weight: 500;
@@ -213,7 +232,15 @@
         display: inline-block;
         width: 4px;
         height: 16px;
-        background: var(--laranja);
+        background: linear-gradient(
+          180deg,
+          #009c3b 0%,
+          #009c3b 40%,
+          #ffdf00 40%,
+          #ffdf00 70%,
+          #2456c9 70%,
+          #2456c9 100%
+        );
         border-radius: 2px;
       }
       .slide-titulo strong {
@@ -418,8 +445,8 @@
         font-size: 28px;
         font-weight: 900;
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.1);
-        border: 1px solid rgba(244, 121, 32, 0.2);
+        background: rgba(255, 223, 0,0.1);
+        border: 1px solid rgba(255, 223, 0,0.2);
         border-radius: 8px;
         padding: 4px 12px;
         flex-shrink: 0;
@@ -512,7 +539,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        background: #f47920;
+        background: #ffdf00;
         border-radius: 10px;
         padding: 7px 13px 8px;
         border: 1px solid rgba(255,255,255,0.18);
@@ -520,11 +547,11 @@
         min-width: 68px;
       }
       .mapa-card.t1 {
-        background: #c94e00;
+        background: #009c3b;
         box-shadow: 0 0 0 2.5px rgba(255,255,255,0.30), 0 6px 22px rgba(0,0,0,0.75);
       }
       .mapa-card.t2 {
-        background: #e06810;
+        background: #2456c9;
         box-shadow: 0 0 0 1.5px rgba(255,255,255,0.16), 0 5px 16px rgba(0,0,0,0.65);
       }
       .mc-rank {
@@ -693,8 +720,8 @@
         font-size: 26px;
         font-weight: 900;
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.1);
-        border: 1px solid rgba(244, 121, 32, 0.2);
+        background: rgba(255, 223, 0,0.1);
+        border: 1px solid rgba(255, 223, 0,0.2);
         border-radius: 7px;
         padding: 3px 12px;
         flex-shrink: 0;
@@ -781,8 +808,8 @@
         flex-shrink: 0;
       }
       .linha-medal.pos1 {
-        background: linear-gradient(135deg, #f47920, #ff9a3c);
-        box-shadow: 0 4px 16px rgba(244, 121, 32, 0.45);
+        background: linear-gradient(135deg, #ffdf00, #00c24a);
+        box-shadow: 0 4px 16px rgba(255, 223, 0,0.45);
         color: #fff;
       }
       .linha-medal.pos2 {
@@ -794,8 +821,8 @@
         color: #fff;
       }
       .linha-medal.other {
-        background: rgba(244, 121, 32, 0.08);
-        border: 1px solid rgba(244, 121, 32, 0.2);
+        background: rgba(255, 223, 0,0.08);
+        border: 1px solid rgba(255, 223, 0,0.2);
         color: var(--laranja);
       }
 
@@ -813,8 +840,8 @@
         font-size: 12px;
         font-weight: 700;
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.1);
-        border: 1px solid rgba(244, 121, 32, 0.28);
+        background: rgba(255, 223, 0,0.1);
+        border: 1px solid rgba(255, 223, 0,0.28);
         border-radius: 5px;
         padding: 1px 7px;
         letter-spacing: 0.06em;
@@ -878,8 +905,8 @@
         font-size: 30px;
         font-weight: 900;
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.1);
-        border: 1px solid rgba(244, 121, 32, 0.2);
+        background: rgba(255, 223, 0,0.1);
+        border: 1px solid rgba(255, 223, 0,0.2);
         border-radius: 8px;
         padding: 3px 14px;
         line-height: 1;
@@ -1044,7 +1071,7 @@
       .atalho-btn.ativo {
         border-color: var(--laranja);
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.12);
+        background: rgba(255, 223, 0,0.12);
       }
       .modal-divider {
         height: 1px;
@@ -1110,7 +1137,7 @@
       .vel-btn.ativo {
         border-color: var(--laranja);
         color: var(--laranja);
-        background: rgba(244, 121, 32, 0.12);
+        background: rgba(255, 223, 0,0.12);
       }
       .modal-footer {
         display: flex;
@@ -1252,13 +1279,13 @@
         color: rgba(255, 255, 255, 0.85);
       }
       .vd-day.n1 {
-        background: rgba(244, 121, 32, 0.35);
+        background: rgba(255, 223, 0,0.35);
       }
       .vd-day.n2 {
-        background: rgba(244, 121, 32, 0.58);
+        background: rgba(255, 223, 0,0.58);
       }
       .vd-day.n3 {
-        background: rgba(244, 121, 32, 0.8);
+        background: rgba(255, 223, 0,0.8);
       }
       .vd-day.n4 {
         background: var(--laranja);
@@ -1277,13 +1304,13 @@
         background: #26211c;
       }
       .vd-cell.n1 {
-        background: rgba(244, 121, 32, 0.35);
+        background: rgba(255, 223, 0,0.35);
       }
       .vd-cell.n2 {
-        background: rgba(244, 121, 32, 0.58);
+        background: rgba(255, 223, 0,0.58);
       }
       .vd-cell.n3 {
-        background: rgba(244, 121, 32, 0.8);
+        background: rgba(255, 223, 0,0.8);
       }
       .vd-cell.n4 {
         background: var(--laranja);
@@ -1306,6 +1333,89 @@
         position: relative;
         min-height: 0;
       }
+
+      /* ── Tema Copa: faixa do cabeçalho ── */
+      .ap-copa-badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 18px;
+        border-radius: 24px;
+        background: linear-gradient(
+          90deg,
+          rgba(0, 156, 59, 0.18),
+          rgba(255, 223, 0, 0.16),
+          rgba(36, 86, 201, 0.18)
+        );
+        border: 1px solid rgba(255, 223, 0, 0.4);
+        box-shadow: 0 0 18px rgba(255, 223, 0, 0.12);
+      }
+      .ap-copa-txt {
+        font-family: "Barlow Condensed", sans-serif;
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #ffdf00, #00c24a);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .ap-copa-bola {
+        font-size: 18px;
+        display: inline-block;
+        animation: bolaGira 3s linear infinite;
+      }
+      .ap-copa-flag {
+        font-size: 18px;
+      }
+      @keyframes bolaGira {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Tema Copa: confete ao trocar de slide ── */
+      .confete-camada {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 9999;
+      }
+      .confete {
+        position: absolute;
+        top: -16px;
+        width: 9px;
+        height: 14px;
+        border-radius: 2px;
+        opacity: 0.95;
+        will-change: transform, opacity;
+        animation: confeteCai linear forwards;
+      }
+      @keyframes confeteCai {
+        0% {
+          transform: translateY(-20px) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(105vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      /* Brilho sutil ao ativar slide */
+      .slide.ativo {
+        animation: brilhoSlide 0.6s ease-out;
+      }
+      @keyframes brilhoSlide {
+        0% {
+          filter: brightness(1.18) saturate(1.15);
+        }
+        100% {
+          filter: brightness(1) saturate(1);
+        }
+      }
     </style>
   </head>
   <body>
@@ -1325,6 +1435,11 @@
           <h1>Viação <span>Catedral</span></h1>
           <p>PC's Não Autorizados · Modo Apresentação</p>
         </div>
+      </div>
+      <div class="ap-copa-badge">
+        <span class="ap-copa-bola">⚽</span>
+        <span class="ap-copa-txt">COPA DO MUNDO</span>
+        <span class="ap-copa-flag">🇧🇷</span>
       </div>
       <div class="ap-meta">
         <div class="ap-indicators" id="apDots"></div>
@@ -1363,19 +1478,19 @@
           <div class="kpi-val" id="apKTotal">—</div>
           <div class="kpi-sub">registros no período</div>
         </div>
-        <div class="kpi-card" style="--kpi-c: var(--amarelo)">
+        <div class="kpi-card" style="--kpi-c: var(--verde)">
           <div class="kpi-stripe"></div>
           <div class="kpi-label">Locais únicos</div>
           <div class="kpi-val" id="apKLocais">—</div>
           <div class="kpi-sub">PCs diferentes visitados</div>
         </div>
-        <div class="kpi-card" style="--kpi-c: var(--vermelho)">
+        <div class="kpi-card" style="--kpi-c: var(--azul)">
           <div class="kpi-stripe"></div>
           <div class="kpi-label">Motoristas</div>
           <div class="kpi-val" id="apKMotoristas">—</div>
           <div class="kpi-sub">envolvidos no período</div>
         </div>
-        <div class="kpi-card" style="--kpi-c: var(--verde)">
+        <div class="kpi-card" style="--kpi-c: var(--amarelo)">
           <div class="kpi-stripe"></div>
           <div class="kpi-label">Base mais ativa</div>
           <div
@@ -1639,9 +1754,9 @@
         cfgFim = "";
 
       const CORES = [
-        "#f47920",
-        "#3b82c4",
-        "#22c97a",
+        "#ffdf00",
+        "#009c3b",
+        "#2456c9",
         "#f0c040",
         "#e05050",
         "#8b5cf6",
@@ -1798,7 +1913,32 @@
           setTimeout(function () {
             chartsApres["vd"].resize();
           }, 150);
+        dispararConfete();
         iniciarProgress();
+      }
+
+      // ── Confete tema Copa (verde/amarelo/azul/branco) ──
+      function dispararConfete() {
+        const CORES_CONFETE = ["#009c3b", "#ffdf00", "#2456c9", "#ffffff"];
+        const camada = document.createElement("div");
+        camada.className = "confete-camada";
+        const N = 36;
+        for (let i = 0; i < N; i++) {
+          const p = document.createElement("div");
+          p.className = "confete";
+          p.style.left = Math.random() * 100 + "vw";
+          p.style.background =
+            CORES_CONFETE[(Math.random() * CORES_CONFETE.length) | 0];
+          const dur = 2.2 + Math.random() * 1.6;
+          p.style.animationDuration = dur + "s";
+          p.style.animationDelay = Math.random() * 0.4 + "s";
+          p.style.transform = "scale(" + (0.7 + Math.random() * 0.8) + ")";
+          camada.appendChild(p);
+        }
+        document.body.appendChild(camada);
+        setTimeout(function () {
+          camada.remove();
+        }, 4200);
       }
 
       function iniciarRotacao() {
@@ -2138,7 +2278,7 @@
         if (rank <= 7) return 3;
         return 4;
       }
-      var _TIER_COLORS = { 1: "#c94e00", 2: "#e06810", 3: "#f47920", 4: "#f47920" };
+      var _TIER_COLORS = { 1: "#00702c", 2: "#009c3b", 3: "#3cc463", 4: "#ffdf00" };
       var _TIER_NUM_SIZE = { 1: 46, 2: 36, 3: 28, 4: 21 };
       var _TIER_DOT_R = { 1: 11, 2: 9, 3: 7, 4: 5 };
 
@@ -2566,11 +2706,11 @@
               datasets: [
                 {
                   data: dias.map((d) => cont[d]),
-                  borderColor: "#f47920",
-                  backgroundColor: "rgba(244,121,32,0.08)",
+                  borderColor: "#ffdf00",
+                  backgroundColor: "rgba(255,223,0,0.08)",
                   borderWidth: 2,
                   pointRadius: 3,
-                  pointBackgroundColor: "#f47920",
+                  pointBackgroundColor: "#ffdf00",
                   fill: true,
                   tension: 0.3,
                 },
