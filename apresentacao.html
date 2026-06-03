@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Modo Apresentação · BI PC's · Viação Catedral</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&family=Rubik+Wet+Paint&family=Permanent+Marker&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -16,25 +16,26 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       :root {
-        /* ── Tema Copa do Mundo · Seleção Brasileira ──
-           --laranja = destaque principal (agora AMARELO canarinho) */
-        --laranja: #ffdf00;
-        --laranja2: #009c3b;
-        --preto: #060806;
-        --preto2: #0c110c;
-        --preto3: #131a13;
-        --preto4: #1c241c;
-        --cinza: #243024;
-        --cinza2: #33442f;
-        --borda: rgba(255, 223, 0, 0.12);
-        --borda2: rgba(255, 223, 0, 0.22);
+        /* ── Tema Copa "Torre da Copa" · laranja + amarelo + preto ──
+           inspirado na campanha "Alegria que Apavora" (CBF)
+           --laranja = destaque principal (AMARELO dourado) */
+        --laranja: #ffc21a;
+        --laranja2: #e8731a;
+        --preto: #0b0603;
+        --preto2: #160d05;
+        --preto3: #1f1408;
+        --preto4: #2a1c0c;
+        --cinza: #3a2710;
+        --cinza2: #573c18;
+        --borda: rgba(255, 194, 26, 0.14);
+        --borda2: rgba(255, 194, 26, 0.26);
         --texto: #ffffff;
-        --texto2: #d7e2cf;
-        --texto3: #8aa085;
-        --verde: #009c3b;
+        --texto2: #f2e3cd;
+        --texto3: #b89a72;
+        --verde: #f0a824;
         --vermelho: #e05050;
-        --amarelo: #ffdf00;
-        --azul: #2456c9;
+        --amarelo: #ffd633;
+        --azul: #c25a12;
       }
       * {
         box-sizing: border-box;
@@ -47,7 +48,22 @@
         height: 100%;
         overflow: hidden;
         font-family: "Barlow", sans-serif;
-        background: var(--preto);
+        background:
+          radial-gradient(
+            ellipse 90% 65% at 50% 22%,
+            rgba(245, 165, 45, 0.55) 0%,
+            rgba(200, 95, 18, 0.32) 38%,
+            transparent 68%
+          ),
+          linear-gradient(
+            180deg,
+            #c2580f 0%,
+            #9b440c 38%,
+            #4a2408 68%,
+            #1a0d04 88%,
+            #0b0603 100%
+          );
+        background-attachment: fixed;
         color: var(--texto);
         cursor: default;
         transition: cursor 0s;
@@ -62,12 +78,11 @@
         height: 6px;
         background: linear-gradient(
           90deg,
-          #009c3b 0%,
-          #009c3b 33%,
-          #ffdf00 33%,
-          #ffdf00 66%,
-          #2456c9 66%,
-          #2456c9 100%
+          #7a2e06 0%,
+          #e8731a 28%,
+          #ffd633 50%,
+          #e8731a 72%,
+          #7a2e06 100%
         );
         background-size: 300% 100%;
         animation: faixaCopa 12s linear infinite;
@@ -234,12 +249,10 @@
         height: 16px;
         background: linear-gradient(
           180deg,
-          #009c3b 0%,
-          #009c3b 40%,
-          #ffdf00 40%,
-          #ffdf00 70%,
-          #2456c9 70%,
-          #2456c9 100%
+          #ffd633 0%,
+          #ffd633 45%,
+          #e8731a 45%,
+          #e8731a 100%
         );
         border-radius: 2px;
       }
@@ -547,11 +560,11 @@
         min-width: 68px;
       }
       .mapa-card.t1 {
-        background: #009c3b;
+        background: #e8731a;
         box-shadow: 0 0 0 2.5px rgba(255,255,255,0.30), 0 6px 22px rgba(0,0,0,0.75);
       }
       .mapa-card.t2 {
-        background: #2456c9;
+        background: #c2580f;
         box-shadow: 0 0 0 1.5px rgba(255,255,255,0.16), 0 5px 16px rgba(0,0,0,0.65);
       }
       .mc-rank {
@@ -808,7 +821,7 @@
         flex-shrink: 0;
       }
       .linha-medal.pos1 {
-        background: linear-gradient(135deg, #ffdf00, #00c24a);
+        background: linear-gradient(135deg, #ffd633, #e8731a);
         box-shadow: 0 4px 16px rgba(255, 223, 0,0.45);
         color: #fff;
       }
@@ -1334,40 +1347,29 @@
         min-height: 0;
       }
 
-      /* ── Tema Copa: faixa do cabeçalho ── */
+      /* ── Tema Copa: headline "Torre da Copa" ── */
       .ap-copa-badge {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 6px 18px;
-        border-radius: 24px;
-        background: linear-gradient(
-          90deg,
-          rgba(0, 156, 59, 0.18),
-          rgba(255, 223, 0, 0.16),
-          rgba(36, 86, 201, 0.18)
-        );
-        border: 1px solid rgba(255, 223, 0, 0.4);
-        box-shadow: 0 0 18px rgba(255, 223, 0, 0.12);
+        gap: 12px;
       }
       .ap-copa-txt {
-        font-family: "Barlow Condensed", sans-serif;
-        font-weight: 800;
-        font-size: 18px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        background: linear-gradient(90deg, #ffdf00, #00c24a);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-family: "Rubik Wet Paint", "Permanent Marker", cursive;
+        font-weight: 400;
+        font-size: 34px;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: #ffd633;
+        text-shadow:
+          0 0 10px rgba(255, 180, 30, 0.55),
+          2px 3px 0 #7a2e06;
+        transform: rotate(-3deg);
       }
       .ap-copa-bola {
-        font-size: 18px;
+        font-size: 24px;
         display: inline-block;
         animation: bolaGira 3s linear infinite;
-      }
-      .ap-copa-flag {
-        font-size: 18px;
+        filter: drop-shadow(0 0 6px rgba(255, 180, 30, 0.5));
       }
       @keyframes bolaGira {
         to {
@@ -1438,8 +1440,7 @@
       </div>
       <div class="ap-copa-badge">
         <span class="ap-copa-bola">⚽</span>
-        <span class="ap-copa-txt">COPA DO MUNDO</span>
-        <span class="ap-copa-flag">🇧🇷</span>
+        <span class="ap-copa-txt">Torre da Copa</span>
       </div>
       <div class="ap-meta">
         <div class="ap-indicators" id="apDots"></div>
@@ -1754,9 +1755,9 @@
         cfgFim = "";
 
       const CORES = [
-        "#ffdf00",
-        "#009c3b",
-        "#2456c9",
+        "#ffc21a",
+        "#e8731a",
+        "#c2580f",
         "#f0c040",
         "#e05050",
         "#8b5cf6",
@@ -1919,7 +1920,7 @@
 
       // ── Confete tema Copa (verde/amarelo/azul/branco) ──
       function dispararConfete() {
-        const CORES_CONFETE = ["#009c3b", "#ffdf00", "#2456c9", "#ffffff"];
+        const CORES_CONFETE = ["#e8731a", "#ffd633", "#ffc21a", "#ffffff"];
         const camada = document.createElement("div");
         camada.className = "confete-camada";
         const N = 36;
@@ -2278,7 +2279,7 @@
         if (rank <= 7) return 3;
         return 4;
       }
-      var _TIER_COLORS = { 1: "#00702c", 2: "#009c3b", 3: "#3cc463", 4: "#ffdf00" };
+      var _TIER_COLORS = { 1: "#8f3d0a", 2: "#c2580f", 3: "#e8731a", 4: "#ffc21a" };
       var _TIER_NUM_SIZE = { 1: 46, 2: 36, 3: 28, 4: 21 };
       var _TIER_DOT_R = { 1: 11, 2: 9, 3: 7, 4: 5 };
 
