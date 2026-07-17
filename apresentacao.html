@@ -758,6 +758,138 @@
         color: #fff;
       }
 
+      /* ── SLIDE 6 — LINHA CARDS ─────────────────────────── */
+      .linha-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .linha-card:last-child { border-bottom: none; }
+
+      .linha-medal {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 20px;
+        font-weight: 900;
+        flex-shrink: 0;
+      }
+      .linha-medal.pos1 {
+        background: linear-gradient(135deg, #f47920, #ff9a3c);
+        box-shadow: 0 4px 16px rgba(244, 121, 32, 0.45);
+        color: #fff;
+      }
+      .linha-medal.pos2 {
+        background: linear-gradient(135deg, #6b7280, #9ca3af);
+        color: #fff;
+      }
+      .linha-medal.pos3 {
+        background: linear-gradient(135deg, #9d6830, #c4844a);
+        color: #fff;
+      }
+      .linha-medal.other {
+        background: rgba(244, 121, 32, 0.08);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        color: var(--laranja);
+      }
+
+      .linha-info { flex: 1; min-width: 0; }
+
+      .linha-topo {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+        flex-wrap: nowrap;
+      }
+      .linha-codigo {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.28);
+        border-radius: 5px;
+        padding: 1px 7px;
+        letter-spacing: 0.06em;
+        flex-shrink: 0;
+      }
+      .linha-sentido-ida {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--verde);
+        background: rgba(34, 201, 122, 0.1);
+        border: 1px solid rgba(34, 201, 122, 0.28);
+        border-radius: 4px;
+        padding: 1px 7px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .linha-sentido-volta {
+        font-size: 10px;
+        font-weight: 700;
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        border-radius: 4px;
+        padding: 1px 7px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .linha-horario {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        color: var(--texto3);
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+      }
+
+      .linha-rota {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.25;
+        margin-bottom: 5px;
+      }
+      .linha-barra-wrap {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .linha-barra {
+        height: 100%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--laranja2), var(--laranja));
+      }
+
+      .linha-metricas { text-align: center; flex-shrink: 0; }
+      .linha-count {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 30px;
+        font-weight: 900;
+        color: var(--laranja);
+        background: rgba(244, 121, 32, 0.1);
+        border: 1px solid rgba(244, 121, 32, 0.2);
+        border-radius: 8px;
+        padding: 3px 14px;
+        line-height: 1;
+      }
+      .linha-locais {
+        font-size: 11px;
+        color: var(--texto3);
+        margin-top: 4px;
+      }
+
       /* ── BARRA PROGRESSO ────────────────────────────────── */
       .progress-bar {
         position: fixed;
@@ -1021,6 +1153,159 @@
       .btn-cancelar.oculto {
         display: none;
       }
+
+      /* ── Slide 6: Visitas por dia ── */
+      .vd-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+        flex: 1;
+        min-height: 0;
+        align-items: stretch;
+      }
+      .vd-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 16px;
+        padding: 26px 30px;
+        display: flex;
+        flex-direction: column;
+      }
+      .vd-card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--texto2);
+        margin-bottom: 22px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .vd-cal {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        overflow: auto;
+      }
+      .vd-cal-months {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 28px;
+        justify-content: center;
+      }
+      .vd-month {
+        width: 320px;
+      }
+      .vd-month-title {
+        text-align: center;
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .vd-month-dow {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .vd-month-dow span {
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--texto3);
+      }
+      .vd-month-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+      }
+      .vd-day {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .vd-day.vazio {
+        background: transparent;
+      }
+      .vd-day.fora {
+        background: transparent;
+        opacity: 0.25;
+      }
+      .vd-day-num {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--texto2);
+      }
+      .vd-day-cnt {
+        position: absolute;
+        top: 3px;
+        right: 5px;
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .vd-day.n1 {
+        background: rgba(244, 121, 32, 0.35);
+      }
+      .vd-day.n2 {
+        background: rgba(244, 121, 32, 0.58);
+      }
+      .vd-day.n3 {
+        background: rgba(244, 121, 32, 0.8);
+      }
+      .vd-day.n4 {
+        background: var(--laranja);
+      }
+      .vd-day.n3 .vd-day-num,
+      .vd-day.n4 .vd-day-num {
+        color: #1a1208;
+      }
+      .vd-cell {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: #26211c;
+      }
+      .vd-cell.n0 {
+        background: #26211c;
+      }
+      .vd-cell.n1 {
+        background: rgba(244, 121, 32, 0.35);
+      }
+      .vd-cell.n2 {
+        background: rgba(244, 121, 32, 0.58);
+      }
+      .vd-cell.n3 {
+        background: rgba(244, 121, 32, 0.8);
+      }
+      .vd-cell.n4 {
+        background: var(--laranja);
+      }
+      .vd-legenda {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 20px;
+        font-size: 12px;
+        color: var(--texto3);
+      }
+      .vd-legenda .vd-cell {
+        width: 16px;
+        height: 16px;
+      }
+      .vd-chart-wrap {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+      }
     </style>
   </head>
   <body>
@@ -1181,17 +1466,26 @@
       <div class="bases-tv-grid" id="tvBasesRegiao"></div>
     </div>
 
-    <!-- ══ SLIDE 6: Ranking de Linhas ═══════════════════════ -->
+    <!-- ══ SLIDE 6: Visitas por dia no período ═══════════════ -->
     <div class="slide" id="slide6">
-      <div class="slide-titulo">Ranking de linhas com mais paradas irregulares</div>
-      <div class="tv-rank-grid" id="tvLinhasGrid">
-        <div class="tv-rank-col">
-          <div class="tv-rank-col-title">Posições 1–10</div>
-          <div class="tv-rank-list" id="tvLinhas1"></div>
+      <div class="slide-titulo">Visitas por dia no período</div>
+      <div class="vd-grid">
+        <div class="vd-card">
+          <div class="vd-card-title">Calendário de paradas irregulares</div>
+          <div id="vdCalendario" class="vd-cal"></div>
+          <div class="vd-legenda">
+            <span>Menos</span>
+            <span class="vd-cell n0"></span>
+            <span class="vd-cell n1"></span>
+            <span class="vd-cell n2"></span>
+            <span class="vd-cell n3"></span>
+            <span class="vd-cell n4"></span>
+            <span>Mais</span>
+          </div>
         </div>
-        <div class="tv-rank-col">
-          <div class="tv-rank-col-title">Posições 11–20</div>
-          <div class="tv-rank-list" id="tvLinhas2"></div>
+        <div class="vd-card">
+          <div class="vd-card-title">Evolução diária</div>
+          <div class="vd-chart-wrap"><canvas id="vdChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -1460,9 +1754,7 @@
           document.getElementById("apRelogio").textContent =
             String(n.getHours()).padStart(2, "0") +
             ":" +
-            String(n.getMinutes()).padStart(2, "0") +
-            ":" +
-            String(n.getSeconds()).padStart(2, "0");
+            String(n.getMinutes()).padStart(2, "0");
         }
         tick();
         setInterval(tick, 1000);
@@ -1501,6 +1793,10 @@
             mapaApres.invalidateSize();
             /* Redesenha as linhas guia depois que o mapa recalcular o tamanho */
             setTimeout(_redesenharLinhasMapa, 200);
+          }, 150);
+        if (idx === 6 && chartsApres["vd"])
+          setTimeout(function () {
+            chartsApres["vd"].resize();
           }, 150);
         iniciarProgress();
       }
@@ -1706,7 +2002,7 @@
         renderRankingDetalhadoMotoristas();
         renderFrequenciaTV();
         renderBasesRegiaoTV();
-        renderRankingLinhasTV();
+        renderVisitasPorDia();
       }
 
       // ─── KPIs (Slide 0) ───────────────────────────────────
@@ -2160,12 +2456,155 @@
         }).join("");
       }
 
-      // ─── Ranking de Linhas (Slide 6) ──────────────────────
-      function _fmtLinha(raw) {
-        if (!raw) return raw;
-        const parts = raw.split("|");
-        if (parts.length < 2) return raw;
-        return parts.slice(1).join(" — ");
+      // ─── Visitas por dia (Slide 6) ────────────────────────
+      function renderVisitasPorDia() {
+        const cont = {};
+        registros.forEach((r) => {
+          if (r.data) cont[r.data] = (cont[r.data] || 0) + 1;
+        });
+
+        // ── Calendário mensal ──
+        const calEl = document.getElementById("vdCalendario");
+        if (calEl) {
+          if (!cfgIni || !cfgFim) {
+            calEl.innerHTML =
+              '<div style="color:#555;font-size:16px">Sem período definido</div>';
+          } else {
+            const ini = new Date(cfgIni + "T00:00:00");
+            const fim = new Date(cfgFim + "T00:00:00");
+            const maxCount = Math.max(1, ...Object.values(cont));
+            const nivel = (c) => {
+              if (!c) return 0;
+              const r = c / maxCount;
+              if (r <= 0.25) return 1;
+              if (r <= 0.5) return 2;
+              if (r <= 0.75) return 3;
+              return 4;
+            };
+            const iso = (d) =>
+              d.getFullYear() +
+              "-" +
+              String(d.getMonth() + 1).padStart(2, "0") +
+              "-" +
+              String(d.getDate()).padStart(2, "0");
+
+            const MESES = [
+              "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+              "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+            ];
+            const DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+            // Lista de meses (ano-mês) cobertos pelo período
+            const meses = [];
+            let mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
+            const mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
+            while (mc <= mFim) {
+              meses.push(new Date(mc));
+              mc.setMonth(mc.getMonth() + 1);
+            }
+
+            let html = '<div class="vd-cal-months">';
+            meses.forEach((m) => {
+              const ano = m.getFullYear();
+              const mes = m.getMonth();
+              const primeiroDow = new Date(ano, mes, 1).getDay();
+              const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+              html += '<div class="vd-month">';
+              html +=
+                '<div class="vd-month-title">' +
+                MESES[mes] + " " + ano +
+                "</div>";
+              html +=
+                '<div class="vd-month-dow">' +
+                DOW.map((d) => "<span>" + d + "</span>").join("") +
+                "</div>";
+              html += '<div class="vd-month-grid">';
+              // células vazias antes do dia 1
+              for (let b = 0; b < primeiroDow; b++) {
+                html += '<span class="vd-day vazio"></span>';
+              }
+              for (let dia = 1; dia <= diasNoMes; dia++) {
+                const dataObj = new Date(ano, mes, dia);
+                const key = iso(dataObj);
+                const dentro = dataObj >= ini && dataObj <= fim;
+                const c = cont[key] || 0;
+                if (!dentro) {
+                  html +=
+                    '<span class="vd-day fora"><span class="vd-day-num">' +
+                    dia + "</span></span>";
+                } else {
+                  const t =
+                    fmtBR(key) + " · " + c + " parada" + (c !== 1 ? "s" : "");
+                  html +=
+                    '<span class="vd-day n' + nivel(c) +
+                    '" title="' + t + '">' +
+                    '<span class="vd-day-num">' + dia + "</span>" +
+                    (c > 0 ? '<span class="vd-day-cnt">' + c + "</span>" : "") +
+                    "</span>";
+                }
+              }
+              html += "</div></div>";
+            });
+            html += "</div>";
+            calEl.innerHTML = html;
+          }
+        }
+
+        // ── Gráfico de linha (igual ao BI) ──
+        if (chartsApres["vd"]) {
+          chartsApres["vd"].destroy();
+          chartsApres["vd"] = null;
+        }
+        const dias = Object.keys(cont).sort();
+        const cv = document.getElementById("vdChart");
+        if (cv && dias.length) {
+          chartsApres["vd"] = new Chart(cv, {
+            type: "line",
+            data: {
+              labels: dias.map((d) => fmtBR(d)),
+              datasets: [
+                {
+                  data: dias.map((d) => cont[d]),
+                  borderColor: "#f47920",
+                  backgroundColor: "rgba(244,121,32,0.08)",
+                  borderWidth: 2,
+                  pointRadius: 3,
+                  pointBackgroundColor: "#f47920",
+                  fill: true,
+                  tension: 0.3,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: {
+                  grid: { color: "rgba(255,255,255,0.05)" },
+                  ticks: { color: "#888", font: { size: 11 } },
+                },
+                y: {
+                  beginAtZero: true,
+                  grid: { color: "rgba(255,255,255,0.05)" },
+                  ticks: { color: "#888", font: { size: 11 }, precision: 0 },
+                },
+              },
+            },
+          });
+        }
+      }
+
+      // ─── Ranking de Linhas (DESATIVADO por hora) ──────────
+      function _parseLinha(raw) {
+        const p = raw.split("|");
+        return {
+          codigo: p[0] || "",
+          rota:   p[1] || (p.length < 2 ? raw : ""),
+          hora:   p[2] || "",
+          dir:    p[3] || "",
+        };
       }
 
       function renderRankingLinhasTV() {
@@ -2181,29 +2620,58 @@
         const sorted = Object.entries(cont)
           .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias);
 
-        function renderCol(elId, fatia) {
+        const maxOcc = sorted.length ? sorted[0][1].ocorrencias : 1;
+
+        function medalClass(i) {
+          if (i === 0) return "pos1";
+          if (i === 1) return "pos2";
+          if (i === 2) return "pos3";
+          return "other";
+        }
+
+        function renderCol(elId, fatia, offset) {
           const el = document.getElementById(elId);
           if (!el) return;
           if (!fatia.length) {
-            el.innerHTML = '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+            el.innerHTML = '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados de linha</div>';
             return;
           }
-          el.innerHTML = fatia.map(([linha, d], i) =>
-            '<div class="tv-rank-item">' +
-              '<div class="tv-rank-pos' + (i < 3 ? " top3" : "") + '">' + (i + 1) + '</div>' +
-              '<div class="tv-rank-info">' +
-                '<div class="tv-rank-nome">' + _fmtLinha(linha) + '</div>' +
-                '<div class="tv-rank-sub">' +
-                  (d.locais.size !== 1 ? d.locais.size + " locais distintos" : "1 local") +
+          el.innerHTML = fatia.map(([linha, d], i) => {
+            const p    = _parseLinha(linha);
+            const pct  = Math.round((d.ocorrencias / maxOcc) * 100);
+            const ri   = offset + i;
+            const dirCls = p.dir === "IDA" ? "linha-sentido-ida"
+                         : p.dir === "VOLTA" ? "linha-sentido-volta"
+                         : "";
+            const locTxt = d.locais.size !== 1
+              ? d.locais.size + " locais"
+              : "1 local";
+
+            return (
+              '<div class="linha-card">' +
+                '<div class="linha-medal ' + medalClass(ri) + '">' + (ri + 1) + '</div>' +
+                '<div class="linha-info">' +
+                  '<div class="linha-topo">' +
+                    (p.codigo ? '<span class="linha-codigo">' + p.codigo + '</span>' : '') +
+                    (p.dir && dirCls ? '<span class="' + dirCls + '">' + p.dir + '</span>' : '') +
+                    (p.hora ? '<span class="linha-horario">' + p.hora + '</span>' : '') +
+                  '</div>' +
+                  '<div class="linha-rota">' + (p.rota || p.codigo || linha) + '</div>' +
+                  '<div class="linha-barra-wrap">' +
+                    '<div class="linha-barra" style="width:' + pct + '%"></div>' +
+                  '</div>' +
                 '</div>' +
-              '</div>' +
-              '<div class="tv-rank-cnt">' + d.ocorrencias + '</div>' +
-            '</div>'
-          ).join("");
+                '<div class="linha-metricas">' +
+                  '<div class="linha-count">' + d.ocorrencias + '</div>' +
+                  '<div class="linha-locais">' + locTxt + '</div>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join("");
         }
 
-        renderCol("tvLinhas1", sorted.slice(0, 10));
-        renderCol("tvLinhas2", sorted.slice(10, 20));
+        renderCol("tvLinhas1", sorted.slice(0, 10), 0);
+        renderCol("tvLinhas2", sorted.slice(10, 20), 10);
         const col2 = document.getElementById("tvLinhas2");
         if (col2) col2.closest(".tv-rank-col").style.display = sorted.length > 10 ? "" : "none";
       }
