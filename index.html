@@ -35,7 +35,10 @@
         --radius-sm: 6px;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
       body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+      /* Offset das âncoras para não ficar sob o navbar fixo (~130px) */
+      [id^="sec-"] { scroll-margin-top: 130px; }
 
       /* ── TOPBAR ─────────────────────────────────────────── */
       .topbar { background: var(--laranja); height: 4px; width: 100%; }
@@ -109,6 +112,31 @@
       .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
       .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
       .chart-wrap { position: relative; width: 100%; }
+
+      /* ── Calendário de paradas (Visitas por dia) ── */
+      .bical { margin-bottom: 16px; overflow-x: auto; }
+      .bical-months { display: flex; flex-wrap: wrap; gap: 18px; }
+      .bical-month { width: 210px; }
+      .bical-month-title { text-align: center; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+      .bical-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+      .bical-dow span { text-align: center; font-size: 9px; font-weight: 600; color: var(--texto3); }
+      .bical-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+      .bical-day { position: relative; aspect-ratio: 1; border-radius: 5px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; }
+      .bical-day.vazio { background: transparent; }
+      .bical-day.fora { background: transparent; opacity: 0.25; }
+      .bical-day-num { font-size: 10px; font-weight: 600; color: var(--texto2); }
+      .bical-day-cnt { position: absolute; top: 1px; right: 3px; font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.85); }
+      .bical-day.n1 { background: rgba(244,121,32,0.30); }
+      .bical-day.n2 { background: rgba(244,121,32,0.52); }
+      .bical-day.n3 { background: rgba(244,121,32,0.76); }
+      .bical-day.n4 { background: var(--laranja); }
+      .bical-day.n3 .bical-day-num, .bical-day.n4 .bical-day-num { color: #1a1208; }
+      .bical-legenda { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 10px; font-size: 10px; color: var(--texto3); }
+      .bical-cell { width: 14px; height: 14px; border-radius: 3px; background: rgba(255,255,255,0.05); }
+      .bical-cell.n1 { background: rgba(244,121,32,0.30); }
+      .bical-cell.n2 { background: rgba(244,121,32,0.52); }
+      .bical-cell.n3 { background: rgba(244,121,32,0.76); }
+      .bical-cell.n4 { background: var(--laranja); }
 
       /* ── MAPA ────────────────────────────────────────────── */
       #mapa { height: 420px; border-radius: var(--radius-sm); background: #1a1a1a; }
@@ -202,6 +230,67 @@
       .base-bar-wrap { width: 60px; height: 3px; background: var(--cinza); border-radius: 2px; overflow: hidden; }
       .base-bar-fill { height: 3px; border-radius: 2px; background: var(--laranja); }
 
+      /* ── SIDE NAV ───────────────────────────────────────── */
+      #sideNav {
+        position: fixed;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 900;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        backdrop-filter: blur(18px) saturate(140%) brightness(0.9);
+        -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(0.9);
+        background: rgba(11, 11, 11, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 20px;
+        padding: 12px 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      .side-link {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        justify-content: flex-end;
+        text-decoration: none;
+        padding: 4px 0;
+        overflow: hidden;
+      }
+      .side-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--cinza2);
+        border: 1px solid rgba(255,255,255,0.18);
+        transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+        flex-shrink: 0;
+      }
+      .side-link.active .side-dot {
+        background: var(--laranja);
+        transform: scale(1.35);
+        box-shadow: 0 0 6px rgba(244,121,32,0.6);
+        border-color: var(--laranja);
+      }
+      .side-link:hover .side-dot { background: var(--texto2); transform: scale(1.2); }
+      .side-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--texto3);
+        white-space: nowrap;
+        max-width: 0;
+        opacity: 0;
+        margin-right: 0;
+        transition: max-width 0.25s ease, opacity 0.2s, margin-right 0.25s, color 0.2s;
+        pointer-events: none;
+      }
+      #sideNav:hover .side-label { max-width: 120px; opacity: 1; margin-right: 8px; }
+      .side-link.active .side-label { color: var(--texto); }
+      .side-link:hover  .side-label { color: var(--texto2); }
+      @media (max-width: 1100px) { #sideNav { display: none; } }
+
       /* ── VAZIO / ERRO ────────────────────────────────────── */
       .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
 
@@ -225,30 +314,34 @@
       .det-copy-desc { opacity: 0; pointer-events: none; cursor: pointer; font-size: 11px; color: var(--texto3); border: 1px solid var(--cinza2); border-radius: 4px; padding: 1px 6px; white-space: nowrap; transition: opacity 0.15s, color 0.15s, border-color 0.15s; flex-shrink: 0; }
       .hist-table tr:hover .det-copy-desc { opacity: 1; pointer-events: auto; }
       .det-copy-desc:hover { color: var(--laranja); border-color: var(--laranja); }
+      .det-gerar-btn { opacity: 0; pointer-events: none; cursor: pointer; font-size: 11px; font-weight: 600; font-family: "Barlow", sans-serif; color: var(--laranja); border: 1px solid var(--laranja); border-radius: 4px; padding: 2px 8px; background: var(--laranja4); transition: opacity 0.15s, background 0.15s; white-space: nowrap; flex-shrink: 0; }
+      .hist-table tr:hover .det-gerar-btn { opacity: 1; pointer-events: auto; }
+      .det-gerar-btn:hover { background: var(--laranja3); }
 
-      /* ── GRUPO DE VEÍCULO (detecção CSV) ────────────────────── */
-      .det-grupo-header td {
-        background: var(--preto3);
-        color: var(--laranja);
-        font-family: "Barlow Condensed", sans-serif;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        padding: 6px 10px;
-        border-top: 2px solid var(--cinza2);
-        border-bottom: 1px solid var(--borda2);
-        cursor: default;
-      }
-      .det-grupo-header:first-child td { border-top: none; }
-      .det-grupo-count {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--texto3);
-        font-family: "Barlow", sans-serif;
-        text-transform: none;
-        letter-spacing: 0;
-      }
+      /* ── MODAL OCORRÊNCIA ───────────────────────────────────── */
+      .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+      .oc-overlay.hidden { display: none; }
+      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
+      .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+      .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+      .oc-close:hover { color: var(--texto); background: var(--cinza); }
+      .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+      .oc-resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .oc-field { display: flex; flex-direction: column; gap: 4px; }
+      .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
+      .oc-field span, .oc-field strong { font-size: 13px; color: var(--texto); }
+      .oc-field input, .oc-field select { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 7px 10px; border-radius: var(--radius-sm); width: 100%; }
+      .oc-field input:focus, .oc-field select:focus { outline: none; border-color: var(--laranja); }
+      .oc-field select option { background: var(--preto3); }
+      .oc-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .oc-img-box { border-radius: var(--radius-sm); overflow: hidden; background: var(--preto3); border: 1px solid var(--borda); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+      .oc-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .oc-img-box span { font-size: 11px; color: var(--texto3); text-align: center; padding: 8px; }
+      .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
+      .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
+      .oc-status.ok { color: var(--verde); }
+      .oc-status.err { color: var(--vermelho); }
 
       /* ── RESPONSIVE ──────────────────────────────────────── */
       @media (max-width: 960px) {
@@ -264,9 +357,61 @@
         .btn-apres-texto { display: none; }
         #mapa { height: 280px; }
       }
+
+      /* ── LIQUID GLASS NAV ───────────────────────────────── */
+      #stickyNav {
+        position: sticky;
+        top: 0;
+        z-index: 1100;
+        backdrop-filter: blur(22px) saturate(160%) brightness(0.92);
+        -webkit-backdrop-filter: blur(22px) saturate(160%) brightness(0.92);
+        background: rgba(11, 11, 11, 0.72);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        transition: box-shadow 0.3s, background 0.3s;
+        isolation: isolate;
+      }
+      /* Fade de conteúdo logo abaixo do nav */
+      #stickyNav::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        height: 52px;
+        background: linear-gradient(to bottom, var(--preto) 0%, transparent 100%);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /* Highlight prismatic no topo do glass */
+      #stickyNav::before {
+        content: '';
+        position: absolute;
+        inset: 4px 0 0 0; /* começa após o topbar */
+        background: linear-gradient(180deg,
+          rgba(255, 255, 255, 0.06) 0%,
+          rgba(255, 255, 255, 0.01) 30%,
+          transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      #stickyNav > * { position: relative; z-index: 1; }
+      #stickyNav.scrolled {
+        background: rgba(11, 11, 11, 0.88);
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.65),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          inset 0 -1px 0 rgba(244, 121, 32, 0.12);
+      }
+      /* Remove fundos sólidos internos para o glass vazar */
+      #stickyNav .header,
+      #stickyNav .filter-wrap {
+        background: transparent;
+      }
     </style>
   </head>
   <body>
+    <div id="stickyNav">
     <div class="topbar"></div>
 
     <!-- HEADER -->
@@ -334,12 +479,13 @@
         </div>
       </div>
     </div>
+    </div><!-- /stickyNav -->
 
     <!-- MAIN -->
     <div class="main">
 
       <!-- KPIs -->
-      <div class="kpi-row">
+      <div id="sec-kpis" class="kpi-row">
         <div class="kpi" style="--kpi-c: var(--laranja)">
           <div class="kpi-stripe"></div>
           <div class="kpi-label">Total de visitas</div>
@@ -367,7 +513,7 @@
       </div>
 
       <!-- Gráficos linha 1 -->
-      <div class="row2">
+      <div id="sec-graficos" class="row2">
         <div class="card">
           <div class="card-title">Top 10 locais mais visitados</div>
           <div class="chart-wrap" style="height:260px">
@@ -392,6 +538,7 @@
         </div>
         <div class="card">
           <div class="card-title">Visitas por dia no período</div>
+          <div id="biCalendario" class="bical"></div>
           <div class="chart-wrap" style="height:260px">
             <canvas id="chartTimeline"></canvas>
           </div>
@@ -399,7 +546,7 @@
       </div>
 
       <!-- Mapa -->
-      <div class="card">
+      <div id="sec-mapa" class="card">
         <div class="card-title">Mapa de locais não autorizados</div>
         <div id="mapa"></div>
         <div style="margin-top:10px;font-size:11px;color:var(--texto3)">
@@ -408,7 +555,7 @@
       </div>
 
       <!-- Ranking motoristas -->
-      <div class="card">
+      <div id="sec-ranking" class="card">
         <div class="card-title">Ranking de motoristas</div>
         <div class="hist-table-wrap">
           <table class="rank-table" id="rankTable">
@@ -431,7 +578,7 @@
       </div>
 
       <!-- Frequência Motorista×Local + Distribuição Bases por Região -->
-      <div class="row2">
+      <div id="sec-frequencia" class="row2">
 
         <!-- Painel de Frequência -->
         <div class="card" style="margin-bottom:0">
@@ -477,7 +624,7 @@
       </div>
 
       <!-- Tabela histórico -->
-      <div class="card">
+      <div id="sec-historico" class="card">
         <div class="card-title">Histórico de visitas</div>
         <div class="table-filters">
           <input type="text" id="tLocal" placeholder="Filtrar por local..." oninput="filtrarTabela()" />
@@ -511,7 +658,7 @@
       </div>
 
       <!-- Detecção Automática de Paradas Irregulares -->
-      <div class="card">
+      <div id="sec-deteccao" class="card">
         <div class="card-title">Detecção automática — rastreamento</div>
 
         <input type="file" id="detFileInput" accept=".csv" style="display:none" onchange="handleDeteccaoUpload(event)" />
@@ -555,6 +702,29 @@
 
     <script>
       document.getElementById("anoAtual").textContent = new Date().getFullYear();
+
+      window.addEventListener('scroll', function () {
+        document.getElementById('stickyNav').classList.toggle('scrolled', window.scrollY > 10);
+      }, { passive: true });
+
+      // ── Scrollspy side nav ──────────────────────────────────────
+      (function () {
+        var SEC_IDS = ['sec-kpis','sec-graficos','sec-mapa','sec-ranking','sec-frequencia','sec-historico','sec-deteccao'];
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            var link = document.querySelector('#sideNav [href="#' + entry.target.id + '"]');
+            if (link) link.classList.toggle('active', entry.isIntersecting);
+          });
+        }, { threshold: 0.25 });
+        function initObserver() {
+          SEC_IDS.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) observer.observe(el);
+          });
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initObserver);
+        else initObserver();
+      })();
 
       // ─────────────────────────────────────────────────────────
       //  Estado global
@@ -765,6 +935,7 @@
         renderChartRegiao(regs);
         renderChartMotoristas(regs);
         renderChartTimeline(regs);
+        renderCalTimeline(regs);
       }
 
       function renderChartLocais(regs) {
@@ -838,6 +1009,59 @@
           },
           options: chartOpts("Visitas", false)
         });
+      }
+
+      // Calendário de paradas (mesmo do modo apresentação)
+      function renderCalTimeline(regs) {
+        const calEl = document.getElementById("biCalendario");
+        if (!calEl) return;
+        const cont = {};
+        regs.forEach(r => { if (r.data) cont[r.data] = (cont[r.data]||0)+1; });
+
+        const cfgIni = document.getElementById("fDataIni").value;
+        const cfgFim = document.getElementById("fDataFim").value;
+        if (!cfgIni || !cfgFim) { calEl.innerHTML = ""; return; }
+
+        const ini = new Date(cfgIni + "T00:00:00");
+        const fim = new Date(cfgFim + "T00:00:00");
+        const maxCount = Math.max(1, ...Object.values(cont));
+        const nivel = c => { if (!c) return 0; const r = c/maxCount; if (r<=0.25) return 1; if (r<=0.5) return 2; if (r<=0.75) return 3; return 4; };
+        const iso = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+        const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+        const DOW = ["D","S","T","Q","Q","S","S"];
+
+        const meses = [];
+        let mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
+        const mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
+        while (mc <= mFim) { meses.push(new Date(mc)); mc.setMonth(mc.getMonth()+1); }
+
+        let html = '<div class="bical-months">';
+        meses.forEach(m => {
+          const ano = m.getFullYear(), mes = m.getMonth();
+          const primeiroDow = new Date(ano, mes, 1).getDay();
+          const diasNoMes = new Date(ano, mes+1, 0).getDate();
+          html += '<div class="bical-month">';
+          html += '<div class="bical-month-title">' + MESES[mes] + " " + ano + "</div>";
+          html += '<div class="bical-dow">' + DOW.map(d=>"<span>"+d+"</span>").join("") + "</div>";
+          html += '<div class="bical-grid">';
+          for (let b=0; b<primeiroDow; b++) html += '<span class="bical-day vazio"></span>';
+          for (let dia=1; dia<=diasNoMes; dia++) {
+            const dataObj = new Date(ano, mes, dia);
+            const key = iso(dataObj);
+            const dentro = dataObj >= ini && dataObj <= fim;
+            const c = cont[key] || 0;
+            if (!dentro) {
+              html += '<span class="bical-day fora"><span class="bical-day-num">'+dia+'</span></span>';
+            } else {
+              const t = fmtDataBR(key) + " · " + c + " parada" + (c!==1?"s":"");
+              html += '<span class="bical-day n'+nivel(c)+'" title="'+t+'"><span class="bical-day-num">'+dia+'</span>'+(c>0?'<span class="bical-day-cnt">'+c+'</span>':'')+'</span>';
+            }
+          }
+          html += "</div></div>";
+        });
+        html += "</div>";
+        html += '<div class="bical-legenda"><span>Menos</span><span class="bical-cell"></span><span class="bical-cell n1"></span><span class="bical-cell n2"></span><span class="bical-cell n3"></span><span class="bical-cell n4"></span><span>Mais</span></div>';
+        calEl.innerHTML = html;
       }
 
       function chartOpts(label, horizontal) {
@@ -932,10 +1156,12 @@
         const maxV   = sorted.length ? sorted[0][1].visitas : 1;
         const tbody  = document.getElementById("rankBody");
 
+        const card = tbody.closest(".card");
         if (!sorted.length) {
-          tbody.innerHTML = '<tr><td colspan="7" class="estado-vazio">Nenhum dado no período</td></tr>';
+          if (card) card.style.display = "none";
           return;
         }
+        if (card) card.style.display = "";
 
         tbody.innerHTML = sorted.slice(0,20).map(function([nome, d], i) {
           const pct = Math.round((d.visitas / maxV) * 100);
@@ -977,10 +1203,12 @@
           "Painel de Frequência — Motorista × Local · " + fmtDataBR(ini) + " a " + fmtDataBR(fim);
 
         const tbody = document.getElementById("freqBody");
+        const card = tbody.closest(".card");
         if (!sorted.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="estado-vazio">Nenhum dado no período</td></tr>';
+          if (card) card.style.display = "none";
           return;
         }
+        if (card) card.style.display = "";
 
         tbody.innerHTML = sorted.map(function ([chave, freq], i) {
           const partes   = chave.split("|||");
@@ -1083,11 +1311,12 @@
         const tbody  = document.getElementById("linhasBody");
         if (!tbody) return;
 
+        const card = tbody.closest(".card");
         if (!sorted.length) {
-          if (titulo) titulo.textContent = "Ranking de linhas com mais paradas irregulares";
-          tbody.innerHTML = '<tr><td colspan="4" class="estado-vazio">Nenhum dado de linha no período</td></tr>';
+          if (card) card.style.display = "none";
           return;
         }
+        if (card) card.style.display = "";
 
         if (titulo) titulo.textContent = "Ranking de linhas — top " + sorted.length + " com mais paradas irregulares";
 
@@ -1194,6 +1423,12 @@
         return m ? m[1] : dtStr;
       }
 
+      function _fmtData(dtStr) {
+        if (!dtStr) return "";
+        var m = String(dtStr).match(/(\d{4})-(\d{2})-(\d{2})/);
+        return m ? m[3] + "/" + m[2] + "/" + m[1] : "";
+      }
+
       function handleDeteccaoDrop(evt) {
         evt.preventDefault();
         var file = evt.dataTransfer.files[0];
@@ -1217,7 +1452,12 @@
           try {
             var rows = _parseCSVRastr(e.target.result);
             var lista = _detectarIrregulares(rows);
-            _renderDeteccao(lista);
+            _carregarMotoristas(function() {
+              lista.forEach(function(item) {
+                item.motoristaMatch = _matchMotorista(item.funcionario);
+              });
+              _renderDeteccao(lista);
+            });
           } catch(ex) {
             statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
           }
@@ -1251,6 +1491,7 @@
         var iE = idx(["ENTRADA","CHEGADA"]);
         var iS = idx(["SAIDA","SADA"]);
         var iD = idx(["PARADA","DURACAO","DURA"]);
+        var iF = idx(["FUNCIONARIO","FUNCION"]);
 
         var rows = [];
         for (var i = 1; i < lines.length; i++) {
@@ -1258,11 +1499,12 @@
           if (!l) continue;
           var f = splitCSV(l);
           rows.push({
-            veiculo: (f[iV] || "").trim(),
-            ponto:   (f[iP] || "").trim(),
-            entrada: (f[iE] || "").trim(),
-            saida:   (f[iS] || "").trim(),
-            parada:  (f[iD] || "").trim(),
+            veiculo:     (f[iV] || "").trim(),
+            ponto:       (f[iP] || "").trim(),
+            entrada:     (f[iE] || "").trim(),
+            saida:       (f[iS] || "").trim(),
+            parada:      (f[iD] || "").trim(),
+            funcionario: iF >= 0 ? (f[iF] || "").trim() : "",
           });
         }
         return rows;
@@ -1291,12 +1533,18 @@
           lista.push({
             veiculo:      r.veiculo,
             ponto:        r.ponto,
+            codigo:       pc.codigo || "",
             descResumida: (pc.descResumida || "").trim(),
+            descCompleta: (pc.descCompleta || "").trim(),
             regiao:       pc.regiao || pc.uf || "—",
+            uf:           pc.uf || "",
+            lat:          pc.lat || null,
+            lng:          pc.lng || null,
             entrada:      r.entrada,
             saida:        r.saida,
             parada:       r.parada,
             seg:          seg,
+            funcionario:  r.funcionario || "",
           });
         });
 
@@ -1304,7 +1552,31 @@
         return lista;
       }
 
+      var _detLista = [];
+      var _motoristasCache = null;
+
+      function _carregarMotoristas(cb) {
+        if (_motoristasCache) { if (cb) cb(); return; }
+        google.script.run
+          .withSuccessHandler(function(lista) { _motoristasCache = lista; if (cb) cb(); })
+          .withFailureHandler(function()      { _motoristasCache = [];   if (cb) cb(); })
+          .getMotoristas();
+      }
+
+      function _matchMotorista(nomeCsv) {
+        if (!_motoristasCache || !nomeCsv) return null;
+        var norm = _normDet(nomeCsv);
+        if (!norm || norm === "NAO INFORMADO" || norm === "N O INFORMADO") return null;
+        for (var i = 0; i < _motoristasCache.length; i++) {
+          var m = _motoristasCache[i];
+          var mn = _normDet(m.nome || "");
+          if (mn && (mn === norm || mn.includes(norm) || norm.includes(mn))) return m;
+        }
+        return null;
+      }
+
       function _renderDeteccao(lista) {
+        _detLista = lista;
         var statusEl = document.getElementById("detStatus");
         var resultEl = document.getElementById("detResult");
 
@@ -1333,32 +1605,33 @@
           '&nbsp;&nbsp;<button class="pag-btn" onclick="copiarDeteccao()" style="font-size:11px;padding:3px 10px;margin-left:4px">⎘ Copiar</button>' +
           '&nbsp;<span style="color:var(--texto3);font-size:11px">· clique na linha para riscar</span>';
 
-        // Agrupa por veículo, ordena grupos por nº de ocorrências desc
+        // Agrupa por veículo (prefixo), mantendo ordem por maior duração dentro de cada grupo
         var grupos = {};
         var ordemGrupos = [];
-        lista.forEach(function(r) {
+        lista.forEach(function(r, idx) {
           if (!grupos[r.veiculo]) { grupos[r.veiculo] = []; ordemGrupos.push(r.veiculo); }
-          grupos[r.veiculo].push(r);
+          grupos[r.veiculo].push({ r: r, idx: idx });
         });
-        ordemGrupos.sort(function(a, b) { return grupos[b].length - grupos[a].length; });
+        // Ordena grupos pelo maior seg do grupo (lista já vem ordenada por seg desc)
+        ordemGrupos.sort(function(a, b) { return grupos[b][0].r.seg - grupos[a][0].r.seg; });
 
-        var linhasHTML = [];
+        var rows = "";
         ordemGrupos.forEach(function(veiculo) {
-          var items = grupos[veiculo];
-          linhasHTML.push(
-            '<tr class="det-grupo-header">' +
-            '<td colspan="6">' +
-              'Veículo&ensp;<span style="color:var(--texto)">' + veiculo + '</span>' +
-              '&ensp;<span class="det-grupo-count">· ' + items.length + ' ocorrência' + (items.length !== 1 ? 's' : '') + '</span>' +
-            '</td></tr>'
-          );
-          items.forEach(function(r) {
+          var grupo = grupos[veiculo];
+          rows += '<tr style="background:rgba(244,121,32,0.07);border-top:1px solid rgba(244,121,32,0.18);cursor:pointer" onclick="_riscarGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
+            '<td colspan="7" style="padding:7px 10px">' +
+              '<strong class="det-prefixo" style="color:var(--laranja);font-size:13px;letter-spacing:0.04em" ' +
+                'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + veiculo.replace(/'/g,"") + '\')" ' +
+                'title="Clique para copiar prefixo">' + veiculo + '</strong>' +
+              '<span style="color:var(--texto3);font-size:11px;margin-left:10px">' +
+                grupo.length + ' parada' + (grupo.length !== 1 ? 's' : '') +
+              '</span>' +
+            '</td></tr>';
+          grupo.forEach(function(entry) {
+            var r = entry.r; var idx = entry.idx;
             var cor = r.seg >= 30*60 ? 'var(--vermelho)' : r.seg >= 15*60 ? 'var(--amarelo)' : 'var(--laranja)';
-            linhasHTML.push(
-              '<tr style="cursor:pointer" onclick="this.classList.toggle(\'riscado\')">' +
-              '<td><strong class="det-prefixo" style="color:var(--texto)" ' +
-                'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + r.veiculo.replace(/'/g,"") + '\')" ' +
-                'title="Clique para copiar prefixo">' + r.veiculo + '</strong></td>' +
+            rows += '<tr data-grupo="' + veiculo.replace(/"/g,"") + '" style="cursor:pointer" onclick="this.classList.toggle(\'riscado\')">' +
+              '<td style="padding-left:22px;color:var(--texto3);font-size:11px;border-left:2px solid rgba(244,121,32,0.2)"></td>' +
               '<td style="color:var(--texto);white-space:normal">' +
                 '<div class="det-ponto-wrap">' +
                   '<span>' + r.ponto + '</span>' +
@@ -1366,11 +1639,13 @@
                 '</div>' +
               '</td>' +
               '<td style="color:var(--texto2)">' + r.regiao + '</td>' +
-              '<td>' + _fmtHM(r.entrada) + '</td>' +
-              '<td>' + _fmtHM(r.saida) + '</td>' +
+              '<td>' + _fmtHM(r.entrada) + (_fmtData(r.entrada) ? '<br><span style="font-size:10px;color:var(--texto3)">' + _fmtData(r.entrada) + '</span>' : '') + '</td>' +
+              '<td>' + _fmtHM(r.saida) + (_fmtData(r.saida) ? '<br><span style="font-size:10px;color:var(--texto3)">' + _fmtData(r.saida) + '</span>' : '') + '</td>' +
               '<td><span class="dur-tag" style="color:' + cor + ';border-color:' + cor + '">' + r.parada + '</span></td>' +
-              '</tr>'
-            );
+              '<td style="white-space:nowrap">' +
+                (r.motoristaMatch ? '<span style="font-size:10px;font-weight:600;color:var(--verde);border:1px solid var(--verde);border-radius:4px;padding:1px 6px;margin-right:5px;opacity:.85">' + r.motoristaMatch.nome.split(" ").slice(0,2).join(" ") + '</span>' : '') +
+              '</td>' +
+              '</tr>';
           });
         });
 
@@ -1379,10 +1654,8 @@
           '<table class="hist-table" id="detTable">' +
           '<thead><tr>' +
           '<th>Veículo</th><th>Ponto de controle</th><th>Região</th>' +
-          '<th>Entrada</th><th>Saída</th><th>Duração</th>' +
-          '</tr></thead><tbody>' +
-          linhasHTML.join("") +
-          '</tbody></table></div>';
+          '<th>Entrada</th><th>Saída</th><th>Duração</th><th></th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table></div>';
       }
 
       function _copiarDesc(el, desc) {
@@ -1399,6 +1672,12 @@
         });
       }
 
+      function _riscarGrupo(veiculo) {
+        var rows = document.querySelectorAll('[data-grupo="' + veiculo + '"]');
+        var allRiscado = Array.from(rows).every(function(r) { return r.classList.contains('riscado'); });
+        rows.forEach(function(r) { r.classList[allRiscado ? 'remove' : 'add']('riscado'); });
+      }
+
       function _copiarPrefixo(el, prefixo) {
         navigator.clipboard.writeText(prefixo).then(function() {
           var orig = el.textContent;
@@ -1409,6 +1688,152 @@
             el.style.color = "";
           }, 1200);
         });
+      }
+
+      // ── MODAL OCORRÊNCIA ─────────────────────────────────────
+      var MAPS_KEY = ""; // ← coloque sua chave Google Maps Static API aqui
+
+      function abrirModalOcorrencia(idx) {
+        var r = _detLista[idx];
+        if (!r) return;
+
+        // Preenche campos fixos
+        document.getElementById("ocVeiculo").textContent  = r.veiculo;
+        document.getElementById("ocPonto").textContent    = r.descResumida || r.ponto;
+        document.getElementById("ocRegiao").textContent   = r.regiao + (r.uf ? " · " + r.uf : "");
+        document.getElementById("ocEntrada").textContent  = _fmtHM(r.entrada);
+        document.getElementById("ocSaida").textContent    = _fmtHM(r.saida);
+        document.getElementById("ocDuracao").textContent  = r.parada;
+
+        // Data no formato YYYY-MM-DD para o campo date
+        var dm = String(r.entrada || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+        document.getElementById("ocData").value = dm ? dm[1]+"-"+dm[2]+"-"+dm[3] : "";
+
+        // Guarda índice para o submit
+        document.getElementById("ocModal").dataset.idx = idx;
+
+        // Imagens satélite + Street View
+        _preencherImagens(r.lat, r.lng);
+
+        // Carrega motoristas
+        document.getElementById("ocMotorista").innerHTML = '<option value="">Carregando...</option>';
+        document.getElementById("ocBase").value = "";
+        document.getElementById("ocLinha").value = "";
+        document.getElementById("ocStatus").textContent = "";
+        document.getElementById("ocStatus").className = "oc-status";
+
+        var _motMatch = r.motoristaMatch || null;
+
+        // Usa cache se disponível, senão chama GAS
+        var _preencherSelect = function(lista) {
+          var sel = document.getElementById("ocMotorista");
+          sel.innerHTML = '<option value="">— selecione —</option>';
+          lista.forEach(function(m) {
+            var opt = document.createElement("option");
+            opt.value = m.id + "||" + m.nome;
+            opt.textContent = m.id + " · " + m.nome;
+            sel.appendChild(opt);
+          });
+          if (_motMatch) {
+            for (var i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value.startsWith(_motMatch.id + "||")) {
+                sel.selectedIndex = i;
+                var st = document.getElementById("ocStatus");
+                st.textContent = "✓ Motorista identificado pelo rastreamento — preencha a Base para continuar";
+                st.className = "oc-status ok";
+                setTimeout(function() { document.getElementById("ocBase").focus(); }, 100);
+                break;
+              }
+            }
+          }
+        };
+
+        if (_motoristasCache && _motoristasCache.length) {
+          _preencherSelect(_motoristasCache);
+        } else {
+          google.script.run
+            .withSuccessHandler(function(lista) { _motoristasCache = lista; _preencherSelect(lista); })
+            .withFailureHandler(function() {
+              document.getElementById("ocMotorista").innerHTML = '<option value="">Erro ao carregar motoristas</option>';
+            })
+            .getMotoristas();
+        }
+
+        document.getElementById("ocModal").classList.remove("hidden");
+      }
+
+      function fecharModalOcorrencia() {
+        document.getElementById("ocModal").classList.add("hidden");
+      }
+
+      function _preencherImagens(lat, lng) {
+        var satBox  = document.getElementById("ocImgSat");
+        var svBox   = document.getElementById("ocImgSV");
+
+        if (!lat || !lng || !MAPS_KEY) {
+          satBox.innerHTML = '<span>Sem coordenadas ou chave Maps</span>';
+          svBox.innerHTML  = '<span>Sem coordenadas ou chave Maps</span>';
+          return;
+        }
+
+        var base = lat + "," + lng;
+        var satUrl = "https://maps.googleapis.com/maps/api/staticmap"
+          + "?center=" + base + "&zoom=17&size=600x340&maptype=satellite"
+          + "&markers=color:red|" + base + "&key=" + MAPS_KEY;
+        var svUrl  = "https://maps.googleapis.com/maps/api/streetview"
+          + "?size=600x340&location=" + base
+          + "&fov=90&pitch=10&key=" + MAPS_KEY;
+
+        satBox.innerHTML = '<img src="' + satUrl + '" alt="Satélite" onerror="this.parentElement.innerHTML=\'<span>Imagem indisponível</span>\'">';
+        svBox.innerHTML  = '<img src="' + svUrl  + '" alt="Street View" onerror="this.parentElement.innerHTML=\'<span>Street View indisponível</span>\'">';
+      }
+
+      function submeterOcorrencia() {
+        var modal = document.getElementById("ocModal");
+        var idx   = parseInt(modal.dataset.idx);
+        var r     = _detLista[idx];
+        if (!r) return;
+
+        var motVal  = document.getElementById("ocMotorista").value;
+        var base    = document.getElementById("ocBase").value.trim();
+        var linha   = document.getElementById("ocLinha").value.trim();
+        var dataRel = document.getElementById("ocData").value;
+        var statusEl = document.getElementById("ocStatus");
+
+        if (!motVal) { statusEl.textContent = "Selecione o motorista."; statusEl.className = "oc-status err"; return; }
+        if (!base)   { statusEl.textContent = "Informe a base.";        statusEl.className = "oc-status err"; return; }
+
+        var motParts    = motVal.split("||");
+        var motoristaId = motParts[0] || "";
+        var motoristaNome = motParts[1] || "";
+
+        var btnSubmit = document.getElementById("ocBtnSubmit");
+        btnSubmit.disabled = true;
+        statusEl.textContent = "Enviando...";
+        statusEl.className = "oc-status";
+
+        google.script.run
+          .withSuccessHandler(function() {
+            statusEl.textContent = "✓ Ocorrência registrada com sucesso!";
+            statusEl.className = "oc-status ok";
+            btnSubmit.disabled = false;
+            setTimeout(fecharModalOcorrencia, 2000);
+          })
+          .withFailureHandler(function(err) {
+            statusEl.textContent = "Erro: " + (err.message || err);
+            statusEl.className = "oc-status err";
+            btnSubmit.disabled = false;
+          })
+          .addOcorrencia({
+            localId:       r.codigo,
+            localNome:     r.descCompleta || r.ponto,
+            carro:         r.veiculo,
+            motoristaId:   motoristaId,
+            motoristaNome: motoristaNome,
+            base:          base,
+            dataRelatorio: dataRel,
+            linha:         linha,
+          });
       }
 
       function copiarDeteccao() {
@@ -1426,5 +1851,97 @@
         });
       }
     </script>
+
+    <!-- ── SIDE NAV ──────────────────────────────────────────────── -->
+    <nav id="sideNav">
+      <a class="side-link" href="#sec-kpis">      <span class="side-label">KPIs</span>      <span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-graficos">  <span class="side-label">Gráficos</span>  <span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-mapa">      <span class="side-label">Mapa</span>      <span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-ranking">   <span class="side-label">Ranking</span>   <span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-frequencia"><span class="side-label">Frequência</span><span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-historico"> <span class="side-label">Histórico</span> <span class="side-dot"></span></a>
+      <a class="side-link" href="#sec-deteccao">  <span class="side-label">Detecção</span>  <span class="side-dot"></span></a>
+    </nav>
+
+    <!-- ── MODAL GERAR OCORRÊNCIA ──────────────────────────────── -->
+    <div class="oc-overlay hidden" id="ocModal" onclick="if(event.target===this)fecharModalOcorrencia()">
+      <div class="oc-panel">
+
+        <div class="oc-header">
+          <h3>⚡ Gerar Ocorrência</h3>
+          <button class="oc-close" onclick="fecharModalOcorrencia()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <!-- Resumo da detecção -->
+          <div class="oc-resumo">
+            <div class="oc-field">
+              <label>Veículo</label>
+              <strong id="ocVeiculo">—</strong>
+            </div>
+            <div class="oc-field">
+              <label>Ponto de controle</label>
+              <span id="ocPonto">—</span>
+            </div>
+            <div class="oc-field">
+              <label>Região</label>
+              <span id="ocRegiao">—</span>
+            </div>
+            <div class="oc-field">
+              <label>Duração da parada</label>
+              <strong id="ocDuracao" style="color:var(--vermelho)">—</strong>
+            </div>
+            <div class="oc-field">
+              <label>Entrada</label>
+              <span id="ocEntrada">—</span>
+            </div>
+            <div class="oc-field">
+              <label>Saída</label>
+              <span id="ocSaida">—</span>
+            </div>
+          </div>
+
+          <!-- Imagens Maps -->
+          <div>
+            <div class="oc-field" style="margin-bottom:8px"><label>📍 Local — Satélite &amp; Street View</label></div>
+            <div class="oc-imgs">
+              <div class="oc-img-box" id="ocImgSat"><span>Aguardando...</span></div>
+              <div class="oc-img-box" id="ocImgSV"><span>Aguardando...</span></div>
+            </div>
+          </div>
+
+          <!-- Campos editáveis -->
+          <div class="oc-resumo">
+            <div class="oc-field" style="grid-column:1/-1">
+              <label>Motorista *</label>
+              <select id="ocMotorista"><option value="">Carregando...</option></select>
+            </div>
+            <div class="oc-field">
+              <label>Base *</label>
+              <input id="ocBase" type="text" placeholder="Ex: BHZ CATEDRAL" autocomplete="off">
+            </div>
+            <div class="oc-field">
+              <label>Linha / Serviço</label>
+              <input id="ocLinha" type="text" placeholder="Ex: 0126 ou deixe em branco">
+            </div>
+            <div class="oc-field" style="grid-column:1/-1">
+              <label>Data do relatório *</label>
+              <input id="ocData" type="date">
+            </div>
+          </div>
+
+        </div><!-- /oc-body -->
+
+        <div class="oc-footer">
+          <span class="oc-status" id="ocStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharModalOcorrencia()">Cancelar</button>
+          <button class="btn btn-primary" id="ocBtnSubmit" onclick="submeterOcorrencia()">✓ Registrar ocorrência</button>
+        </div>
+
+      </div>
+    </div><!-- /ocModal -->
+
   </body>
 </html>
+
