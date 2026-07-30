@@ -1098,6 +1098,45 @@
         return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
       }
 
+      // "HH:MM:SS" ou "YYYY-MM-DD HH:MM:SS" → "DD.MM.AA" (2 dígitos de ano)
+      function _fmtDataCurta(dtStr) {
+        var m = String(dtStr || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return "";
+        return m[3] + "." + m[2] + "." + m[1].slice(2);
+      }
+
+      // Nome de arquivo: "MATRICULA - MOTORISTA - BASE - EXCES_PERMA - DD.MM.AA"
+      function _nomeArquivoRelatorio(item, motorista) {
+        var partes = [
+          motorista.code || "SEMCOD",
+          (motorista.name || "MOTORISTA").trim(),
+          (motorista.base || "").trim(),
+          "EXCES_PERMA",
+          _fmtDataCurta(item.entrada),
+        ].filter(Boolean);
+        return partes.join(" - ") + ".pdf";
+      }
+
+      // Baixa o PDF via blob + <a download> — mais confiável que
+      // window.open/target=_blank dentro do iframe restrito do Apps Script.
+      function _baixarPdf(url, filename) {
+        return fetch(url)
+          .then(function (r) {
+            if (!r.ok) throw new Error("Falha ao baixar o PDF gerado");
+            return r.blob();
+          })
+          .then(function (blob) {
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 10000);
+          });
+      }
+
       function _gerarRelatorio() {
         if (!_relItemAtual) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
@@ -1107,10 +1146,6 @@
         btn.disabled = true;
         btn.textContent = "Gerando...";
         _setRelStatus("Criando ocorrência...", "");
-
-        // Abre a aba já no clique (preserva o gesto do usuário) — evita
-        // bloqueio de pop-up, já que o restante do fluxo é assíncrono.
-        var pdfTab = window.open("", "_blank");
 
         var item = _relItemAtual;
         var entradaP = _dataHoraPartes(item.entrada);
@@ -1165,17 +1200,19 @@
           })
           .then(function (json) {
             var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
-            if (url && pdfTab && !pdfTab.closed) pdfTab.location.href = url;
+            if (!url) throw new Error("PDF gerado, mas sem link de download");
 
-            var status = document.getElementById("relStatus");
-            status.innerHTML = url
-              ? _icon("check") + ' Relatório gerado! <a href="' + url + '" target="_blank" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir PDF</a>'
-              : _icon("check") + " Relatório gerado com sucesso!";
-            status.className = "oc-status ok";
-            btn.innerHTML = _icon("check") + " Concluído";
+            var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado);
+            _setRelStatus("Baixando PDF...", "");
+
+            return _baixarPdf(url, nomeArquivo).then(function () {
+              var status = document.getElementById("relStatus");
+              status.innerHTML = _icon("check") + ' Relatório baixado! <a href="' + url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir de novo</a>';
+              status.className = "oc-status ok";
+              btn.innerHTML = _icon("check") + " Concluído";
+            });
           })
           .catch(function (err) {
-            if (pdfTab && !pdfTab.closed) pdfTab.close();
             _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
