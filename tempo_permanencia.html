@@ -570,7 +570,7 @@
 
       function _renderItemHtml(r) {
         var cor = _corExcedente(r.excedenteSeg);
-        return '<div class="perm-item" onclick="this.classList.toggle(\'riscado\')" title="Clique para marcar como analisado">' +
+        return '<div class="perm-item" onclick="this.classList.toggle(\'riscado\');_atualizarContadoresA_partir(this)" title="Clique para marcar como analisado">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' + r.ponto + '</div>' +
             '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
@@ -614,6 +614,27 @@
 
         btnEl.textContent = !allRiscado ? "↺ Reverter" : "✓ Analisado";
         btnEl.classList.toggle("ativo", !allRiscado);
+
+        _atualizarContadoresA_partir(details);
+      }
+
+      // ── Contador de pendentes (ocorrências ainda não analisadas)
+      //    exibido em cada cabeçalho de região/prefixo ─────────────
+      function _atualizarContador(detailsEl) {
+        var countEl = detailsEl.querySelector(":scope > summary .acc-count");
+        if (!countEl) return;
+        var total = parseInt(countEl.getAttribute("data-total"), 10) || 0;
+        var pendentes = detailsEl.querySelectorAll(".perm-item:not(.riscado)").length;
+        countEl.textContent = pendentes === total
+          ? (total + " ocorrência" + (total !== 1 ? "s" : ""))
+          : (pendentes + " de " + total + " pendente" + (pendentes !== 1 ? "s" : ""));
+      }
+
+      function _atualizarContadoresA_partir(el) {
+        var grupoDetails = el.closest(".acc-prefixo-group");
+        var regiaoDetails = el.closest(".acc-regiao");
+        if (grupoDetails) _atualizarContador(grupoDetails);
+        if (regiaoDetails) _atualizarContador(regiaoDetails);
       }
 
       function _renderTPFiltrado() {
@@ -661,7 +682,7 @@
                 '<span class="acc-prefixo">' + regiao + '</span>' +
                 '<span class="acc-sub">' + veiculosRegiao.size + ' veículo' + (veiculosRegiao.size !== 1 ? 's' : '') + '</span>' +
               '</div>' +
-              '<div class="acc-right"><span class="acc-count">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span></div>' +
+              '<div class="acc-right"><span class="acc-count" data-total="' + itensRegiao.length + '">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span></div>' +
             '</summary>' +
             '<div class="acc-body">';
 
@@ -679,7 +700,7 @@
                   '<span class="acc-sub">' + (linhasGrupo.size ? Array.from(linhasGrupo).join(", ") : "") + '</span>' +
                 '</div>' +
                 '<div class="acc-right">' +
-                  '<span class="acc-count">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
+                  '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
                   '<button type="button" class="acc-mini-btn" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">✓ Analisado</button>' +
                 '</div>' +
