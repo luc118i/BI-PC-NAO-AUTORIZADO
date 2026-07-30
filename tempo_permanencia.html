@@ -890,10 +890,15 @@
 
         document.getElementById("relatorioModal").classList.remove("hidden");
         _carregarTrips();
+        // Ctrl+V precisa funcionar em qualquer lugar do modal, não só com o
+        // foco exatamente na zona de evidências — escuta no documento inteiro
+        // enquanto o modal estiver aberto.
+        document.addEventListener("paste", _handlePasteEvidencia);
       }
 
       function fecharModalRelatorio() {
         document.getElementById("relatorioModal").classList.add("hidden");
+        document.removeEventListener("paste", _handlePasteEvidencia);
       }
 
       // ── Catálogo de viagens (carrega 1x, filtra tudo localmente) ──
@@ -1216,8 +1221,7 @@
               onclick="document.getElementById('relEvidInput').click()"
               ondragover="event.preventDefault(); this.classList.add('drag-over')"
               ondragleave="this.classList.remove('drag-over')"
-              ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)"
-              onpaste="_handlePasteEvidencia(event)">
+              ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)">
               <div class="oc-evid-zone-label">Cole (Ctrl+V), arraste ou clique pra selecionar</div>
               <div class="oc-evid-zone-sub">Imagens (print, foto) · vão anexadas ao relatório</div>
               <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
