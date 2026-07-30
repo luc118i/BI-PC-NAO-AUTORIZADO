@@ -143,13 +143,25 @@ function getTemposPermanencia() {
     .filter((r) => String(r[0] || "").trim() !== "")
     .map((r) => ({
       origem: String(r[0] || "").trim(),
-      tempoPermanencia: String(r[1] || "").trim(),
+      tempoPermanencia: _formatarTempoPermanencia_(r[1]),
       mediaMesPax: _numOuNull(r[2]),
       mediaDiaPax: _numOuNull(r[3]),
       codLocal: String(r[4] || "").trim(),
     }));
 
   return JSON.stringify(linhas);
+}
+
+// Converte a célula "Tempo de Permanencia" para "HH:MM" em texto.
+// Se a coluna estiver formatada como horário/duração, o Sheets
+// entrega um Date (época 1899-12-30) em vez da string digitada.
+function _formatarTempoPermanencia_(val) {
+  if (val instanceof Date) {
+    const h = val.getHours();
+    const m = val.getMinutes();
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  }
+  return String(val || "").trim();
 }
 
 // ── 5. getDadosBI(dataIni, dataFim) ──────────────────────────

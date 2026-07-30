@@ -252,7 +252,7 @@
 
       function _parseHMtoMin(str) {
         var p = String(str || "").trim().split(":");
-        if (p.length !== 2) return null;
+        if (p.length < 2) return null;
         var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
         if (!isFinite(h) || !isFinite(m)) return null;
         return h * 60 + m;
