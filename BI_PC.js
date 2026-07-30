@@ -15,6 +15,12 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (view === "tempo-permanencia") {
+    return HtmlService.createHtmlOutputFromFile("tempo_permanencia")
+      .setTitle("Tempo de Permanência · Viação Catedral")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService.createHtmlOutputFromFile("index")
     .setTitle("BI PC's Não Autorizados · Viação Catedral")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

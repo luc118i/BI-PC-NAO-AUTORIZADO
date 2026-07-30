@@ -321,6 +321,7 @@
       /* ── MODAL OCORRÊNCIA ───────────────────────────────────── */
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
+      .hidden { display: none !important; }
       .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
       .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
       .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
@@ -476,6 +477,8 @@
         <div class="btn-group">
           <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
+          <button class="btn btn-ghost" onclick="abrirModalNovoPonto()">+ Novo Ponto de Parada Irregular</button>
+          <button class="btn btn-ghost" onclick="abrirTempoPermanencia()">⏱ Tempo de Permanência</button>
         </div>
       </div>
     </div>
@@ -735,6 +738,11 @@
       let charts          = {};
       let mapa            = null;
       let webAppBaseUrl   = "";
+
+      function abrirTempoPermanencia() {
+        var url = (webAppBaseUrl || window.location.href.split("?")[0]) + "?view=tempo-permanencia";
+        window.open(url, "_blank");
+      }
 
       // Paginação da tabela histórico
       let pagAtual        = 1;
@@ -1690,6 +1698,256 @@
         });
       }
 
+      // ─────────────────────────────────────────────────────────
+      //  Novo Ponto de Parada Irregular — cadastro via CSV
+      // ─────────────────────────────────────────────────────────
+      var _pontoLista = [];
+
+      function abrirModalNovoPonto() {
+        _pontoVoltarUpload();
+        document.getElementById("pontoModal").classList.remove("hidden");
+      }
+
+      function fecharModalNovoPonto() {
+        document.getElementById("pontoModal").classList.add("hidden");
+        _pontoVoltarUpload();
+      }
+
+      function _pontoVoltarUpload() {
+        _pontoLista = [];
+        document.getElementById("pontoFileInput").value = "";
+        document.getElementById("pontoUploadStatus").innerHTML = "";
+        document.getElementById("pontoStepUpload").classList.remove("hidden");
+        document.getElementById("pontoStepPreview").classList.add("hidden");
+        document.getElementById("pontoStepDone").classList.add("hidden");
+        document.getElementById("pontoStatus").textContent = "";
+        document.getElementById("pontoStatus").className = "oc-status";
+        document.getElementById("pontoBtnCancelar").classList.remove("hidden");
+        document.getElementById("pontoBtnVoltar").classList.add("hidden");
+        document.getElementById("pontoBtnConfirmar").classList.add("hidden");
+        document.getElementById("pontoBtnFechar").classList.add("hidden");
+      }
+
+      function handlePontoDrop(evt) {
+        evt.preventDefault();
+        var file = evt.dataTransfer.files[0];
+        if (file) _processarArquivoPonto(file);
+      }
+
+      function handlePontoUpload(evt) {
+        var file = evt.target.files[0];
+        if (file) _processarArquivoPonto(file);
+      }
+
+      function _processarArquivoPonto(file) {
+        var statusEl = document.getElementById("pontoUploadStatus");
+        statusEl.innerHTML = '<span class="det-spinner"></span> Lendo <strong>' + file.name + '</strong>...';
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            var parsed = _parseCSVPontos(e.target.result);
+            if (!parsed.rows.length) {
+              statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Nenhum registro encontrado no arquivo.</span>';
+              return;
+            }
+            var lista = _validarPontos(parsed);
+            _renderPreviewPontos(lista);
+          } catch (ex) {
+            statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
+          }
+        };
+        reader.readAsText(file, "windows-1252");
+      }
+
+      function _splitCSVLine(line) {
+        var fields = []; var f = ""; var q = false;
+        for (var i = 0; i < line.length; i++) {
+          var c = line[i];
+          if (c === '"') { q = !q; }
+          else if (c === ',' && !q) { fields.push(f.trim()); f = ""; }
+          else f += c;
+        }
+        fields.push(f.trim());
+        return fields;
+      }
+
+      function _parseCSVPontos(text) {
+        var lines = text.replace(/\r/g, "").split("\n").filter(function(l) { return l.trim(); });
+        if (lines.length < 2) return { header: [], rows: [] };
+
+        var header = _splitCSVLine(lines[0]).map(function(h) { return _normDet(h); });
+        var idx = function(terms) {
+          return header.findIndex(function(h) { return terms.some(function(t) { return h.includes(t); }); });
+        };
+
+        var cols = {
+          // "CODIGO" exato — evita casar com "CODIGO EXTERNO"
+          codigo:    header.indexOf("CODIGO"),
+          codEmb:    idx(["COD EMB", "CODIGO EMB"]),
+          descRes:   idx(["DESC RESUMIDA", "DESC. RESUMIDA"]),
+          descricao: idx(["DESCRICAO"]),
+          unidade:   idx(["UNIDADE EMPRESARIAL"]),
+          tipo:      idx(["TIPO"]),
+          lat:       idx(["LATITUDE"]),
+          lng:       idx(["LONGITUDE"]),
+        };
+
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var f = _splitCSVLine(lines[i]);
+          if (f.every(function(v) { return !v; })) continue;
+          rows.push(f);
+        }
+        return { header: header, cols: cols, rows: rows };
+      }
+
+      function _parseCoordPonto(v) {
+        if (v === undefined || v === null || v === "") return NaN;
+        return parseFloat(String(v).trim().replace(",", "."));
+      }
+
+      function _validarPontos(parsed) {
+        var cols = parsed.cols;
+        var existentes = {};
+        todosPCs.forEach(function(pc) { if (pc.codigo) existentes[_normDet(pc.codigo)] = true; });
+
+        var vistosNoArquivo = {};
+        var lista = [];
+
+        parsed.rows.forEach(function(f, i) {
+          var codigo    = cols.codigo    >= 0 ? (f[cols.codigo]    || "").trim() : "";
+          var codEmb    = cols.codEmb    >= 0 ? (f[cols.codEmb]    || "").trim() : "";
+          var descRes   = cols.descRes   >= 0 ? (f[cols.descRes]   || "").trim() : "";
+          var descricao = cols.descricao >= 0 ? (f[cols.descricao] || "").trim() : "";
+          var unidade   = cols.unidade   >= 0 ? (f[cols.unidade]   || "").trim() : "";
+          var tipo      = cols.tipo      >= 0 ? (f[cols.tipo]      || "").trim() : "";
+          var lat       = cols.lat       >= 0 ? _parseCoordPonto(f[cols.lat]) : NaN;
+          var lng       = cols.lng       >= 0 ? _parseCoordPonto(f[cols.lng]) : NaN;
+
+          var linha = i + 2; // +1 cabeçalho, +1 base 1
+          var status = "valido";
+          var motivo = "";
+
+          if (!codigo) { status = "invalido"; motivo = "Código ausente"; }
+          else if (!descricao && !descRes) { status = "invalido"; motivo = "Descrição ausente"; }
+          else if (isNaN(lat) || isNaN(lng)) { status = "invalido"; motivo = "Latitude/Longitude inválida"; }
+          else if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { status = "invalido"; motivo = "Coordenadas fora do intervalo válido"; }
+          else if (existentes[_normDet(codigo)]) { status = "duplicado"; motivo = "Código já cadastrado na base"; }
+          else if (vistosNoArquivo[_normDet(codigo)]) { status = "duplicado"; motivo = "Código duplicado no próprio arquivo"; }
+
+          if (codigo && status === "valido") vistosNoArquivo[_normDet(codigo)] = true;
+
+          lista.push({
+            linha: linha, codigo: codigo, codEmb: codEmb, descRes: descRes, descricao: descricao,
+            unidade: unidade, tipo: tipo, lat: lat, lng: lng, status: status, motivo: motivo,
+          });
+        });
+
+        return lista;
+      }
+
+      function _renderPreviewPontos(lista) {
+        _pontoLista = lista;
+        document.getElementById("pontoStepUpload").classList.add("hidden");
+        document.getElementById("pontoStepPreview").classList.remove("hidden");
+        document.getElementById("pontoBtnVoltar").classList.remove("hidden");
+
+        var validos    = lista.filter(function(r) { return r.status === "valido"; });
+        var invalidos  = lista.filter(function(r) { return r.status === "invalido"; });
+        var duplicados = lista.filter(function(r) { return r.status === "duplicado"; });
+
+        var statusEl = document.getElementById("pontoPreviewStatus");
+        statusEl.innerHTML =
+          '<span class="tag" style="background:var(--laranja3);color:var(--laranja)">' + lista.length + ' linha' + (lista.length !== 1 ? 's' : '') + '</span>' +
+          '&nbsp;<span style="color:var(--verde);font-size:12px">✓ ' + validos.length + ' válido' + (validos.length !== 1 ? 's' : '') + '</span>' +
+          (duplicados.length ? '&nbsp;·&nbsp;<span style="color:var(--amarelo);font-size:12px">⚠ ' + duplicados.length + ' duplicado' + (duplicados.length !== 1 ? 's' : '') + '</span>' : '') +
+          (invalidos.length ? '&nbsp;·&nbsp;<span style="color:var(--vermelho);font-size:12px">✗ ' + invalidos.length + ' inválido' + (invalidos.length !== 1 ? 's' : '') + '</span>' : '');
+
+        var corStatus = { valido: "var(--verde)", duplicado: "var(--amarelo)", invalido: "var(--vermelho)" };
+        var iconeStatus = { valido: "✓", duplicado: "⚠", invalido: "✗" };
+
+        var rows = "";
+        lista.forEach(function(r) {
+          rows += '<tr>' +
+            '<td><span style="color:' + corStatus[r.status] + ';font-weight:700">' + iconeStatus[r.status] + '</span></td>' +
+            '<td>' + (r.codigo || '—') + '</td>' +
+            '<td style="white-space:normal">' + (r.descricao || r.descRes || '—') + '</td>' +
+            '<td>' + [r.unidade, r.tipo].filter(Boolean).join(" · ") + '</td>' +
+            '<td>' + (isNaN(r.lat) ? '—' : r.lat) + '</td>' +
+            '<td>' + (isNaN(r.lng) ? '—' : r.lng) + '</td>' +
+            '<td style="color:' + corStatus[r.status] + '">' + (r.motivo || '') + '</td>' +
+            '</tr>';
+        });
+        document.getElementById("pontoPreviewBody").innerHTML = rows;
+
+        var btnConfirmar = document.getElementById("pontoBtnConfirmar");
+        var pontoStatus  = document.getElementById("pontoStatus");
+        if (validos.length) {
+          btnConfirmar.classList.remove("hidden");
+          pontoStatus.textContent = "";
+          pontoStatus.className = "oc-status";
+        } else {
+          btnConfirmar.classList.add("hidden");
+          pontoStatus.textContent = "Nenhum registro válido para importar.";
+          pontoStatus.className = "oc-status err";
+        }
+      }
+
+      function confirmarImportacaoPontos() {
+        var validos = _pontoLista.filter(function(r) { return r.status === "valido"; });
+        if (!validos.length) return;
+
+        var btnConfirmar = document.getElementById("pontoBtnConfirmar");
+        var pontoStatus   = document.getElementById("pontoStatus");
+        btnConfirmar.disabled = true;
+        pontoStatus.textContent = "Importando " + validos.length + " registro(s)...";
+        pontoStatus.className = "oc-status";
+
+        var payload = validos.map(function(r) {
+          return {
+            codigo: r.codigo, codEmb: r.codEmb, descResumida: r.descRes, descricao: r.descricao || r.descRes,
+            unidadeEmpresarial: r.unidade, tipo: r.tipo, latitude: r.lat, longitude: r.lng,
+          };
+        });
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btnConfirmar.disabled = false;
+            _mostrarResultadoImportacao(res);
+          })
+          .withFailureHandler(function(err) {
+            btnConfirmar.disabled = false;
+            pontoStatus.textContent = "Erro ao importar: " + (err && err.message ? err.message : err);
+            pontoStatus.className = "oc-status err";
+          })
+          .addPontosParadaIrregular(payload);
+      }
+
+      function _mostrarResultadoImportacao(res) {
+        document.getElementById("pontoStepPreview").classList.add("hidden");
+        document.getElementById("pontoStepDone").classList.remove("hidden");
+        document.getElementById("pontoBtnVoltar").classList.add("hidden");
+        document.getElementById("pontoBtnConfirmar").classList.add("hidden");
+        document.getElementById("pontoBtnCancelar").classList.add("hidden");
+        document.getElementById("pontoBtnFechar").classList.remove("hidden");
+        document.getElementById("pontoStatus").textContent = "";
+
+        var adicionados = (res && res.added) || 0;
+        var pulados = (res && res.skipped) || [];
+
+        var html = '<span style="color:var(--verde);font-size:14px">✓ ' + adicionados + ' ponto' + (adicionados !== 1 ? 's' : '') + ' de parada irregular cadastrado' + (adicionados !== 1 ? 's' : '') + ' com sucesso.</span>';
+        if (pulados.length) {
+          html += '<div style="margin-top:10px;font-size:12px;color:var(--texto3)">' + pulados.length + ' registro(s) não importado(s) por já existirem na base:</div>';
+          html += '<ul style="margin:6px 0 0 18px;font-size:12px;color:var(--texto2)">' +
+            pulados.map(function(p) { return '<li>' + p.codigo + ' — ' + p.motivo + '</li>'; }).join("") +
+            '</ul>';
+        }
+        document.getElementById("pontoDoneStatus").innerHTML = html;
+
+        if (typeof aplicarFiltros === "function") aplicarFiltros();
+      }
+
       // ── MODAL OCORRÊNCIA ─────────────────────────────────────
       var MAPS_KEY = ""; // ← coloque sua chave Google Maps Static API aqui
 
@@ -1941,6 +2199,74 @@
 
       </div>
     </div><!-- /ocModal -->
+
+    <!-- ── MODAL NOVO PONTO DE PARADA IRREGULAR ────────────────── -->
+    <div class="oc-overlay hidden" id="pontoModal" onclick="if(event.target===this)fecharModalNovoPonto()">
+      <div class="oc-panel" style="max-width:920px">
+
+        <div class="oc-header">
+          <h3>📍 Novo Ponto de Parada Irregular</h3>
+          <button class="oc-close" onclick="fecharModalNovoPonto()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <!-- Passo 1: Upload -->
+          <div id="pontoStepUpload">
+            <input type="file" id="pontoFileInput" accept=".csv" style="display:none" onchange="handlePontoUpload(event)" />
+            <div class="det-upload-zone" id="pontoUploadZone"
+              onclick="document.getElementById('pontoFileInput').click()"
+              ondragover="event.preventDefault(); this.classList.add('drag-over')"
+              ondragleave="this.classList.remove('drag-over')"
+              ondrop="this.classList.remove('drag-over'); handlePontoDrop(event)">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 16V8m0 0-3 3m3-3 3 3"/><rect x="3" y="3" width="18" height="18" rx="3"/>
+                <path d="M8 17H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3"/>
+              </svg>
+              <div class="det-upload-icon-label">Clique ou arraste o arquivo CSV do ponto de parada irregular</div>
+              <div class="det-upload-sub">Exportado da base de pontos de controle · colunas Código, Descrição, Latitude e Longitude são obrigatórias</div>
+            </div>
+            <div class="det-status" id="pontoUploadStatus"></div>
+          </div>
+
+          <!-- Passo 2: Prévia / Validação -->
+          <div id="pontoStepPreview" class="hidden">
+            <div class="det-status" id="pontoPreviewStatus"></div>
+            <div class="hist-table-wrap">
+              <table class="hist-table" id="pontoPreviewTable">
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Unidade / Tipo</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody id="pontoPreviewBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Passo 3: Concluído -->
+          <div id="pontoStepDone" class="hidden">
+            <div class="det-status" id="pontoDoneStatus"></div>
+          </div>
+
+        </div><!-- /oc-body -->
+
+        <div class="oc-footer">
+          <span class="oc-status" id="pontoStatus"></span>
+          <button class="btn btn-ghost" id="pontoBtnCancelar" onclick="fecharModalNovoPonto()">Cancelar</button>
+          <button class="btn btn-ghost hidden" id="pontoBtnVoltar" onclick="_pontoVoltarUpload()">← Trocar arquivo</button>
+          <button class="btn btn-primary hidden" id="pontoBtnConfirmar" onclick="confirmarImportacaoPontos()">✓ Confirmar importação</button>
+          <button class="btn btn-primary hidden" id="pontoBtnFechar" onclick="fecharModalNovoPonto()">Concluir</button>
+        </div>
+
+      </div>
+    </div><!-- /pontoModal -->
 
   </body>
 </html>

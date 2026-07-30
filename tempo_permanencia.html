@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tempo de Permanência · Viação Catedral</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* ── CATEDRAL DESIGN SYSTEM (mesma paleta do dashboard) ──── */
+      :root {
+        --preto: #0a0a0a;
+        --preto2: #111111;
+        --preto3: #1a1a1a;
+        --preto4: #242424;
+        --laranja: #f47920;
+        --laranja2: #e06510;
+        --laranja3: rgba(244, 121, 32, 0.15);
+        --laranja4: rgba(244, 121, 32, 0.08);
+        --cinza: #2e2e2e;
+        --cinza2: #3d3d3d;
+        --cinza3: #555555;
+        --borda: rgba(255, 255, 255, 0.07);
+        --borda2: rgba(255, 255, 255, 0.12);
+        --borda-l: rgba(244, 121, 32, 0.3);
+        --texto: #f0f0f0;
+        --texto2: #aaaaaa;
+        --texto3: #666666;
+        --verde: #22c97a;
+        --vermelho: #e05050;
+        --amarelo: #f0c040;
+        --radius: 10px;
+        --radius-sm: 6px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+
+      .topbar { background: var(--laranja); height: 4px; width: 100%; }
+
+      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .header-logo { display: flex; align-items: center; gap: 16px; }
+      .logo-icon { width: 44px; height: 44px; background: var(--laranja); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .logo-icon svg { width: 26px; height: 26px; fill: #fff; }
+      .logo-text h1 { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto); line-height: 1; }
+      .logo-text h1 span { color: var(--laranja); }
+      .logo-text p { font-size: 11px; color: var(--texto3); margin-top: 3px; }
+      .btn { font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); }
+      .btn-primary:hover { background: var(--laranja2); }
+      .btn-ghost { background: transparent; color: var(--texto2); border-color: var(--cinza2); }
+      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); }
+
+      .main { padding: 24px 28px 60px; max-width: 1200px; margin: 0 auto; }
+
+      /* ── KPIs ────────────────────────────────────────────── */
+      .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+      @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+      .kpi { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden; }
+      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kpi-c, var(--laranja)); }
+      .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 600; margin-bottom: 8px; }
+      .kpi-value { font-family: "Barlow Condensed", sans-serif; font-size: 32px; font-weight: 700; color: var(--kpi-c, var(--texto)); letter-spacing: -0.01em; line-height: 1; }
+      .kpi-sub { font-size: 11px; color: var(--texto3); margin-top: 6px; }
+
+      .card { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 10px; }
+      .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
+
+      /* ── UPLOAD ──────────────────────────────────────────── */
+      .det-upload-zone { border: 2px dashed var(--cinza2); border-radius: var(--radius); padding: 36px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; color: var(--texto3); user-select: none; }
+      .det-upload-zone:hover, .det-upload-zone.drag-over { border-color: var(--laranja); background: var(--laranja4); color: var(--laranja); }
+      .det-upload-zone svg { display: block; margin: 0 auto 12px; opacity: 0.5; transition: opacity 0.2s; }
+      .det-upload-zone:hover svg, .det-upload-zone.drag-over svg { opacity: 1; }
+      .det-upload-icon-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+      .det-upload-sub { font-size: 11px; color: var(--texto3); }
+      .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-top: 14px; font-size: 13px; flex-wrap: wrap; }
+      .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--laranja3); color: var(--laranja); letter-spacing: 0.03em; }
+      .hidden { display: none !important; }
+
+      /* ── FILTROS ─────────────────────────────────────────── */
+      .filtro-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+      .filtro-bar input[type="text"], .filtro-bar select {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
+        padding: 9px 12px; outline: none; transition: border-color 0.15s;
+      }
+      .filtro-bar input[type="text"] { flex: 1; min-width: 200px; }
+      .filtro-bar input:focus, .filtro-bar select:focus { border-color: var(--laranja); background: var(--preto4); }
+
+      /* ── ACCORDION POR PREFIXO ───────────────────────────── */
+      .acc-group { border: 1px solid var(--borda); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; background: var(--preto2); }
+      .acc-summary {
+        list-style: none; cursor: pointer; padding: 14px 18px; display: flex; align-items: center;
+        justify-content: space-between; gap: 12px; user-select: none;
+      }
+      .acc-summary::-webkit-details-marker { display: none; }
+      .acc-summary:hover { background: var(--laranja4); }
+      .acc-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .acc-chevron { width: 9px; height: 9px; border-right: 2px solid var(--texto3); border-bottom: 2px solid var(--texto3); transform: rotate(-45deg); transition: transform 0.2s; flex-shrink: 0; }
+      details[open] > .acc-summary .acc-chevron { transform: rotate(45deg); }
+      .acc-prefixo { font-family: "Barlow Condensed", sans-serif; font-size: 18px; font-weight: 700; color: var(--laranja); letter-spacing: 0.03em; }
+      .acc-sub { font-size: 11px; color: var(--texto3); }
+      .acc-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .acc-count { font-size: 11px; color: var(--texto2); }
+      .acc-body { border-top: 1px solid var(--borda); padding: 6px 18px 14px; }
+
+      /* Nível 1 = região · nível 2 = prefixo (aninhado, recuado) */
+      .acc-group.acc-regiao { border-color: var(--borda-l); }
+      .acc-group.acc-regiao > .acc-summary { background: rgba(244,121,32,0.05); }
+      .acc-group.acc-regiao > .acc-summary .acc-prefixo { color: var(--texto); font-size: 15px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .acc-group.acc-regiao > .acc-body { padding: 10px 14px 12px; }
+      .acc-group.acc-prefixo-group { margin-bottom: 6px; background: var(--preto3); }
+      .acc-group.acc-prefixo-group > .acc-summary { padding: 10px 14px; }
+
+      .perm-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
+      .perm-item:last-child { border-bottom: none; }
+      .perm-local { flex: 1; min-width: 220px; }
+      .perm-local-nome { font-size: 13px; font-weight: 600; color: var(--texto); }
+      .perm-local-cidade { font-size: 11px; color: var(--texto3); margin-top: 2px; }
+      .perm-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: var(--texto2); }
+      .perm-meta b { color: var(--texto); font-weight: 600; }
+      .perm-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid; letter-spacing: 0.02em; white-space: nowrap; }
+
+      .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar"></div>
+
+    <header class="header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 10.41 4.29 4.3-1.42 1.41L11 13V6h2z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Tempo de <span>Permanência</span></h1>
+          <p>Excedentes de permanência por ponto de controle · Viação Catedral</p>
+        </div>
+      </div>
+      <button class="btn btn-ghost" onclick="voltarDashboard()">← Voltar ao dashboard</button>
+    </header>
+
+    <div class="main">
+
+      <!-- Upload -->
+      <div class="card">
+        <div class="card-title">Upload do rastreamento</div>
+        <input type="file" id="tpFileInput" accept=".csv" style="display:none" onchange="handleTPUpload(event)" />
+        <div class="det-upload-zone" id="tpUploadZone"
+          onclick="document.getElementById('tpFileInput').click()"
+          ondragover="event.preventDefault(); this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="this.classList.remove('drag-over'); handleTPDrop(event)">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 16V8m0 0-3 3m3-3 3 3"/><rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M8 17H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3"/>
+          </svg>
+          <div class="det-upload-icon-label">Clique ou arraste o arquivo CSV do rastreamento</div>
+          <div class="det-upload-sub">Mesmo arquivo exportado do sistema de rastreamento · somente permanências acima do tempo permitido serão exibidas</div>
+        </div>
+        <div class="det-status" id="tpStatus"></div>
+      </div>
+
+      <!-- Resumo -->
+      <div class="kpi-row hidden" id="tpKpis">
+        <div class="kpi" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Excedências</div>
+          <div class="kpi-value" id="kExcedencias">—</div>
+          <div class="kpi-sub" id="kData">—</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--laranja)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Veículos afetados</div>
+          <div class="kpi-value" id="kVeiculos">—</div>
+          <div class="kpi-sub">prefixos únicos</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--amarelo)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Linhas afetadas</div>
+          <div class="kpi-value" id="kLinhas">—</div>
+          <div class="kpi-sub">linhas únicas</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--verde)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Regiões afetadas</div>
+          <div class="kpi-value" id="kRegioes">—</div>
+          <div class="kpi-sub">com base em lat/long</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Maior excedente</div>
+          <div class="kpi-value" id="kMaior">—</div>
+          <div class="kpi-sub">acima do permitido</div>
+        </div>
+      </div>
+
+      <!-- Filtros + resultado -->
+      <div class="card hidden" id="tpResultCard">
+        <div class="card-title">Excedências por prefixo</div>
+        <div class="filtro-bar">
+          <input type="text" id="tpBusca" placeholder="Buscar por prefixo, linha ou local..." oninput="_renderTPFiltrado()" />
+          <select id="tpRegiaoSel" onchange="_renderTPFiltrado()">
+            <option value="">Todas as regiões</option>
+          </select>
+        </div>
+        <div id="tpAccordions" style="margin-top:12px"></div>
+      </div>
+
+    </div>
+
+    <script>
+      var webAppBaseUrl = "";
+      window.onload = function () {
+        if (window.google && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
+        }
+        _carregarPCs();
+      };
+
+      function voltarDashboard() {
+        if (webAppBaseUrl) window.location.href = webAppBaseUrl;
+        else window.history.back();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Região — determinada a partir da lat/long da base de PCs
+      //  (getPCs() já traz lat/long + região curada por coordenada;
+      //   quando o ponto não bate com nenhum PC cadastrado, cai para
+      //   o mapeamento UF → macrorregião, usando a UF da referência)
+      // ─────────────────────────────────────────────────────────
+      var _pcsCache = null;
+
+      function _carregarPCs(cb) {
+        if (_pcsCache) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) {
+          _pcsCache = [];
+          if (cb) cb();
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _pcsCache = JSON.parse(json || "[]"); } catch (e) { _pcsCache = []; }
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _pcsCache = []; if (cb) cb(); })
+          .getPCs();
+      }
+
+      function _matchPC(pontoNome) {
+        if (!_pcsCache || !pontoNome) return null;
+        var normPonto = _normTP(pontoNome);
+        for (var i = 0; i < _pcsCache.length; i++) {
+          var p = _pcsCache[i];
+          var nd = _normTP(p.descCompleta || p.descResumida || "");
+          if (!nd) continue;
+          if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) return p;
+        }
+        return null;
+      }
+
+      var UF_REGIAO = {
+        AC: "Norte", AP: "Norte", AM: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
+        AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste", PE: "Nordeste",
+        PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
+        DF: "Centro-Oeste", GO: "Centro-Oeste", MT: "Centro-Oeste", MS: "Centro-Oeste",
+        ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
+        PR: "Sul", RS: "Sul", SC: "Sul",
+      };
+
+      function _resolverRegiao(pontoNome, ufRef) {
+        var pc = _matchPC(pontoNome);
+        if (pc && pc.regiao) return pc.regiao;
+        if (pc && pc.uf && UF_REGIAO[pc.uf]) return UF_REGIAO[pc.uf];
+        if (ufRef && UF_REGIAO[ufRef]) return UF_REGIAO[ufRef];
+        return "Não identificada";
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Tabela de referência — tempo máximo permitido por origem
+      //  (fonte: planilha "Tempo de Permanência" · atualizar aqui
+      //   sempre que a referência oficial mudar)
+      // ─────────────────────────────────────────────────────────
+      var TEMPO_PERMANENCIA_REF = [
+        ["2","BRASILIA - DF","00:40"],["18","SAO PAULO - SP","00:30"],["17","GOIANIA - GO","00:35"],
+        ["40","SALVADOR - BA","00:30"],["52","RECIFE - PE","00:30"],["57","NATAL - RN","00:20"],
+        ["54","JOAO PESSOA - PB","00:20"],["46","MACEIO - AL","00:20"],["42","ARACAJU - SE","00:20"],
+        ["25","UBERLANDIA - MG","00:30"],["162","BELO HORIZONTE - MG","00:30"],["139","FORTALEZA - CE","00:15"],
+        ["20","CAMPINAS - SP","00:30"],["35","BARREIRAS - BA","00:30"],["33","ALVORADA DO NORTE - GO","00:15"],
+        ["11","MONTES CLAROS - MG","00:15"],["1","TAGUATINGA - DF","00:15"],["23","RIBEIRAO PRETO - SP","00:20"],
+        ["39","FEIRA DE SANTANA - BA","00:15"],["34","LUIS EDUARDO MAGALHAES - BA","00:15"],["110","PALMAS - TO","00:30"],
+        ["114","CORRENTINA - BA","00:20"],["24","UBERABA - MG","00:20"],["79","PETROLINA - PE","00:15"],
+        ["105","GURUPI - TO","00:20"],["115","SANTA MARIA DA VITORIA - BA","00:15"],["29","ANAPOLIS - GO","00:15"],
+        ["89","JUAZEIRO DO NORTE - CE","00:15"],["19","OSASCO - SP","00:15"],["108","PORTO NACIONAL - TO","00:15"],
+        ["45","ARAPIRACA - AL","00:10"],["62","VITORIA DA CONQUISTA - BA","00:20"],["116","SANTANA - BA","00:15"],
+        ["51","CARUARU - PE","00:10"],["64","JEQUIE - BA","00:05"],["81","SALGUEIRO - PE","00:10"],
+        ["99","MOSSORO - RN","00:10"],["97","PAU DOS FERROS - RN","00:10"],["121","COCOS - BA","00:15"],
+        ["96","CAJAZEIRAS - PB","00:05"],["58","PATOS DE MINAS - MG","00:15"],["5","JANUARIA - MG","00:15"],
+        ["78","JUAZEIRO - BA","00:05"],["16","VALPARAISO DE GOIAS - GO","00:10"],["77","SENHOR DO BONFIM - BA","00:10"],
+        ["118","TABOCAS DO BREJO VELHO - BA","00:10"],["63","POCOES - BA","00:10"],["60","SALINAS - MG","00:05"],
+        ["87","BREJO SANTO - CE","00:05"],["4","ITACARAMBI - MG","00:20"],["76","JACOBINA - BA","00:05"],
+        ["153","PATROCINIO - MG","00:10"],["117","SERRA DOURADA - BA","00:15"],["28","TRINDADE - GO","00:20"],
+        ["98","APODI - RN","00:05"],["37","SEABRA - BA","00:05"],["30","SOBRADINHO - DF","00:10"],
+        ["44","SAO MIGUEL DOS CAMPOS - AL","00:05"],["26","ARAGUARI - MG","00:15"],["120","CORIBE - BA","00:15"],
+        ["38","ITABERABA - BA","00:05"],["119","JABORANDI - BA","00:10"],["31","PLANALTINA - DF","00:10"],
+        ["14","PIRAPORA - MG","00:15"],["137","ARACATI - CE","00:02"],["36","IBOTIRAMA - BA","00:05"],
+        ["103","CAMPINORTE - GO","00:10"],["27","CALDAS NOVAS - GO","00:15"],["3","CRISTALINA - GO","00:10"],
+        ["21","AMERICANA - SP","00:05"],["61","CANDIDO SALES - BA","00:05"],["47","PALMARES - PE","00:05"],
+        ["154","TALISMA - TO","00:10"],["69","MORRO DO CHAPEU - BA","00:05"],["32","FORMOSA - GO","00:10"],
+        ["22","ARARAS - SP","00:05"],["43","PROPRIA - SE","00:20"],["12","PARACATU - MG","00:15"],
+        ["124","CORRENTE - PI","00:05"],["106","ALIANCA DO TOCANTINS - TO","00:10"],["13","PEDRAS DE MARIA DA CRUZ - MG","00:05"],
+        ["10","MIRABELA - MG","00:05"],["149","JUNDIAI - SP","00:05"],["59","FRANCISCO SA - MG","00:10"],
+        ["8","LONTRA - MG","00:05"],["155","ALVORADA - TO","00:10"],["41","ESTANCIA - SE","00:05"],
+        ["122","FORMOSA DO RIO PRETO - BA","00:05"],["6","JAPONVAR - MG","00:05"],["156","FIGUEIROPOLIS - TO","00:05"],
+        ["159","PIRASSUNUNGA - SP","nao temos"],["9","LUZIANIA - GO","00:05"],["161","APARECIDA DE GOIANIA - GO","00:05"],
+        ["138","MESSEJANA - CE","00:05"],["157","BREJINHO DE NAZARE - TO","00:10"]
+      ];
+
+      function _normTP(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .toUpperCase().trim().replace(/\s+/g, " ");
+      }
+
+      function _parseHMtoMin(str) {
+        var p = String(str || "").trim().split(":");
+        if (p.length !== 2) return null;
+        var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+        if (!isFinite(h) || !isFinite(m)) return null;
+        return h * 60 + m;
+      }
+
+      // Monta a lista de referência processada: {codigo, cidade, uf, origemFull, min}
+      var _refPermanencia = TEMPO_PERMANENCIA_REF.map(function (row) {
+        var codigo = row[0], origem = row[1], tempo = row[2];
+        var min = _parseHMtoMin(tempo);
+        var partes = origem.split(" - ");
+        var uf = partes.length > 1 ? partes[partes.length - 1].trim() : "";
+        var cidade = partes.length > 1 ? partes.slice(0, -1).join(" - ").trim() : origem;
+        return {
+          codigo: codigo,
+          cidade: cidade,
+          cidadeNorm: _normTP(cidade),
+          uf: uf,
+          origemFull: origem,
+          min: min, // null = sem regra definida (ex.: "não temos")
+        };
+      }).filter(function (r) { return r.cidadeNorm; });
+
+      function _matchReferencia(pontoNome) {
+        var normPonto = _normTP(pontoNome);
+        if (!normPonto) return null;
+        var melhor = null;
+        for (var i = 0; i < _refPermanencia.length; i++) {
+          var r = _refPermanencia[i];
+          var re = new RegExp("\\b" + r.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+          if (re.test(normPonto) && (!melhor || r.cidadeNorm.length > melhor.cidadeNorm.length)) {
+            melhor = r;
+          }
+        }
+        return melhor;
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Parsing do CSV de rastreamento (mesmo modelo do dashboard)
+      // ─────────────────────────────────────────────────────────
+      function _parseDurSeg(str) {
+        var p = String(str || "").trim().split(":");
+        if (p.length !== 3) return 0;
+        return parseInt(p[0] || 0) * 3600 + parseInt(p[1] || 0) * 60 + parseInt(p[2] || 0);
+      }
+
+      function _fmtHM(dtStr) {
+        if (!dtStr) return "—";
+        var m = String(dtStr).match(/(\d{2}:\d{2})(?::\d{2})?/);
+        return m ? m[1] : dtStr;
+      }
+
+      function _fmtData(dtStr) {
+        if (!dtStr) return "";
+        var m = String(dtStr).match(/(\d{4})-(\d{2})-(\d{2})/);
+        return m ? m[3] + "/" + m[2] + "/" + m[1] : "";
+      }
+
+      function _fmtMin(min) {
+        var h = Math.floor(min / 60), m = min % 60;
+        return h > 0 ? (h + "h" + String(m).padStart(2, "0")) : (m + " min");
+      }
+
+      function handleTPDrop(evt) {
+        evt.preventDefault();
+        var file = evt.dataTransfer.files[0];
+        if (file) processarArquivoTP(file);
+      }
+
+      function handleTPUpload(evt) {
+        var file = evt.target.files[0];
+        evt.target.value = "";
+        if (file) processarArquivoTP(file);
+      }
+
+      function processarArquivoTP(file) {
+        var statusEl = document.getElementById("tpStatus");
+        statusEl.innerHTML = '<span class="det-spinner"></span> Analisando <strong>' + file.name + '</strong>...';
+        document.getElementById("tpKpis").classList.add("hidden");
+        document.getElementById("tpResultCard").classList.add("hidden");
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            var rows = _parseCSVRastrTP(e.target.result);
+            _carregarPCs(function () {
+              var excedencias = _detectarExcedencias(rows);
+              _renderTP(excedencias);
+            });
+          } catch (ex) {
+            statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
+          }
+        };
+        reader.readAsText(file, "windows-1252");
+      }
+
+      function _parseCSVRastrTP(text) {
+        var lines = text.replace(/\r/g, "").split("\n");
+        if (lines.length < 2) return [];
+
+        function splitCSV(line) {
+          var fields = []; var f = ""; var q = false;
+          for (var i = 0; i < line.length; i++) {
+            var c = line[i];
+            if (c === '"') { q = !q; }
+            else if (c === ',' && !q) { fields.push(f.trim()); f = ""; }
+            else f += c;
+          }
+          fields.push(f.trim());
+          return fields;
+        }
+
+        var header = splitCSV(lines[0]).map(function (h) { return _normTP(h); });
+        var idx = function (terms) {
+          return header.findIndex(function (h) { return terms.some(function (t) { return h.includes(t); }); });
+        };
+
+        var iV = idx(["VEICULO", "VECULO", "PREFIXO"]);
+        var iP = idx(["PONTO", "CONTROLE"]);
+        var iE = idx(["ENTRADA", "CHEGADA"]);
+        var iS = idx(["SAIDA", "SADA"]);
+        var iD = idx(["PARADA", "DURACAO", "DURA"]);
+        var iL = idx(["LINHA", "SERVICO"]);
+
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var l = lines[i].trim();
+          if (!l) continue;
+          var f = splitCSV(l);
+          rows.push({
+            veiculo: (f[iV] || "").trim(),
+            ponto: (f[iP] || "").trim(),
+            entrada: (f[iE] || "").trim(),
+            saida: (f[iS] || "").trim(),
+            parada: (f[iD] || "").trim(),
+            linha: iL >= 0 ? (f[iL] || "").trim() : "",
+          });
+        }
+        return rows;
+      }
+
+      function _detectarExcedencias(rows) {
+        var lista = [];
+        rows.forEach(function (r) {
+          if (!r.ponto) return;
+          var segReal = _parseDurSeg(r.parada);
+          var ref = _matchReferencia(r.ponto);
+          if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
+          var segPermitido = ref.min * 60;
+          if (segReal <= segPermitido) return; // dentro do limite — ignora
+
+          lista.push({
+            veiculo: r.veiculo || "—",
+            linha: r.linha || "—",
+            ponto: r.ponto,
+            cidade: ref.cidade,
+            uf: ref.uf,
+            regiao: _resolverRegiao(r.ponto, ref.uf),
+            entrada: r.entrada,
+            saida: r.saida,
+            permanenciaSeg: segReal,
+            permitidoSeg: segPermitido,
+            excedenteSeg: segReal - segPermitido,
+          });
+        });
+        lista.sort(function (a, b) { return b.excedenteSeg - a.excedenteSeg; });
+        return lista;
+      }
+
+      var _tpLista = [];
+
+      function _renderTP(lista) {
+        _tpLista = lista;
+        var statusEl = document.getElementById("tpStatus");
+
+        if (!lista.length) {
+          statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma permanência excedeu o tempo máximo permitido.';
+          document.getElementById("tpKpis").classList.add("hidden");
+          document.getElementById("tpResultCard").classList.add("hidden");
+          return;
+        }
+
+        statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Arquivo processado com sucesso. ' +
+          '<span class="tag">' + lista.length + ' excedência' + (lista.length !== 1 ? 's' : '') + '</span>';
+
+        var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
+        var linhas = new Set(lista.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
+        var regioes = new Set(lista.map(function (r) { return r.regiao; }));
+        var maior = lista[0].excedenteSeg;
+        var dataArq = _fmtData(lista[0].entrada) || "—";
+
+        document.getElementById("kExcedencias").textContent = lista.length;
+        document.getElementById("kData").textContent = dataArq;
+        document.getElementById("kVeiculos").textContent = veiculos.size;
+        document.getElementById("kLinhas").textContent = linhas.size;
+        document.getElementById("kRegioes").textContent = regioes.size;
+        document.getElementById("kMaior").textContent = "+" + _fmtMin(Math.round(maior / 60));
+
+        var regiaoSel = document.getElementById("tpRegiaoSel");
+        regiaoSel.innerHTML = '<option value="">Todas as regiões</option>' +
+          Array.from(regioes).sort().map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
+
+        document.getElementById("tpKpis").classList.remove("hidden");
+        document.getElementById("tpResultCard").classList.remove("hidden");
+        document.getElementById("tpBusca").value = "";
+        regiaoSel.value = "";
+        _renderTPFiltrado();
+      }
+
+      function _corExcedente(seg) {
+        var min = seg / 60;
+        return min >= 30 ? "var(--vermelho)" : min >= 15 ? "var(--amarelo)" : "var(--laranja)";
+      }
+
+      function _grupoMaiorExcedente(itens) {
+        return itens.reduce(function (m, r) { return Math.max(m, r.excedenteSeg); }, 0);
+      }
+
+      function _renderItemHtml(r) {
+        var cor = _corExcedente(r.excedenteSeg);
+        return '<div class="perm-item">' +
+          '<div class="perm-local">' +
+            '<div class="perm-local-nome">' + r.ponto + '</div>' +
+            '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
+          '</div>' +
+          '<div class="perm-meta">' +
+            '<span>Chegada<br><b>' + _fmtHM(r.entrada) + '</b></span>' +
+            '<span>Saída<br><b>' + _fmtHM(r.saida) + '</b></span>' +
+            '<span>Permanência<br><b>' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + '</b></span>' +
+            '<span>Permitido<br><b>' + _fmtMin(Math.round(r.permitidoSeg / 60)) + '</b></span>' +
+            '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
+            '<span>Linha<br><b>' + (r.linha || "—") + '</b></span>' +
+          '</div>' +
+          '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
+        '</div>';
+      }
+
+      function _renderTPFiltrado() {
+        var busca = _normTP(document.getElementById("tpBusca").value);
+        var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
+
+        var filtrada = _tpLista.filter(function (r) {
+          if (regiaoFiltro && r.regiao !== regiaoFiltro) return false;
+          if (!busca) return true;
+          return _normTP(r.veiculo).includes(busca) || _normTP(r.linha).includes(busca) || _normTP(r.ponto).includes(busca);
+        });
+
+        // Nível 1: região · Nível 2: prefixo (veículo)
+        var regioes = {};
+        var ordemRegioes = [];
+        filtrada.forEach(function (r) {
+          if (!regioes[r.regiao]) { regioes[r.regiao] = []; ordemRegioes.push(r.regiao); }
+          regioes[r.regiao].push(r);
+        });
+        ordemRegioes.sort(function (a, b) { return _grupoMaiorExcedente(regioes[b]) - _grupoMaiorExcedente(regioes[a]); });
+
+        var el = document.getElementById("tpAccordions");
+        if (!ordemRegioes.length) {
+          el.innerHTML = '<div class="estado-vazio">Nenhum resultado para os filtros aplicados.</div>';
+          return;
+        }
+
+        var html = "";
+        ordemRegioes.forEach(function (regiao, ri) {
+          var itensRegiao = regioes[regiao];
+          var veiculosRegiao = new Set(itensRegiao.map(function (r) { return r.veiculo; }));
+
+          var grupos = {};
+          var ordemGrupos = [];
+          itensRegiao.forEach(function (r) {
+            if (!grupos[r.veiculo]) { grupos[r.veiculo] = []; ordemGrupos.push(r.veiculo); }
+            grupos[r.veiculo].push(r);
+          });
+          ordemGrupos.sort(function (a, b) { return _grupoMaiorExcedente(grupos[b]) - _grupoMaiorExcedente(grupos[a]); });
+
+          html += '<details class="acc-group acc-regiao"' + (ri === 0 ? ' open' : '') + '>' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left">' +
+                '<span class="acc-chevron"></span>' +
+                '<span class="acc-prefixo">' + regiao + '</span>' +
+                '<span class="acc-sub">' + veiculosRegiao.size + ' veículo' + (veiculosRegiao.size !== 1 ? 's' : '') + '</span>' +
+              '</div>' +
+              '<div class="acc-right"><span class="acc-count">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span></div>' +
+            '</summary>' +
+            '<div class="acc-body">';
+
+          ordemGrupos.forEach(function (veiculo, gi) {
+            var grupo = grupos[veiculo];
+            var linhasGrupo = new Set(grupo.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
+            html += '<details class="acc-group acc-prefixo-group"' + (ri === 0 && gi === 0 ? ' open' : '') + '>' +
+              '<summary class="acc-summary">' +
+                '<div class="acc-left">' +
+                  '<span class="acc-chevron"></span>' +
+                  '<span class="acc-prefixo">' + veiculo + '</span>' +
+                  '<span class="acc-sub">' + (linhasGrupo.size ? Array.from(linhasGrupo).join(", ") : "") + '</span>' +
+                '</div>' +
+                '<div class="acc-right"><span class="acc-count">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span></div>' +
+              '</summary>' +
+              '<div class="acc-body">';
+
+            grupo.forEach(function (r) { html += _renderItemHtml(r); });
+
+            html += '</div></details>';
+          });
+
+          html += '</div></details>';
+        });
+
+        el.innerHTML = html;
+      }
+    </script>
+  </body>
+</html>
