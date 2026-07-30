@@ -118,13 +118,16 @@
 
       /* ── FILTROS ─────────────────────────────────────────── */
       .filtro-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
-      .filtro-bar input[type="text"], .filtro-bar select {
+      .filtro-bar input[type="text"], .filtro-bar input[type="number"], .filtro-bar select {
         background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
         color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
         padding: 9px 12px; outline: none; transition: border-color 0.15s;
       }
       .filtro-bar input[type="text"] { flex: 1; min-width: 200px; }
       .filtro-bar input:focus, .filtro-bar select:focus { border-color: var(--laranja); background: var(--preto4); }
+      .filtro-excedente { display: flex; align-items: center; gap: 8px; }
+      .filtro-excedente label { font-size: 11px; color: var(--texto2); white-space: nowrap; }
+      .filtro-excedente input[type="number"] { width: 64px; text-align: center; }
 
       /* ── ACCORDION POR PREFIXO ───────────────────────────── */
       .acc-group { border: 1px solid var(--borda); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; background: var(--preto2); }
@@ -253,6 +256,10 @@
           <select id="tpRegiaoSel" onchange="_renderTPFiltrado()">
             <option value="">Todas as regiões</option>
           </select>
+          <div class="filtro-excedente">
+            <label for="tpExcedenteMin">Excedente mín. (min)</label>
+            <input type="number" id="tpExcedenteMin" min="0" step="5" value="10" oninput="_renderTPFiltrado()" />
+          </div>
         </div>
         <div id="tpAccordions" style="margin-top:12px"></div>
       </div>
@@ -536,7 +543,7 @@
           if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
           var segPermitido = ref.min * 60;
           if (segReal <= segPermitido) return; // dentro do limite — ignora
-          if (segReal - segPermitido < 10 * 60) return; // excedente abaixo de 10min — ignora, não é relevante pra análise
+          // filtro de excedente mínimo é aplicado dinamicamente em _renderTPFiltrado
 
           lista.push({
             veiculo: r.veiculo || "—",
@@ -570,21 +577,9 @@
         }
 
         statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Arquivo processado com sucesso. ' +
-          '<span class="tag">' + lista.length + ' excedência' + (lista.length !== 1 ? 's' : '') + '</span>';
+          '<span class="tag">' + lista.length + ' excedência' + (lista.length !== 1 ? 's' : '') + ' no total</span>';
 
-        var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
-        var linhas = new Set(lista.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
         var regioes = new Set(lista.map(function (r) { return r.regiao; }));
-        var maior = lista[0].excedenteSeg;
-        var dataArq = _fmtData(lista[0].entrada) || "—";
-
-        document.getElementById("kExcedencias").textContent = lista.length;
-        document.getElementById("kData").textContent = dataArq;
-        document.getElementById("kVeiculos").textContent = veiculos.size;
-        document.getElementById("kLinhas").textContent = linhas.size;
-        document.getElementById("kRegioes").textContent = regioes.size;
-        document.getElementById("kMaior").textContent = "+" + _fmtMin(Math.round(maior / 60));
-
         var regiaoSel = document.getElementById("tpRegiaoSel");
         regiaoSel.innerHTML = '<option value="">Todas as regiões</option>' +
           Array.from(regioes).sort().map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
@@ -593,7 +588,23 @@
         document.getElementById("tpResultCard").classList.remove("hidden");
         document.getElementById("tpBusca").value = "";
         regiaoSel.value = "";
+        document.getElementById("tpExcedenteMin").value = 10;
         _renderTPFiltrado();
+      }
+
+      function _atualizarResumo(lista) {
+        var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
+        var linhas = new Set(lista.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
+        var regioes = new Set(lista.map(function (r) { return r.regiao; }));
+        var maior = lista.length ? lista[0].excedenteSeg : 0;
+        var dataArq = lista.length ? (_fmtData(lista[0].entrada) || "—") : "—";
+
+        document.getElementById("kExcedencias").textContent = lista.length;
+        document.getElementById("kData").textContent = dataArq;
+        document.getElementById("kVeiculos").textContent = veiculos.size;
+        document.getElementById("kLinhas").textContent = linhas.size;
+        document.getElementById("kRegioes").textContent = regioes.size;
+        document.getElementById("kMaior").textContent = lista.length ? ("+" + _fmtMin(Math.round(maior / 60))) : "—";
       }
 
       function _corExcedente(seg) {
@@ -676,12 +687,17 @@
       function _renderTPFiltrado() {
         var busca = _normTP(document.getElementById("tpBusca").value);
         var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
+        var excedenteMinInput = parseInt(document.getElementById("tpExcedenteMin").value, 10);
+        var excedenteMinSeg = (isFinite(excedenteMinInput) && excedenteMinInput > 0) ? excedenteMinInput * 60 : 0;
 
         var filtrada = _tpLista.filter(function (r) {
+          if (r.excedenteSeg < excedenteMinSeg) return false;
           if (regiaoFiltro && r.regiao !== regiaoFiltro) return false;
           if (!busca) return true;
           return _normTP(r.veiculo).includes(busca) || _normTP(r.linha).includes(busca) || _normTP(r.ponto).includes(busca);
         });
+
+        _atualizarResumo(filtrada);
 
         // Nível 1: região · Nível 2: prefixo (veículo)
         var regioes = {};
