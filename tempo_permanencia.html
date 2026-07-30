@@ -284,6 +284,7 @@
       //  pontos irregulares, não teria as rodoviárias legítimas.
       // ─────────────────────────────────────────────────────────
       var _pontosControleCache = null;
+      var _erroCarregamento = null;
 
       function _carregarPontosControle(cb) {
         if (_pontosControleCache) { if (cb) cb(); return; }
@@ -297,7 +298,11 @@
             try { _pontosControleCache = JSON.parse(json || "[]"); } catch (e) { _pontosControleCache = []; }
             if (cb) cb();
           })
-          .withFailureHandler(function () { _pontosControleCache = []; if (cb) cb(); })
+          .withFailureHandler(function (err) {
+            _pontosControleCache = null; // permite tentar de novo no próximo upload
+            _erroCarregamento = "PONTOS_CONTROLE: " + (err && err.message ? err.message : err);
+            if (cb) cb();
+          })
           .getPontosControle();
       }
 
@@ -349,7 +354,12 @@
             });
             if (cb) cb();
           })
-          .withFailureHandler(function () { _temposCache = []; _temposPorCodigo = {}; if (cb) cb(); })
+          .withFailureHandler(function (err) {
+            _temposCache = null; // permite tentar de novo no próximo upload
+            _temposPorCodigo = {};
+            _erroCarregamento = "TEMPO_PERMANENCIA: " + (err && err.message ? err.message : err);
+            if (cb) cb();
+          })
           .getTemposPermanencia();
       }
 
@@ -397,6 +407,7 @@
 
       function processarArquivoTP(file) {
         var statusEl = document.getElementById("tpStatus");
+        _erroCarregamento = null;
         statusEl.innerHTML = '<span class="det-spinner"></span> Analisando <strong>' + file.name + '</strong>...';
         document.getElementById("tpKpis").classList.add("hidden");
         document.getElementById("tpResultCard").classList.add("hidden");
@@ -406,8 +417,12 @@
           try {
             var rows = _parseCSVRastrTP(e.target.result);
             _carregarDadosReferencia(function () {
+              if (_erroCarregamento) {
+                statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao carregar referências: ' + _erroCarregamento + '</span>';
+                return;
+              }
               var excedencias = _detectarExcedencias(rows);
-              _renderTP(excedencias);
+              _renderTP(excedencias, rows.length);
             });
           } catch (ex) {
             statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
@@ -503,12 +518,16 @@
 
       var _tpLista = [];
 
-      function _renderTP(lista) {
+      function _renderTP(lista, totalLinhas) {
         _tpLista = lista;
         var statusEl = document.getElementById("tpStatus");
 
         if (!lista.length) {
-          statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma permanência excedeu o tempo máximo permitido.';
+          var diag = ' <span style="color:var(--texto3);font-size:11px">(' +
+            (totalLinhas || 0) + ' linhas do CSV · ' +
+            (_pontosControleCache ? _pontosControleCache.length : 0) + ' pontos de controle carregados · ' +
+            (_temposCache ? _temposCache.length : 0) + ' referências de tempo carregadas)</span>';
+          statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma permanência excedeu o tempo máximo permitido.' + diag;
           document.getElementById("tpKpis").classList.add("hidden");
           document.getElementById("tpResultCard").classList.add("hidden");
           return;
