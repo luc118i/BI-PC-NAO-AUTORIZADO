@@ -490,11 +490,17 @@
         return _normTP(pontoNome).includes("GARAGEM");
       }
 
+      function _ehRodoviaria(pontoNome) {
+        // cobre RODOVIARIA / RODOVIÁRIA / RODOVIÁRIO (já sem acento aqui)
+        return _normTP(pontoNome).includes("RODOVI");
+      }
+
       function _detectarExcedencias(rows) {
         var lista = [];
         rows.forEach(function (r) {
           if (!r.ponto) return;
           if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
+          if (!_ehRodoviaria(r.ponto)) return; // nome não menciona "rodovi..." — não é terminal oficial (evita churrascaria/posto/restaurante batendo pelo nome da cidade)
           var segReal = _parseDurSeg(r.parada);
           var ref = _matchReferencia(r.ponto);
           if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
