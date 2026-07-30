@@ -183,6 +183,61 @@
       .perm-item.riscado .perm-badge { text-decoration: none; }
 
       .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
+
+      /* ── Botão "Gerar Relatório" no item ─────────────────── */
+      .perm-gerar-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+      }
+      .perm-gerar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .perm-gerar-btn:disabled { opacity: 0.5; cursor: wait; }
+
+      /* ── MODAL GERAR RELATÓRIO (mesmo padrão do dashboard) ─── */
+      .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+      .oc-overlay.hidden { display: none; }
+      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
+      .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+      .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+      .oc-close:hover { color: var(--texto); background: var(--cinza); }
+      .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+      .oc-resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--preto3); border-radius: var(--radius-sm); padding: 12px 14px; }
+      .oc-field { display: flex; flex-direction: column; gap: 4px; position: relative; }
+      .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
+      .oc-field span, .oc-field strong { font-size: 13px; color: var(--texto); }
+      .oc-field input { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); width: 100%; }
+      .oc-field input:focus { outline: none; border-color: var(--laranja); }
+      .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
+      .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
+      .oc-status.ok { color: var(--verde); }
+      .oc-status.err { color: var(--vermelho); }
+
+      /* Dropdown de autocomplete (linha / motorista) */
+      .oc-autocomplete-list {
+        position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 20;
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        max-height: 200px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      }
+      .oc-autocomplete-item { padding: 8px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid var(--borda); }
+      .oc-autocomplete-item:last-child { border-bottom: none; }
+      .oc-autocomplete-item:hover, .oc-autocomplete-item.ativo { background: var(--laranja4); color: var(--laranja); }
+      .oc-autocomplete-item .oc-ac-sub { display: block; font-size: 10px; color: var(--texto3); }
+      .oc-autocomplete-item:hover .oc-ac-sub, .oc-autocomplete-item.ativo .oc-ac-sub { color: var(--laranja); opacity: 0.75; }
+      .oc-autocomplete-empty { padding: 10px; font-size: 12px; color: var(--texto3); text-align: center; }
+      .oc-selecionado { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--laranja4); border: 1px solid var(--borda-l); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; color: var(--laranja); }
+      .oc-selecionado button { background: none; border: none; color: var(--laranja); cursor: pointer; font-size: 14px; line-height: 1; }
+
+      /* Evidências: colar / arrastar / selecionar */
+      .oc-evid-zone { border: 2px dashed var(--cinza2); border-radius: var(--radius); padding: 22px 16px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; color: var(--texto3); user-select: none; outline: none; }
+      .oc-evid-zone:hover, .oc-evid-zone:focus, .oc-evid-zone.drag-over { border-color: var(--laranja); background: var(--laranja4); color: var(--laranja); }
+      .oc-evid-zone-label { font-size: 13px; font-weight: 600; }
+      .oc-evid-zone-sub { font-size: 11px; margin-top: 3px; }
+      .oc-evid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+      .oc-evid-thumb { position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--borda2); aspect-ratio: 1; background: var(--preto3); }
+      .oc-evid-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .oc-evid-remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; border: none; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+      .oc-evid-remove:hover { background: var(--vermelho); }
     </style>
   </head>
   <body>
@@ -616,8 +671,12 @@
         return itens.reduce(function (m, r) { return Math.max(m, r.excedenteSeg); }, 0);
       }
 
+      var _relatorioItens = [];
+
       function _renderItemHtml(r) {
         var cor = _corExcedente(r.excedenteSeg);
+        var idx = _relatorioItens.length;
+        _relatorioItens.push(r);
         return '<div class="perm-item" onclick="this.classList.toggle(\'riscado\');_atualizarContadoresA_partir(this)" title="Clique para marcar como analisado">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' + r.ponto + '</div>' +
@@ -630,6 +689,7 @@
             '<span>Permitido<br><b>' + _fmtMin(Math.round(r.permitidoSeg / 60)) + '</b></span>' +
             '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
           '</div>' +
+          '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">📄 Gerar Relatório</button>' +
           '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
         '</div>';
       }
@@ -685,6 +745,7 @@
       }
 
       function _renderTPFiltrado() {
+        _relatorioItens = [];
         var busca = _normTP(document.getElementById("tpBusca").value);
         var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
         var excedenteMinInput = parseInt(document.getElementById("tpExcedenteMin").value, 10);
@@ -769,6 +830,358 @@
 
         el.innerHTML = html;
       }
+
+      // ─────────────────────────────────────────────────────────
+      //  Gerar Relatório — integração direta com a API do Gerador
+      //  de Relatórios Operacionais (somente leitura de /trips e
+      //  /drivers + criação de ocorrência typeCode=EXCESSO_PERMANENCIA
+      //  já suportado por aquele backend; nenhuma mudança lá).
+      // ─────────────────────────────────────────────────────────
+      var REPORTS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app";
+
+      var _relItemAtual = null;
+      var _relLinhaSelecionada = null;   // { id, lineCode, lineName, departureTime, direction }
+      var _relMotoristaSelecionado = null; // { id, code, name, base }
+      var _relEvidencias = [];           // [{ file, url }]
+      var _relBuscaLinhaSeq = 0;
+      var _relBuscaMotoristaSeq = 0;
+
+      function abrirModalRelatorio(idx) {
+        var item = _relatorioItens[idx];
+        if (!item) return;
+
+        _relItemAtual = item;
+        _relLinhaSelecionada = null;
+        _relMotoristaSelecionado = null;
+        _relEvidencias = [];
+
+        document.getElementById("relVeiculo").textContent = item.veiculo || "—";
+        document.getElementById("relPonto").textContent = item.ponto || "—";
+        document.getElementById("relHorarios").textContent = _fmtHM(item.entrada) + " – " + _fmtHM(item.saida);
+        document.getElementById("relExcedente").textContent = "+" + _fmtMin(Math.round(item.excedenteSeg / 60));
+
+        document.getElementById("relLinhaBusca").value = "";
+        document.getElementById("relMotoristaBusca").value = "";
+        document.getElementById("relLinhaLista").classList.add("hidden");
+        document.getElementById("relMotoristaLista").classList.add("hidden");
+        document.getElementById("relLinhaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.remove("hidden");
+        document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        document.getElementById("relEvidGrid").innerHTML = "";
+        document.getElementById("relStatus").textContent = "";
+        document.getElementById("relStatus").className = "oc-status";
+        document.getElementById("relBtnGerar").disabled = false;
+        document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+
+        document.getElementById("relatorioModal").classList.remove("hidden");
+      }
+
+      function fecharModalRelatorio() {
+        document.getElementById("relatorioModal").classList.add("hidden");
+      }
+
+      // ── Autocomplete de Linha (GET /trips?search=) ────────────
+      function _buscarLinha(termo) {
+        var lista = document.getElementById("relLinhaLista");
+        termo = (termo || "").trim();
+        if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
+
+        var seq = ++_relBuscaLinhaSeq;
+        fetch(REPORTS_API_URL + "/trips?search=" + encodeURIComponent(termo))
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (seq !== _relBuscaLinhaSeq) return; // resposta antiga, ignora
+            var itens = (json && json.data) || [];
+            if (!itens.length) {
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhuma linha encontrada.</div>';
+              lista.classList.remove("hidden");
+              return;
+            }
+            lista.innerHTML = itens.slice(0, 20).map(function (t, i) {
+              return '<div class="oc-autocomplete-item" onclick="_selecionarLinha(' + i + ')" data-idx="' + i + '">' +
+                (t.lineCode || "") + ' — ' + (t.lineName || "") +
+                '<span class="oc-ac-sub">' + (t.departureTime || "") + (t.direction ? " · " + t.direction : "") + '</span>' +
+              '</div>';
+            }).join("");
+            lista.classList.remove("hidden");
+            window._relLinhaOpcoes = itens;
+          })
+          .catch(function () {
+            lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar linhas.</div>';
+            lista.classList.remove("hidden");
+          });
+      }
+
+      function _selecionarLinha(i) {
+        var t = window._relLinhaOpcoes[i];
+        if (!t) return;
+        _relLinhaSelecionada = t;
+        document.getElementById("relLinhaLista").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.add("hidden");
+        var sel = document.getElementById("relLinhaSelecionada");
+        sel.innerHTML = '<span>' + t.lineCode + ' — ' + t.lineName + ' (' + t.departureTime + (t.direction ? " · " + t.direction : "") + ')</span>' +
+          '<button type="button" onclick="_limparLinha()" title="Trocar">✕</button>';
+        sel.classList.remove("hidden");
+      }
+
+      function _limparLinha() {
+        _relLinhaSelecionada = null;
+        document.getElementById("relLinhaSelecionada").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.remove("hidden");
+        document.getElementById("relLinhaBusca").value = "";
+        document.getElementById("relLinhaBusca").focus();
+      }
+
+      // ── Autocomplete de Motorista (GET /drivers?search=) ──────
+      function _buscarMotorista(termo) {
+        var lista = document.getElementById("relMotoristaLista");
+        termo = (termo || "").trim();
+        if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
+
+        var seq = ++_relBuscaMotoristaSeq;
+        fetch(REPORTS_API_URL + "/drivers?search=" + encodeURIComponent(termo) + "&limit=20")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (seq !== _relBuscaMotoristaSeq) return;
+            var itens = (json && json.data) || [];
+            if (!itens.length) {
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado.</div>';
+              lista.classList.remove("hidden");
+              return;
+            }
+            lista.innerHTML = itens.map(function (d, i) {
+              return '<div class="oc-autocomplete-item" onclick="_selecionarMotorista(' + i + ')">' +
+                d.code + ' — ' + d.name +
+                (d.base ? '<span class="oc-ac-sub">' + d.base + '</span>' : '') +
+              '</div>';
+            }).join("");
+            lista.classList.remove("hidden");
+            window._relMotoristaOpcoes = itens;
+          })
+          .catch(function () {
+            lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar motoristas.</div>';
+            lista.classList.remove("hidden");
+          });
+      }
+
+      function _selecionarMotorista(i) {
+        var d = window._relMotoristaOpcoes[i];
+        if (!d) return;
+        _relMotoristaSelecionado = d;
+        document.getElementById("relMotoristaLista").classList.add("hidden");
+        document.getElementById("relMotoristaBusca").classList.add("hidden");
+        var sel = document.getElementById("relMotoristaSelecionada");
+        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
+          '<button type="button" onclick="_limparMotorista()" title="Trocar">✕</button>';
+        sel.classList.remove("hidden");
+      }
+
+      function _limparMotorista() {
+        _relMotoristaSelecionado = null;
+        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        document.getElementById("relMotoristaBusca").value = "";
+        document.getElementById("relMotoristaBusca").focus();
+      }
+
+      // ── Evidências: colar / arrastar / selecionar ─────────────
+      function _handlePasteEvidencia(evt) {
+        var items = (evt.clipboardData || window.clipboardData).items;
+        if (!items) return;
+        var arquivos = [];
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf("image/") === 0) {
+            var f = items[i].getAsFile();
+            if (f) arquivos.push(f);
+          }
+        }
+        if (arquivos.length) {
+          evt.preventDefault();
+          _adicionarEvidencias(arquivos);
+        }
+      }
+
+      function _adicionarEvidencias(files) {
+        if (!files || !files.length) return;
+        var grid = document.getElementById("relEvidGrid");
+        Array.prototype.forEach.call(files, function (file) {
+          if (!file.type || file.type.indexOf("image/") !== 0) return;
+          var url = URL.createObjectURL(file);
+          _relEvidencias.push({ file: file, url: url });
+        });
+        _renderEvidGrid();
+      }
+
+      function _renderEvidGrid() {
+        var grid = document.getElementById("relEvidGrid");
+        grid.innerHTML = _relEvidencias.map(function (ev, i) {
+          return '<div class="oc-evid-thumb">' +
+            '<img src="' + ev.url + '" alt="Evidência ' + (i + 1) + '" />' +
+            '<button type="button" class="oc-evid-remove" onclick="_removerEvidencia(' + i + ')" title="Remover">✕</button>' +
+          '</div>';
+        }).join("");
+      }
+
+      function _removerEvidencia(i) {
+        _relEvidencias.splice(i, 1);
+        _renderEvidGrid();
+      }
+
+      // ── Orquestração: cria ocorrência → sobe evidências → gera PDF ──
+      function _setRelStatus(msg, tipo) {
+        var el = document.getElementById("relStatus");
+        el.textContent = msg;
+        el.className = "oc-status" + (tipo ? " " + tipo : "");
+      }
+
+      function _dataHoraPartes(dtStr) {
+        var m = String(dtStr || "").match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        return m ? { data: m[1], hora: m[2] } : { data: "", hora: "" };
+      }
+
+      function _gerarRelatorio() {
+        if (!_relItemAtual) return;
+        if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
+        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+
+        var btn = document.getElementById("relBtnGerar");
+        btn.disabled = true;
+        btn.textContent = "Gerando...";
+        _setRelStatus("Criando ocorrência...", "");
+
+        // Abre a aba já no clique (preserva o gesto do usuário) — evita
+        // bloqueio de pop-up, já que o restante do fluxo é assíncrono.
+        var pdfTab = window.open("", "_blank");
+
+        var item = _relItemAtual;
+        var entradaP = _dataHoraPartes(item.entrada);
+        var saidaP = _dataHoraPartes(item.saida);
+
+        var payload = {
+          typeCode: "EXCESSO_PERMANENCIA",
+          eventDate: entradaP.data,
+          tripDate: entradaP.data,
+          startTime: entradaP.hora,
+          endTime: saidaP.hora || entradaP.hora,
+          vehicleNumber: item.veiculo,
+          place: item.ponto,
+          lineLabel: _relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName,
+          tripId: _relLinhaSelecionada.id,
+          tripTime: _relLinhaSelecionada.departureTime || null,
+          drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+        };
+
+        fetch(REPORTS_API_URL + "/occurrences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao criar ocorrência"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var occurrenceId = json.id;
+            if (!_relEvidencias.length) return { occurrenceId: occurrenceId };
+
+            _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
+            var form = new FormData();
+            _relEvidencias.forEach(function (ev) { form.append("files", ev.file, ev.file.name || "evidencia.jpg"); });
+            form.append("metadata", JSON.stringify(_relEvidencias.map(function () { return {}; })));
+
+            return fetch(REPORTS_API_URL + "/occurrences/" + occurrenceId + "/evidences", {
+              method: "POST",
+              body: form,
+            }).then(function (r) {
+              if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error) || "Falha ao enviar evidências"); });
+              return { occurrenceId: occurrenceId };
+            });
+          })
+          .then(function (ctx) {
+            _setRelStatus("Gerando PDF...", "");
+            return fetch(REPORTS_API_URL + "/reports/occurrences/" + ctx.occurrenceId + "/pdf?force=true")
+              .then(function (r) {
+                if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF"); });
+                return r.json();
+              });
+          })
+          .then(function (json) {
+            var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
+            if (url && pdfTab && !pdfTab.closed) pdfTab.location.href = url;
+
+            var status = document.getElementById("relStatus");
+            status.innerHTML = url
+              ? '✓ Relatório gerado! <a href="' + url + '" target="_blank" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir PDF</a>'
+              : "✓ Relatório gerado com sucesso!";
+            status.className = "oc-status ok";
+            btn.textContent = "Concluído ✓";
+          })
+          .catch(function (err) {
+            if (pdfTab && !pdfTab.closed) pdfTab.close();
+            _setRelStatus("✗ " + (err.message || "Erro ao gerar relatório"), "err");
+            btn.disabled = false;
+            btn.textContent = "Gerar relatório";
+          });
+      }
     </script>
+
+    <!-- ── MODAL GERAR RELATÓRIO ────────────────────────────────── -->
+    <div class="oc-overlay hidden" id="relatorioModal" onclick="if(event.target===this)fecharModalRelatorio()">
+      <div class="oc-panel">
+
+        <div class="oc-header">
+          <h3>📄 Gerar Relatório — Excesso de Permanência</h3>
+          <button class="oc-close" onclick="fecharModalRelatorio()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <div class="oc-resumo">
+            <div class="oc-field"><label>Veículo</label><strong id="relVeiculo">—</strong></div>
+            <div class="oc-field"><label>Ponto</label><span id="relPonto">—</span></div>
+            <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
+            <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Linha (itinerário) *</label>
+            <input type="text" id="relLinhaBusca" placeholder="Buscar por código ou nome da linha..." autocomplete="off" oninput="_buscarLinha(this.value)" />
+            <div class="oc-autocomplete-list hidden" id="relLinhaLista"></div>
+            <div class="oc-selecionado hidden" id="relLinhaSelecionada"></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Motorista responsável *</label>
+            <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
+            <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
+            <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Evidências</label>
+            <div class="oc-evid-zone" id="relEvidZone" tabindex="0"
+              onclick="document.getElementById('relEvidInput').click()"
+              ondragover="event.preventDefault(); this.classList.add('drag-over')"
+              ondragleave="this.classList.remove('drag-over')"
+              ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)"
+              onpaste="_handlePasteEvidencia(event)">
+              <div class="oc-evid-zone-label">Cole (Ctrl+V), arraste ou clique pra selecionar</div>
+              <div class="oc-evid-zone-sub">Imagens (print, foto) · vão anexadas ao relatório</div>
+              <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
+            </div>
+            <div class="oc-evid-grid" id="relEvidGrid"></div>
+          </div>
+
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="relStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharModalRelatorio()">Cancelar</button>
+          <button class="btn btn-primary" id="relBtnGerar" onclick="_gerarRelatorio()">Gerar relatório</button>
+        </div>
+
+      </div>
+    </div>
   </body>
 </html>
