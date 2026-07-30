@@ -328,6 +328,7 @@
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
         _carregarPCs();
+        _carregarStatusAnalisado();
         document.getElementById("tpStatus").innerHTML =
           '<span style="color:var(--texto3)">Clique em "+ Nova análise" pra carregar o CSV de rastreamento.</span>';
       };
@@ -363,6 +364,72 @@
           })
           .withFailureHandler(function () { _pcsCache = []; if (cb) cb(); })
           .getPCs();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Status "analisado" — persistido na aba TEMPO_PERMANENCIA_STATUS
+      //  pra sobreviver a reload/novo upload do mesmo CSV.
+      // ─────────────────────────────────────────────────────────
+      var _statusAnalisadoCache = null; // Set de chaves já marcadas
+
+      function _carregarStatusAnalisado(cb) {
+        if (_statusAnalisadoCache) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) {
+          _statusAnalisadoCache = new Set();
+          if (cb) cb();
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _statusAnalisadoCache = new Set(JSON.parse(json || "[]")); } catch (e) { _statusAnalisadoCache = new Set(); }
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _statusAnalisadoCache = new Set(); if (cb) cb(); })
+          .getStatusPermanencia();
+      }
+
+      function _persistirStatus(item, analisado) {
+        if (!item || !item.chave) return;
+        if (analisado) _statusAnalisadoCache.add(item.chave);
+        else _statusAnalisadoCache.delete(item.chave);
+        if (!(window.google && google.script && google.script.run)) return;
+        google.script.run
+          .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); })
+          .marcarStatusPermanencia({
+            chave: item.chave,
+            veiculo: item.veiculo,
+            ponto: item.ponto,
+            entrada: item.entrada,
+            analisado: analisado,
+          });
+      }
+
+      // Marca/desmarca um .perm-item (classe + contadores + persistência)
+      function _setItemAnalisado(el, analisado) {
+        el.classList.toggle("riscado", analisado);
+        _atualizarContadoresA_partir(el);
+        var idx = el.getAttribute("data-idx");
+        var item = idx != null ? _relatorioItens[idx] : null;
+        if (item) _persistirStatus(item, analisado);
+      }
+
+      // Aplica no DOM o que já está marcado como analisado na planilha
+      function _aplicarStatusPersistido() {
+        if (!_statusAnalisadoCache || !_statusAnalisadoCache.size) return;
+        document.querySelectorAll("#tpAccordions .perm-item").forEach(function (el) {
+          var chave = el.getAttribute("data-chave");
+          if (chave && _statusAnalisadoCache.has(chave)) el.classList.add("riscado");
+        });
+        document.querySelectorAll("#tpAccordions details.acc-group").forEach(function (d) { _atualizarContador(d); });
+        document.querySelectorAll("#tpAccordions details.acc-prefixo-group").forEach(function (d) {
+          var itens = Array.prototype.slice.call(d.querySelectorAll(":scope > .acc-body > .perm-item"));
+          if (itens.length && itens.every(function (i) { return i.classList.contains("riscado"); })) {
+            var prefixoEl = d.querySelector(":scope > summary .acc-prefixo");
+            if (prefixoEl) prefixoEl.classList.add("all-riscado");
+            var btn = d.querySelector(":scope > summary .acc-mini-btn");
+            if (btn) { btn.innerHTML = _icon("rotate") + " Reverter"; btn.classList.add("ativo"); }
+          }
+        });
       }
 
       function _matchPC(pontoNome) {
@@ -615,6 +682,7 @@
           // filtro de excedente mínimo é aplicado dinamicamente em _renderTPFiltrado
 
           lista.push({
+            chave: (r.veiculo || "—") + "|" + (r.entrada || ""),
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
@@ -691,7 +759,8 @@
         var cor = _corExcedente(r.excedenteSeg);
         var idx = _relatorioItens.length;
         _relatorioItens.push(r);
-        return '<div class="perm-item" onclick="this.classList.toggle(\'riscado\');_atualizarContadoresA_partir(this)" title="Clique para marcar como analisado">' +
+        var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
+        return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para marcar como analisado">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' + r.ponto + '</div>' +
             '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
@@ -728,13 +797,19 @@
         var body = details.querySelector(":scope > .acc-body");
         var itens = Array.prototype.slice.call(body.querySelectorAll(":scope > .perm-item"));
         var allRiscado = itens.every(function (i) { return i.classList.contains("riscado"); });
-        itens.forEach(function (i) { i.classList.toggle("riscado", !allRiscado); });
+        var novoEstado = !allRiscado;
+        itens.forEach(function (i) {
+          i.classList.toggle("riscado", novoEstado);
+          var idx = i.getAttribute("data-idx");
+          var item = idx != null ? _relatorioItens[idx] : null;
+          if (item) _persistirStatus(item, novoEstado);
+        });
 
         var prefixoEl = details.querySelector(":scope > summary .acc-prefixo");
-        if (prefixoEl) prefixoEl.classList.toggle("all-riscado", !allRiscado);
+        if (prefixoEl) prefixoEl.classList.toggle("all-riscado", novoEstado);
 
-        btnEl.innerHTML = !allRiscado ? (_icon("rotate") + " Reverter") : (_icon("check") + " Analisado");
-        btnEl.classList.toggle("ativo", !allRiscado);
+        btnEl.innerHTML = novoEstado ? (_icon("rotate") + " Reverter") : (_icon("check") + " Analisado");
+        btnEl.classList.toggle("ativo", novoEstado);
 
         _atualizarContadoresA_partir(details);
       }
@@ -843,6 +918,7 @@
         });
 
         el.innerHTML = html;
+        _aplicarStatusPersistido();
       }
 
       // ─────────────────────────────────────────────────────────
@@ -854,20 +930,24 @@
       var REPORTS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app";
 
       var _relItemAtual = null;
+      var _relItemAtualIdx = null;
       var _relLinhaSelecionada = null;   // { id, lineCode, lineName, departureTime, direction }
       var _relMotoristaSelecionado = null; // { id, code, name, base }
       var _relEvidencias = [];           // [{ file, url }]
       var _relBuscaMotoristaSeq = 0;
       var _relTripsCache = null; // catálogo completo de viagens, carregado 1x por sessão
+      var _relGerado = false;   // true depois que o relatório é gerado com sucesso
 
       function abrirModalRelatorio(idx) {
         var item = _relatorioItens[idx];
         if (!item) return;
 
         _relItemAtual = item;
+        _relItemAtualIdx = idx;
         _relLinhaSelecionada = null;
         _relMotoristaSelecionado = null;
         _relEvidencias = [];
+        _relGerado = false;
 
         document.getElementById("relVeiculo").textContent = item.veiculo || "—";
         document.getElementById("relPonto").textContent = item.ponto || "—";
@@ -1137,6 +1217,19 @@
           });
       }
 
+      // O botão do rodapé serve pra duas ações: gerar o relatório (1ª vez)
+      // e, depois de gerado, fechar o modal + marcar a ocorrência como
+      // analisada (2º clique, quando o texto já virou "Concluído").
+      function _onClickBtnGerar() {
+        if (_relGerado) {
+          var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
+          if (el) _setItemAnalisado(el, true);
+          fecharModalRelatorio();
+          return;
+        }
+        _gerarRelatorio();
+      }
+
       function _gerarRelatorio() {
         if (!_relItemAtual) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
@@ -1209,6 +1302,8 @@
               var status = document.getElementById("relStatus");
               status.innerHTML = _icon("check") + ' Relatório baixado! <a href="' + url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir de novo</a>';
               status.className = "oc-status ok";
+              _relGerado = true;
+              btn.disabled = false;
               btn.innerHTML = _icon("check") + " Concluído";
             });
           })
@@ -1271,7 +1366,7 @@
         <div class="oc-footer">
           <span class="oc-status" id="relStatus"></span>
           <button class="btn btn-ghost" onclick="fecharModalRelatorio()">Cancelar</button>
-          <button class="btn btn-primary" id="relBtnGerar" onclick="_gerarRelatorio()">Gerar relatório</button>
+          <button class="btn btn-primary" id="relBtnGerar" onclick="_onClickBtnGerar()">Gerar relatório</button>
         </div>
 
       </div>

@@ -145,6 +145,71 @@ function getDadosBI(dataIni, dataFim) {
   return JSON.stringify(registros);
 }
 
+// ── 5b. Status de análise — Tempo de Permanência ──────────────
+// Aba "TEMPO_PERMANENCIA_STATUS": CHAVE, VEICULO, PONTO, ENTRADA,
+// STATUS, ATUALIZADO_EM — guarda quais excedências já foram
+// marcadas como analisadas, pra sobreviver a reload/novo upload
+// do mesmo CSV. CHAVE = "<veiculo>|<entrada>" (gerada no front-end).
+function getStatusPermanencia() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
+  if (!aba) return JSON.stringify([]);
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, 6).getValues();
+  const chaves = data
+    .filter(
+      (r) =>
+        String(r[0] || "").trim() !== "" &&
+        String(r[4] || "").trim().toUpperCase() === "ANALISADO",
+    )
+    .map((r) => String(r[0]).trim());
+
+  return JSON.stringify(chaves);
+}
+
+// payload: { chave, veiculo, ponto, entrada, analisado }
+function marcarStatusPermanencia(payload) {
+  const chave = String((payload && payload.chave) || "").trim();
+  if (!chave) throw new Error("chave é obrigatória.");
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
+  if (!aba) throw new Error('Aba "TEMPO_PERMANENCIA_STATUS" não encontrada.');
+
+  const status = payload.analisado ? "ANALISADO" : "";
+  const agora = new Date();
+
+  const lastRow = aba.getLastRow();
+  let linhaExistente = -1;
+  if (lastRow >= 2) {
+    const chavesExistentes = aba.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < chavesExistentes.length; i++) {
+      if (String(chavesExistentes[i][0]).trim() === chave) {
+        linhaExistente = i + 2;
+        break;
+      }
+    }
+  }
+
+  if (linhaExistente > 0) {
+    aba.getRange(linhaExistente, 5, 1, 2).setValues([[status, agora]]);
+  } else {
+    aba.appendRow([
+      chave,
+      payload.veiculo || "",
+      payload.ponto || "",
+      payload.entrada || "",
+      status,
+      agora,
+    ]);
+  }
+
+  return { ok: true };
+}
+
 // ── 6. Helpers privados ───────────────────────────────────────
 // ── Normalização automática de nomes de bases ─────────────────
 function _normalizeBase(raw) {
