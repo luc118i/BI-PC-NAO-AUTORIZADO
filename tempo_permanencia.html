@@ -502,6 +502,7 @@
           if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
           if (!_ehRodoviaria(r.ponto)) return; // nome não menciona "rodovi..." — não é terminal oficial (evita churrascaria/posto/restaurante batendo pelo nome da cidade)
           var segReal = _parseDurSeg(r.parada);
+          if (segReal > 2 * 3600) return; // acima de 2h — provável pernoite/erro de leitura, descarta da análise
           var ref = _matchReferencia(r.ponto);
           if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
           var segPermitido = ref.min * 60;
