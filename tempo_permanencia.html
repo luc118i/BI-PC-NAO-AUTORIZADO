@@ -112,14 +112,33 @@
       .acc-group.acc-prefixo-group { margin-bottom: 6px; background: var(--preto3); }
       .acc-group.acc-prefixo-group > .acc-summary { padding: 10px 14px; }
 
-      .perm-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
+      /* Copiar prefixo — mesmo padrão do det-prefixo em Paradas Irregulares */
+      .acc-prefixo-copy { cursor: pointer; border-bottom: 1px dashed var(--cinza2); transition: color 0.15s, border-color 0.15s; }
+      .acc-prefixo-copy:hover { color: var(--laranja) !important; border-color: var(--laranja); }
+      .acc-prefixo.all-riscado { opacity: 0.4; text-decoration: line-through; }
+
+      /* Botão "marcar grupo como analisado" */
+      .acc-mini-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 3px 10px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      }
+      .acc-mini-btn:hover { border-color: var(--laranja); color: var(--laranja); }
+      .acc-mini-btn.ativo { border-color: var(--verde); color: var(--verde); }
+
+      .perm-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; cursor: pointer; transition: opacity 0.15s; }
       .perm-item:last-child { border-bottom: none; }
+      .perm-item:hover { background: rgba(255,255,255,0.02); }
       .perm-local { flex: 1; min-width: 220px; }
       .perm-local-nome { font-size: 13px; font-weight: 600; color: var(--texto); }
       .perm-local-cidade { font-size: 11px; color: var(--texto3); margin-top: 2px; }
       .perm-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: var(--texto2); }
       .perm-meta b { color: var(--texto); font-weight: 600; }
       .perm-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid; letter-spacing: 0.02em; white-space: nowrap; }
+      .perm-item.riscado { opacity: 0.35; }
+      .perm-item.riscado .perm-local-nome,
+      .perm-item.riscado .perm-meta b { text-decoration: line-through; }
+      .perm-item.riscado .perm-badge { text-decoration: none; }
 
       .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
     </style>
@@ -467,10 +486,15 @@
         return rows;
       }
 
+      function _ehGaragem(pontoNome) {
+        return _normTP(pontoNome).includes("GARAGEM");
+      }
+
       function _detectarExcedencias(rows) {
         var lista = [];
         rows.forEach(function (r) {
           if (!r.ponto) return;
+          if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
           var segReal = _parseDurSeg(r.parada);
           var ref = _matchReferencia(r.ponto);
           if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
@@ -546,7 +570,7 @@
 
       function _renderItemHtml(r) {
         var cor = _corExcedente(r.excedenteSeg);
-        return '<div class="perm-item">' +
+        return '<div class="perm-item" onclick="this.classList.toggle(\'riscado\')" title="Clique para marcar como analisado">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' + r.ponto + '</div>' +
             '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
@@ -561,6 +585,35 @@
           '</div>' +
           '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
         '</div>';
+      }
+
+      // ── Copiar prefixo (mesma UX de Paradas Irregulares) ──────
+      function _copiarPrefixo(el, prefixo) {
+        navigator.clipboard.writeText(prefixo).then(function () {
+          var orig = el.textContent;
+          el.textContent = "✓ Copiado";
+          el.style.color = "var(--verde)";
+          setTimeout(function () {
+            el.textContent = orig;
+            el.style.color = "";
+          }, 1200);
+        });
+      }
+
+      // ── Riscar/ocultar grupo inteiro (marca todas as ocorrências
+      //    do prefixo como analisadas de uma vez) ─────────────────
+      function _riscarGrupo(btnEl) {
+        var details = btnEl.closest("details");
+        var body = details.querySelector(":scope > .acc-body");
+        var itens = Array.prototype.slice.call(body.querySelectorAll(":scope > .perm-item"));
+        var allRiscado = itens.every(function (i) { return i.classList.contains("riscado"); });
+        itens.forEach(function (i) { i.classList.toggle("riscado", !allRiscado); });
+
+        var prefixoEl = details.querySelector(":scope > summary .acc-prefixo");
+        if (prefixoEl) prefixoEl.classList.toggle("all-riscado", !allRiscado);
+
+        btnEl.textContent = !allRiscado ? "↺ Reverter" : "✓ Analisado";
+        btnEl.classList.toggle("ativo", !allRiscado);
       }
 
       function _renderTPFiltrado() {
@@ -615,14 +668,21 @@
           ordemGrupos.forEach(function (veiculo, gi) {
             var grupo = grupos[veiculo];
             var linhasGrupo = new Set(grupo.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
+            var veiculoEsc = veiculo.replace(/'/g, "");
             html += '<details class="acc-group acc-prefixo-group"' + (ri === 0 && gi === 0 ? ' open' : '') + '>' +
               '<summary class="acc-summary">' +
                 '<div class="acc-left">' +
                   '<span class="acc-chevron"></span>' +
-                  '<span class="acc-prefixo">' + veiculo + '</span>' +
+                  '<span class="acc-prefixo acc-prefixo-copy" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_copiarPrefixo(this,\'' + veiculoEsc + '\')" ' +
+                    'title="Clique para copiar prefixo">' + veiculo + '</span>' +
                   '<span class="acc-sub">' + (linhasGrupo.size ? Array.from(linhasGrupo).join(", ") : "") + '</span>' +
                 '</div>' +
-                '<div class="acc-right"><span class="acc-count">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span></div>' +
+                '<div class="acc-right">' +
+                  '<span class="acc-count">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
+                  '<button type="button" class="acc-mini-btn" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">✓ Analisado</button>' +
+                '</div>' +
               '</summary>' +
               '<div class="acc-body">';
 
