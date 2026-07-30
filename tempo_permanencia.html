@@ -236,7 +236,7 @@
         if (window.google && google.script && google.script.run) {
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
-        _carregarPCs();
+        _carregarDadosReferencia();
       };
 
       function voltarDashboard() {
@@ -244,11 +244,39 @@
         else window.history.back();
       }
 
+      function _normTP(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .toUpperCase().trim().replace(/\s+/g, " ");
+      }
+
+      function _parseHMtoMin(str) {
+        var p = String(str || "").trim().split(":");
+        if (p.length !== 2) return null;
+        var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+        if (!isFinite(h) || !isFinite(m)) return null;
+        return h * 60 + m;
+      }
+
+      function _splitOrigem(origemFull) {
+        var partes = String(origemFull || "").split(" - ");
+        var uf = partes.length > 1 ? partes[partes.length - 1].trim() : "";
+        var cidade = partes.length > 1 ? partes.slice(0, -1).join(" - ").trim() : (origemFull || "");
+        return { cidade: cidade, uf: uf };
+      }
+
+      var UF_REGIAO = {
+        AC: "Norte", AP: "Norte", AM: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
+        AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste", PE: "Nordeste",
+        PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
+        DF: "Centro-Oeste", GO: "Centro-Oeste", MT: "Centro-Oeste", MS: "Centro-Oeste",
+        ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
+        PR: "Sul", RS: "Sul", SC: "Sul",
+      };
+
       // ─────────────────────────────────────────────────────────
-      //  Região — determinada a partir da lat/long da base de PCs
-      //  (getPCs() já traz lat/long + região curada por coordenada;
-      //   quando o ponto não bate com nenhum PC cadastrado, cai para
-      //   o mapeamento UF → macrorregião, usando a UF da referência)
+      //  Base de locais (getPCs()) — usada para identificar o
+      //  código do ponto de controle e a região (curada por lat/long)
       // ─────────────────────────────────────────────────────────
       var _pcsCache = null;
 
@@ -280,106 +308,48 @@
         return null;
       }
 
-      var UF_REGIAO = {
-        AC: "Norte", AP: "Norte", AM: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
-        AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste", PE: "Nordeste",
-        PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
-        DF: "Centro-Oeste", GO: "Centro-Oeste", MT: "Centro-Oeste", MS: "Centro-Oeste",
-        ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
-        PR: "Sul", RS: "Sul", SC: "Sul",
-      };
-
-      function _resolverRegiao(pontoNome, ufRef) {
-        var pc = _matchPC(pontoNome);
-        if (pc && pc.regiao) return pc.regiao;
-        if (pc && pc.uf && UF_REGIAO[pc.uf]) return UF_REGIAO[pc.uf];
-        if (ufRef && UF_REGIAO[ufRef]) return UF_REGIAO[ufRef];
-        return "Não identificada";
-      }
-
       // ─────────────────────────────────────────────────────────
-      //  Tabela de referência — tempo máximo permitido por origem
-      //  (fonte: planilha "Tempo de Permanência" · atualizar aqui
-      //   sempre que a referência oficial mudar)
+      //  Tabela de referência — tempo máximo permitido por local
+      //  (aba "TEMPO_PERMANENCIA" · COD_LOCAL liga direto ao código
+      //   cadastrado em "PC'S NÃO AUTORIZADO", sem depender de nome
+      //   de cidade — evita falso positivo tipo restaurante/posto
+      //   que só menciona a cidade no nome)
       // ─────────────────────────────────────────────────────────
-      var TEMPO_PERMANENCIA_REF = [
-        ["2","BRASILIA - DF","00:40"],["18","SAO PAULO - SP","00:30"],["17","GOIANIA - GO","00:35"],
-        ["40","SALVADOR - BA","00:30"],["52","RECIFE - PE","00:30"],["57","NATAL - RN","00:20"],
-        ["54","JOAO PESSOA - PB","00:20"],["46","MACEIO - AL","00:20"],["42","ARACAJU - SE","00:20"],
-        ["25","UBERLANDIA - MG","00:30"],["162","BELO HORIZONTE - MG","00:30"],["139","FORTALEZA - CE","00:15"],
-        ["20","CAMPINAS - SP","00:30"],["35","BARREIRAS - BA","00:30"],["33","ALVORADA DO NORTE - GO","00:15"],
-        ["11","MONTES CLAROS - MG","00:15"],["1","TAGUATINGA - DF","00:15"],["23","RIBEIRAO PRETO - SP","00:20"],
-        ["39","FEIRA DE SANTANA - BA","00:15"],["34","LUIS EDUARDO MAGALHAES - BA","00:15"],["110","PALMAS - TO","00:30"],
-        ["114","CORRENTINA - BA","00:20"],["24","UBERABA - MG","00:20"],["79","PETROLINA - PE","00:15"],
-        ["105","GURUPI - TO","00:20"],["115","SANTA MARIA DA VITORIA - BA","00:15"],["29","ANAPOLIS - GO","00:15"],
-        ["89","JUAZEIRO DO NORTE - CE","00:15"],["19","OSASCO - SP","00:15"],["108","PORTO NACIONAL - TO","00:15"],
-        ["45","ARAPIRACA - AL","00:10"],["62","VITORIA DA CONQUISTA - BA","00:20"],["116","SANTANA - BA","00:15"],
-        ["51","CARUARU - PE","00:10"],["64","JEQUIE - BA","00:05"],["81","SALGUEIRO - PE","00:10"],
-        ["99","MOSSORO - RN","00:10"],["97","PAU DOS FERROS - RN","00:10"],["121","COCOS - BA","00:15"],
-        ["96","CAJAZEIRAS - PB","00:05"],["58","PATOS DE MINAS - MG","00:15"],["5","JANUARIA - MG","00:15"],
-        ["78","JUAZEIRO - BA","00:05"],["16","VALPARAISO DE GOIAS - GO","00:10"],["77","SENHOR DO BONFIM - BA","00:10"],
-        ["118","TABOCAS DO BREJO VELHO - BA","00:10"],["63","POCOES - BA","00:10"],["60","SALINAS - MG","00:05"],
-        ["87","BREJO SANTO - CE","00:05"],["4","ITACARAMBI - MG","00:20"],["76","JACOBINA - BA","00:05"],
-        ["153","PATROCINIO - MG","00:10"],["117","SERRA DOURADA - BA","00:15"],["28","TRINDADE - GO","00:20"],
-        ["98","APODI - RN","00:05"],["37","SEABRA - BA","00:05"],["30","SOBRADINHO - DF","00:10"],
-        ["44","SAO MIGUEL DOS CAMPOS - AL","00:05"],["26","ARAGUARI - MG","00:15"],["120","CORIBE - BA","00:15"],
-        ["38","ITABERABA - BA","00:05"],["119","JABORANDI - BA","00:10"],["31","PLANALTINA - DF","00:10"],
-        ["14","PIRAPORA - MG","00:15"],["137","ARACATI - CE","00:02"],["36","IBOTIRAMA - BA","00:05"],
-        ["103","CAMPINORTE - GO","00:10"],["27","CALDAS NOVAS - GO","00:15"],["3","CRISTALINA - GO","00:10"],
-        ["21","AMERICANA - SP","00:05"],["61","CANDIDO SALES - BA","00:05"],["47","PALMARES - PE","00:05"],
-        ["154","TALISMA - TO","00:10"],["69","MORRO DO CHAPEU - BA","00:05"],["32","FORMOSA - GO","00:10"],
-        ["22","ARARAS - SP","00:05"],["43","PROPRIA - SE","00:20"],["12","PARACATU - MG","00:15"],
-        ["124","CORRENTE - PI","00:05"],["106","ALIANCA DO TOCANTINS - TO","00:10"],["13","PEDRAS DE MARIA DA CRUZ - MG","00:05"],
-        ["10","MIRABELA - MG","00:05"],["149","JUNDIAI - SP","00:05"],["59","FRANCISCO SA - MG","00:10"],
-        ["8","LONTRA - MG","00:05"],["155","ALVORADA - TO","00:10"],["41","ESTANCIA - SE","00:05"],
-        ["122","FORMOSA DO RIO PRETO - BA","00:05"],["6","JAPONVAR - MG","00:05"],["156","FIGUEIROPOLIS - TO","00:05"],
-        ["159","PIRASSUNUNGA - SP","nao temos"],["9","LUZIANIA - GO","00:05"],["161","APARECIDA DE GOIANIA - GO","00:05"],
-        ["138","MESSEJANA - CE","00:05"],["157","BREJINHO DE NAZARE - TO","00:10"]
-      ];
+      var _temposCache = null;
+      var _temposPorCodigo = {};
 
-      function _normTP(s) {
-        return String(s || "")
-          .normalize("NFD").replace(/[̀-ͯ]/g, "")
-          .toUpperCase().trim().replace(/\s+/g, " ");
-      }
-
-      function _parseHMtoMin(str) {
-        var p = String(str || "").trim().split(":");
-        if (p.length !== 2) return null;
-        var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
-        if (!isFinite(h) || !isFinite(m)) return null;
-        return h * 60 + m;
-      }
-
-      // Monta a lista de referência processada: {codigo, cidade, uf, origemFull, min}
-      var _refPermanencia = TEMPO_PERMANENCIA_REF.map(function (row) {
-        var codigo = row[0], origem = row[1], tempo = row[2];
-        var min = _parseHMtoMin(tempo);
-        var partes = origem.split(" - ");
-        var uf = partes.length > 1 ? partes[partes.length - 1].trim() : "";
-        var cidade = partes.length > 1 ? partes.slice(0, -1).join(" - ").trim() : origem;
-        return {
-          codigo: codigo,
-          cidade: cidade,
-          cidadeNorm: _normTP(cidade),
-          uf: uf,
-          origemFull: origem,
-          min: min, // null = sem regra definida (ex.: "não temos")
-        };
-      }).filter(function (r) { return r.cidadeNorm; });
-
-      function _matchReferencia(pontoNome) {
-        var normPonto = _normTP(pontoNome);
-        if (!normPonto) return null;
-        var melhor = null;
-        for (var i = 0; i < _refPermanencia.length; i++) {
-          var r = _refPermanencia[i];
-          var re = new RegExp("\\b" + r.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
-          if (re.test(normPonto) && (!melhor || r.cidadeNorm.length > melhor.cidadeNorm.length)) {
-            melhor = r;
-          }
+      function _carregarTempos(cb) {
+        if (_temposCache) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) {
+          _temposCache = [];
+          if (cb) cb();
+          return;
         }
-        return melhor;
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _temposCache = JSON.parse(json || "[]"); } catch (e) { _temposCache = []; }
+            _temposPorCodigo = {};
+            _temposCache.forEach(function (t) {
+              var cod = String(t.codLocal || "").trim();
+              if (!cod) return;
+              var sc = _splitOrigem(t.origem);
+              _temposPorCodigo[cod] = {
+                origemFull: t.origem,
+                cidade: sc.cidade,
+                uf: sc.uf,
+                min: _parseHMtoMin(t.tempoPermanencia),
+                mediaMesPax: t.mediaMesPax,
+                mediaDiaPax: t.mediaDiaPax,
+              };
+            });
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _temposCache = []; _temposPorCodigo = {}; if (cb) cb(); })
+          .getTemposPermanencia();
+      }
+
+      function _carregarDadosReferencia(cb) {
+        _carregarPCs(function () { _carregarTempos(cb); });
       }
 
       // ─────────────────────────────────────────────────────────
@@ -430,7 +400,7 @@
         reader.onload = function (e) {
           try {
             var rows = _parseCSVRastrTP(e.target.result);
-            _carregarPCs(function () {
+            _carregarDadosReferencia(function () {
               var excedencias = _detectarExcedencias(rows);
               _renderTP(excedencias);
             });
@@ -495,19 +465,26 @@
         rows.forEach(function (r) {
           if (!r.ponto) return;
           if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
+
+          var pc = _matchPC(r.ponto);
+          if (!pc || !pc.codigo) return; // local não cadastrado em PC'S NÃO AUTORIZADO — ignora
+
+          var ref = _temposPorCodigo[pc.codigo];
+          if (!ref || ref.min == null) return; // sem limite definido para esse código — ignora
+
           var segReal = _parseDurSeg(r.parada);
-          var ref = _matchReferencia(r.ponto);
-          if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
           var segPermitido = ref.min * 60;
           if (segReal <= segPermitido) return; // dentro do limite — ignora
+
+          var regiao = pc.regiao || UF_REGIAO[pc.uf] || UF_REGIAO[ref.uf] || "Não identificada";
 
           lista.push({
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
-            cidade: ref.cidade,
-            uf: ref.uf,
-            regiao: _resolverRegiao(r.ponto, ref.uf),
+            cidade: ref.cidade || pc.descCompleta || pc.descResumida || r.ponto,
+            uf: ref.uf || pc.uf || "",
+            regiao: regiao,
             entrada: r.entrada,
             saida: r.saida,
             permanenciaSeg: segReal,

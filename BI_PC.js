@@ -89,6 +89,35 @@ function getPCs() {
   return JSON.stringify(pcs);
 }
 
+// ── 4b. getTemposPermanencia() ────────────────────────────────
+// Aba "TEMPO_PERMANENCIA": ORIGEM, Tempo de Permanencia,
+// MEDIA_MES_PAX, MEDIA_DIA_PAX, COD_LOCAL — COD_LOCAL é o mesmo
+// código cadastrado em "PC'S NÃO AUTORIZADO", usado para ligar o
+// limite de permanência ao local exato (evita falso positivo por
+// nome de cidade parecido).
+function getTemposPermanencia() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("TEMPO_PERMANENCIA");
+  if (!aba) throw new Error('Aba "TEMPO_PERMANENCIA" não encontrada.');
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, 5).getValues();
+
+  const linhas = data
+    .filter((r) => String(r[0] || "").trim() !== "")
+    .map((r) => ({
+      origem: String(r[0] || "").trim(),
+      tempoPermanencia: String(r[1] || "").trim(),
+      mediaMesPax: _numOuNull(r[2]),
+      mediaDiaPax: _numOuNull(r[3]),
+      codLocal: String(r[4] || "").trim(),
+    }));
+
+  return JSON.stringify(linhas);
+}
+
 // ── 5. getDadosBI(dataIni, dataFim) ──────────────────────────
 function getDadosBI(dataIni, dataFim) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
