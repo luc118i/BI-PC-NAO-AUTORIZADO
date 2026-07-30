@@ -275,32 +275,37 @@
       };
 
       // ─────────────────────────────────────────────────────────
-      //  Base de locais (getPCs()) — usada para identificar o
-      //  código do ponto de controle e a região (curada por lat/long)
+      //  Base de pontos de controle (getPontosControle()) — export
+      //  completo do sistema de rastreamento (Kandango), com TODOS
+      //  os pontos cadastrados (não só os irregulares). É contra essa
+      //  lista que o nome do CSV de rastreamento deve ser casado,
+      //  pois usa a mesma nomenclatura/código do sistema de origem.
+      //  "PC'S NÃO AUTORIZADO" NÃO serve pra isso — é só a lista de
+      //  pontos irregulares, não teria as rodoviárias legítimas.
       // ─────────────────────────────────────────────────────────
-      var _pcsCache = null;
+      var _pontosControleCache = null;
 
-      function _carregarPCs(cb) {
-        if (_pcsCache) { if (cb) cb(); return; }
+      function _carregarPontosControle(cb) {
+        if (_pontosControleCache) { if (cb) cb(); return; }
         if (!(window.google && google.script && google.script.run)) {
-          _pcsCache = [];
+          _pontosControleCache = [];
           if (cb) cb();
           return;
         }
         google.script.run
           .withSuccessHandler(function (json) {
-            try { _pcsCache = JSON.parse(json || "[]"); } catch (e) { _pcsCache = []; }
+            try { _pontosControleCache = JSON.parse(json || "[]"); } catch (e) { _pontosControleCache = []; }
             if (cb) cb();
           })
-          .withFailureHandler(function () { _pcsCache = []; if (cb) cb(); })
-          .getPCs();
+          .withFailureHandler(function () { _pontosControleCache = []; if (cb) cb(); })
+          .getPontosControle();
       }
 
-      function _matchPC(pontoNome) {
-        if (!_pcsCache || !pontoNome) return null;
+      function _matchPontoControle(pontoNome) {
+        if (!_pontosControleCache || !pontoNome) return null;
         var normPonto = _normTP(pontoNome);
-        for (var i = 0; i < _pcsCache.length; i++) {
-          var p = _pcsCache[i];
+        for (var i = 0; i < _pontosControleCache.length; i++) {
+          var p = _pontosControleCache[i];
           var nd = _normTP(p.descCompleta || p.descResumida || "");
           if (!nd) continue;
           if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) return p;
@@ -311,7 +316,7 @@
       // ─────────────────────────────────────────────────────────
       //  Tabela de referência — tempo máximo permitido por local
       //  (aba "TEMPO_PERMANENCIA" · COD_LOCAL liga direto ao código
-      //   cadastrado em "PC'S NÃO AUTORIZADO", sem depender de nome
+      //   cadastrado em "PONTOS_CONTROLE", sem depender de nome
       //   de cidade — evita falso positivo tipo restaurante/posto
       //   que só menciona a cidade no nome)
       // ─────────────────────────────────────────────────────────
@@ -349,7 +354,7 @@
       }
 
       function _carregarDadosReferencia(cb) {
-        _carregarPCs(function () { _carregarTempos(cb); });
+        _carregarPontosControle(function () { _carregarTempos(cb); });
       }
 
       // ─────────────────────────────────────────────────────────
@@ -466,24 +471,24 @@
           if (!r.ponto) return;
           if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
 
-          var pc = _matchPC(r.ponto);
-          if (!pc || !pc.codigo) return; // local não cadastrado em PC'S NÃO AUTORIZADO — ignora
+          var pontoControle = _matchPontoControle(r.ponto);
+          if (!pontoControle || !pontoControle.codigo) return; // ponto não cadastrado em PONTOS_CONTROLE — ignora
 
-          var ref = _temposPorCodigo[pc.codigo];
+          var ref = _temposPorCodigo[pontoControle.codigo];
           if (!ref || ref.min == null) return; // sem limite definido para esse código — ignora
 
           var segReal = _parseDurSeg(r.parada);
           var segPermitido = ref.min * 60;
           if (segReal <= segPermitido) return; // dentro do limite — ignora
 
-          var regiao = pc.regiao || UF_REGIAO[pc.uf] || UF_REGIAO[ref.uf] || "Não identificada";
+          var regiao = UF_REGIAO[ref.uf] || "Não identificada";
 
           lista.push({
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
-            cidade: ref.cidade || pc.descCompleta || pc.descResumida || r.ponto,
-            uf: ref.uf || pc.uf || "",
+            cidade: ref.cidade || pontoControle.descCompleta || pontoControle.descResumida || r.ponto,
+            uf: ref.uf || "",
             regiao: regiao,
             entrada: r.entrada,
             saida: r.saida,

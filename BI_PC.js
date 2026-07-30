@@ -89,12 +89,46 @@ function getPCs() {
   return JSON.stringify(pcs);
 }
 
-// ── 4b. getTemposPermanencia() ────────────────────────────────
+// ── 4b. getPontosControle() ───────────────────────────────────
+// Aba "PONTOS_CONTROLE" — export do sistema de rastreamento
+// (Kandango) com TODOS os pontos de controle cadastrados (não só
+// os irregulares, que ficam em "PC'S NÃO AUTORIZADO"). É contra
+// essa lista que o nome do CSV de rastreamento deve ser casado,
+// pois usa a mesma nomenclatura/código do sistema de origem.
+// Colunas do export: Código, Cód. Emb., Desc. Resumida, Descrição,
+// Unidade Empresarial, Tipo, ..., Latitude (col 25), Longitude (col 26).
+function getPontosControle() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("PONTOS_CONTROLE");
+  if (!aba) throw new Error('Aba "PONTOS_CONTROLE" não encontrada.');
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const lastCol = Math.max(aba.getLastColumn(), 26);
+  const data = aba.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  const pontos = data
+    .filter((r) => String(r[0] || "").trim() !== "")
+    .map((r) => ({
+      codigo: String(r[0] || "").trim(),
+      descResumida: String(r[2] || "").trim(),
+      descCompleta: String(r[3] || "").trim(),
+      unidadeEmpresarial: String(r[4] || "").trim(),
+      tipo: String(r[5] || "").trim(),
+      lat: _numOuNull(r[24]),
+      lng: _numOuNull(r[25]),
+    }));
+
+  return JSON.stringify(pontos);
+}
+
+// ── 4c. getTemposPermanencia() ────────────────────────────────
 // Aba "TEMPO_PERMANENCIA": ORIGEM, Tempo de Permanencia,
-// MEDIA_MES_PAX, MEDIA_DIA_PAX, COD_LOCAL — COD_LOCAL é o mesmo
-// código cadastrado em "PC'S NÃO AUTORIZADO", usado para ligar o
-// limite de permanência ao local exato (evita falso positivo por
-// nome de cidade parecido).
+// MEDIA_MES_PAX, MEDIA_DIA_PAX, COD_LOCAL — COD_LOCAL é o código
+// cadastrado em "PONTOS_CONTROLE" (o mesmo sistema de onde sai o
+// CSV de rastreamento), usado para ligar o limite de permanência
+// ao local exato (evita falso positivo por nome de cidade parecido).
 function getTemposPermanencia() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = ss.getSheetByName("TEMPO_PERMANENCIA");
