@@ -274,59 +274,24 @@
         PR: "Sul", RS: "Sul", SC: "Sul",
       };
 
-      // ─────────────────────────────────────────────────────────
-      //  Base de pontos de controle (getPontosControle()) — export
-      //  completo do sistema de rastreamento (Kandango), com TODOS
-      //  os pontos cadastrados (não só os irregulares). É contra essa
-      //  lista que o nome do CSV de rastreamento deve ser casado,
-      //  pois usa a mesma nomenclatura/código do sistema de origem.
-      //  "PC'S NÃO AUTORIZADO" NÃO serve pra isso — é só a lista de
-      //  pontos irregulares, não teria as rodoviárias legítimas.
-      // ─────────────────────────────────────────────────────────
-      var _pontosControleCache = null;
       var _erroCarregamento = null;
-
-      function _carregarPontosControle(cb) {
-        if (_pontosControleCache) { if (cb) cb(); return; }
-        if (!(window.google && google.script && google.script.run)) {
-          _pontosControleCache = [];
-          if (cb) cb();
-          return;
-        }
-        google.script.run
-          .withSuccessHandler(function (json) {
-            try { _pontosControleCache = JSON.parse(json || "[]"); } catch (e) { _pontosControleCache = []; }
-            if (cb) cb();
-          })
-          .withFailureHandler(function (err) {
-            _pontosControleCache = null; // permite tentar de novo no próximo upload
-            _erroCarregamento = "PONTOS_CONTROLE: " + (err && err.message ? err.message : err);
-            if (cb) cb();
-          })
-          .getPontosControle();
-      }
-
-      function _matchPontoControle(pontoNome) {
-        if (!_pontosControleCache || !pontoNome) return null;
-        var normPonto = _normTP(pontoNome);
-        for (var i = 0; i < _pontosControleCache.length; i++) {
-          var p = _pontosControleCache[i];
-          var nd = _normTP(p.descCompleta || p.descResumida || "");
-          if (!nd) continue;
-          if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) return p;
-        }
-        return null;
-      }
 
       // ─────────────────────────────────────────────────────────
       //  Tabela de referência — tempo máximo permitido por local
-      //  (aba "TEMPO_PERMANENCIA" · COD_LOCAL liga direto ao código
-      //   cadastrado em "PONTOS_CONTROLE", sem depender de nome
-      //   de cidade — evita falso positivo tipo restaurante/posto
-      //   que só menciona a cidade no nome)
+      //  (aba "TEMPO_PERMANENCIA": ORIGEM, Tempo de Permanencia,
+      //   MEDIA_MES_PAX, MEDIA_DIA_PAX, COD_LOCAL)
+      //
+      //  Casamento por NOME: só considera candidato um ponto do CSV
+      //  cujo nome contenha "RODOVI" (cobre RODOVIARIA/RODOVIÁRIA/
+      //  RODOVIÁRIO) — isso já exclui churrascaria/posto/restaurante
+      //  sem precisar de um cadastro de código à parte. Dentro dos
+      //  candidatos, casa pelo nome da cidade (maior trecho que bater
+      //  como palavra inteira vence, pra não confundir cidades cujo
+      //  nome é substring de outra, ex. "Alvorada" vs "Alvorada do
+      //  Norte").
       // ─────────────────────────────────────────────────────────
       var _temposCache = null;
-      var _temposPorCodigo = {};
+      var _refPermanencia = [];
 
       function _carregarTempos(cb) {
         if (_temposCache) { if (cb) cb(); return; }
@@ -338,25 +303,22 @@
         google.script.run
           .withSuccessHandler(function (json) {
             try { _temposCache = JSON.parse(json || "[]"); } catch (e) { _temposCache = []; }
-            _temposPorCodigo = {};
-            _temposCache.forEach(function (t) {
-              var cod = String(t.codLocal || "").trim();
-              if (!cod) return;
+            _refPermanencia = _temposCache.map(function (t) {
               var sc = _splitOrigem(t.origem);
-              _temposPorCodigo[cod] = {
+              return {
                 origemFull: t.origem,
                 cidade: sc.cidade,
+                cidadeNorm: _normTP(sc.cidade),
                 uf: sc.uf,
                 min: _parseHMtoMin(t.tempoPermanencia),
-                mediaMesPax: t.mediaMesPax,
-                mediaDiaPax: t.mediaDiaPax,
+                codLocal: t.codLocal,
               };
-            });
+            }).filter(function (r) { return r.cidadeNorm; });
             if (cb) cb();
           })
           .withFailureHandler(function (err) {
             _temposCache = null; // permite tentar de novo no próximo upload
-            _temposPorCodigo = {};
+            _refPermanencia = [];
             _erroCarregamento = "TEMPO_PERMANENCIA: " + (err && err.message ? err.message : err);
             if (cb) cb();
           })
@@ -364,7 +326,25 @@
       }
 
       function _carregarDadosReferencia(cb) {
-        _carregarPontosControle(function () { _carregarTempos(cb); });
+        _carregarTempos(cb);
+      }
+
+      function _ehRodoviaria(pontoNome) {
+        return _normTP(pontoNome).includes("RODOVI");
+      }
+
+      function _matchReferenciaPorCidade(pontoNome) {
+        var normPonto = _normTP(pontoNome);
+        if (!normPonto) return null;
+        var melhor = null;
+        for (var i = 0; i < _refPermanencia.length; i++) {
+          var r = _refPermanencia[i];
+          var re = new RegExp("\\b" + r.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+          if (re.test(normPonto) && (!melhor || r.cidadeNorm.length > melhor.cidadeNorm.length)) {
+            melhor = r;
+          }
+        }
+        return melhor;
       }
 
       // ─────────────────────────────────────────────────────────
@@ -485,12 +465,10 @@
         rows.forEach(function (r) {
           if (!r.ponto) return;
           if (_ehGaragem(r.ponto)) return; // garagem/depósito — não é parada de análise, só polui os dados
+          if (!_ehRodoviaria(r.ponto)) return; // não menciona "rodovi..." no nome — não é terminal oficial
 
-          var pontoControle = _matchPontoControle(r.ponto);
-          if (!pontoControle || !pontoControle.codigo) return; // ponto não cadastrado em PONTOS_CONTROLE — ignora
-
-          var ref = _temposPorCodigo[pontoControle.codigo];
-          if (!ref || ref.min == null) return; // sem limite definido para esse código — ignora
+          var ref = _matchReferenciaPorCidade(r.ponto);
+          if (!ref || ref.min == null) return; // sem referência/limite cadastrado para essa cidade — ignora
 
           var segReal = _parseDurSeg(r.parada);
           var segPermitido = ref.min * 60;
@@ -502,7 +480,7 @@
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
-            cidade: ref.cidade || pontoControle.descCompleta || pontoControle.descResumida || r.ponto,
+            cidade: ref.cidade || r.ponto,
             uf: ref.uf || "",
             regiao: regiao,
             entrada: r.entrada,
@@ -525,7 +503,6 @@
         if (!lista.length) {
           var diag = ' <span style="color:var(--texto3);font-size:11px">(' +
             (totalLinhas || 0) + ' linhas do CSV · ' +
-            (_pontosControleCache ? _pontosControleCache.length : 0) + ' pontos de controle carregados · ' +
             (_temposCache ? _temposCache.length : 0) + ' referências de tempo carregadas)</span>';
           statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma permanência excedeu o tempo máximo permitido.' + diag;
           document.getElementById("tpKpis").classList.add("hidden");
