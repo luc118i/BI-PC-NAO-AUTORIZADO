@@ -536,6 +536,7 @@
           if (!ref || ref.min == null) return; // sem referência cadastrada — ignora
           var segPermitido = ref.min * 60;
           if (segReal <= segPermitido) return; // dentro do limite — ignora
+          if (segReal - segPermitido < 10 * 60) return; // excedente abaixo de 10min — ignora, não é relevante pra análise
 
           lista.push({
             veiculo: r.veiculo || "—",
