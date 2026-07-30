@@ -440,6 +440,20 @@
           .toUpperCase().trim().replace(/\s+/g, " ");
       }
 
+      // ── Ícones SVG (estilo lucide) — no lugar de emoji ────────
+      var _ICON_PATHS = {
+        check: '<polyline points="20 6 9 17 4 12"></polyline>',
+        x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+        rotate: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>',
+        file: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line>',
+      };
+      function _icon(nome, tamanho) {
+        tamanho = tamanho || 14;
+        return '<svg width="' + tamanho + '" height="' + tamanho + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+          'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block;flex-shrink:0">' +
+          (_ICON_PATHS[nome] || "") + "</svg>";
+      }
+
       function _parseHMtoMin(str) {
         var p = String(str || "").trim().split(":");
         if (p.length !== 2) return null;
@@ -526,7 +540,7 @@
               _renderTP(excedencias);
             });
           } catch (ex) {
-            statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
+            statusEl.innerHTML = '<span style="color:var(--vermelho)">' + _icon("x") + ' Erro ao processar arquivo: ' + ex.message + '</span>';
           }
         };
         reader.readAsText(file, "windows-1252");
@@ -625,13 +639,13 @@
         var statusEl = document.getElementById("tpStatus");
 
         if (!lista.length) {
-          statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Nenhuma permanência excedeu o tempo máximo permitido.';
+          statusEl.innerHTML = '<span style="color:var(--verde)">' + _icon("check") + '</span> Nenhuma permanência excedeu o tempo máximo permitido.';
           document.getElementById("tpKpis").classList.add("hidden");
           document.getElementById("tpResultCard").classList.add("hidden");
           return;
         }
 
-        statusEl.innerHTML = '<span style="color:var(--verde)">✓</span> Arquivo processado com sucesso. ' +
+        statusEl.innerHTML = '<span style="color:var(--verde)">' + _icon("check") + '</span> Arquivo processado com sucesso. ' +
           '<span class="tag">' + lista.length + ' excedência' + (lista.length !== 1 ? 's' : '') + ' no total</span>';
 
         var regioes = new Set(lista.map(function (r) { return r.regiao; }));
@@ -689,7 +703,7 @@
             '<span>Permitido<br><b>' + _fmtMin(Math.round(r.permitidoSeg / 60)) + '</b></span>' +
             '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
           '</div>' +
-          '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">📄 Gerar Relatório</button>' +
+          '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
           '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
         '</div>';
       }
@@ -697,11 +711,11 @@
       // ── Copiar prefixo (mesma UX de Paradas Irregulares) ──────
       function _copiarPrefixo(el, prefixo) {
         navigator.clipboard.writeText(prefixo).then(function () {
-          var orig = el.textContent;
-          el.textContent = "✓ Copiado";
+          var orig = el.innerHTML;
+          el.innerHTML = _icon("check") + " Copiado";
           el.style.color = "var(--verde)";
           setTimeout(function () {
-            el.textContent = orig;
+            el.innerHTML = orig;
             el.style.color = "";
           }, 1200);
         });
@@ -719,7 +733,7 @@
         var prefixoEl = details.querySelector(":scope > summary .acc-prefixo");
         if (prefixoEl) prefixoEl.classList.toggle("all-riscado", !allRiscado);
 
-        btnEl.textContent = !allRiscado ? "↺ Reverter" : "✓ Analisado";
+        btnEl.innerHTML = !allRiscado ? (_icon("rotate") + " Reverter") : (_icon("check") + " Analisado");
         btnEl.classList.toggle("ativo", !allRiscado);
 
         _atualizarContadoresA_partir(details);
@@ -815,7 +829,7 @@
                 '<div class="acc-right">' +
                   '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
                   '<button type="button" class="acc-mini-btn" ' +
-                    'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">✓ Analisado</button>' +
+                    'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">' + _icon("check") + ' Analisado</button>' +
                 '</div>' +
               '</summary>' +
               '<div class="acc-body">';
@@ -948,7 +962,7 @@
         document.getElementById("relLinhaBusca").classList.add("hidden");
         var sel = document.getElementById("relLinhaSelecionada");
         sel.innerHTML = '<span>' + t.lineCode + ' — ' + t.lineName + ' (' + t.departureTime + (t.direction ? " · " + t.direction : "") + ')</span>' +
-          '<button type="button" onclick="_limparLinha()" title="Trocar">✕</button>';
+          '<button type="button" onclick="_limparLinha()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
       }
 
@@ -1000,7 +1014,7 @@
         document.getElementById("relMotoristaBusca").classList.add("hidden");
         var sel = document.getElementById("relMotoristaSelecionada");
         sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
-          '<button type="button" onclick="_limparMotorista()" title="Trocar">✕</button>';
+          '<button type="button" onclick="_limparMotorista()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
       }
 
@@ -1045,7 +1059,7 @@
         grid.innerHTML = _relEvidencias.map(function (ev, i) {
           return '<div class="oc-evid-thumb">' +
             '<img src="' + ev.url + '" alt="Evidência ' + (i + 1) + '" />' +
-            '<button type="button" class="oc-evid-remove" onclick="_removerEvidencia(' + i + ')" title="Remover">✕</button>' +
+            '<button type="button" class="oc-evid-remove" onclick="_removerEvidencia(' + i + ')" title="Remover">' + _icon("x", 12) + '</button>' +
           '</div>';
         }).join("");
       }
@@ -1058,7 +1072,7 @@
       // ── Orquestração: cria ocorrência → sobe evidências → gera PDF ──
       function _setRelStatus(msg, tipo) {
         var el = document.getElementById("relStatus");
-        el.textContent = msg;
+        el.innerHTML = msg;
         el.className = "oc-status" + (tipo ? " " + tipo : "");
       }
 
@@ -1150,14 +1164,14 @@
 
             var status = document.getElementById("relStatus");
             status.innerHTML = url
-              ? '✓ Relatório gerado! <a href="' + url + '" target="_blank" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir PDF</a>'
-              : "✓ Relatório gerado com sucesso!";
+              ? _icon("check") + ' Relatório gerado! <a href="' + url + '" target="_blank" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir PDF</a>'
+              : _icon("check") + " Relatório gerado com sucesso!";
             status.className = "oc-status ok";
-            btn.textContent = "Concluído ✓";
+            btn.innerHTML = _icon("check") + " Concluído";
           })
           .catch(function (err) {
             if (pdfTab && !pdfTab.closed) pdfTab.close();
-            _setRelStatus("✗ " + (err.message || "Erro ao gerar relatório"), "err");
+            _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
           });
@@ -1169,8 +1183,8 @@
       <div class="oc-panel">
 
         <div class="oc-header">
-          <h3>📄 Gerar Relatório — Excesso de Permanência</h3>
-          <button class="oc-close" onclick="fecharModalRelatorio()" title="Fechar">✕</button>
+          <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Excesso de Permanência</h3>
+          <button class="oc-close" onclick="fecharModalRelatorio()" title="Fechar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
 
         <div class="oc-body">
