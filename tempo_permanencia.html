@@ -843,8 +843,8 @@
       var _relLinhaSelecionada = null;   // { id, lineCode, lineName, departureTime, direction }
       var _relMotoristaSelecionado = null; // { id, code, name, base }
       var _relEvidencias = [];           // [{ file, url }]
-      var _relBuscaLinhaSeq = 0;
       var _relBuscaMotoristaSeq = 0;
+      var _relTripsCache = null; // catálogo completo de viagens, carregado 1x por sessão
 
       function abrirModalRelatorio(idx) {
         var item = _relatorioItens[idx];
@@ -875,42 +875,69 @@
         document.getElementById("relBtnGerar").textContent = "Gerar relatório";
 
         document.getElementById("relatorioModal").classList.remove("hidden");
+        _carregarTrips();
       }
 
       function fecharModalRelatorio() {
         document.getElementById("relatorioModal").classList.add("hidden");
       }
 
-      // ── Autocomplete de Linha (GET /trips?search=) ────────────
+      // ── Catálogo de viagens (carrega 1x, filtra tudo localmente) ──
+      function _carregarTrips(cb) {
+        if (_relTripsCache) { if (cb) cb(); return; }
+        fetch(REPORTS_API_URL + "/trips")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            _relTripsCache = (json && json.data) || [];
+            if (cb) cb();
+          })
+          .catch(function () {
+            _relTripsCache = [];
+            if (cb) cb();
+          });
+      }
+
+      // ── Autocomplete de Linha — busca local e "inteligente":
+      //    código/nome da linha OU horário em qualquer formato
+      //    (10h00, 10:00, 1000, 10 30 etc.) ────────────────────
       function _buscarLinha(termo) {
         var lista = document.getElementById("relLinhaLista");
         termo = (termo || "").trim();
         if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
 
-        var seq = ++_relBuscaLinhaSeq;
-        fetch(REPORTS_API_URL + "/trips?search=" + encodeURIComponent(termo))
-          .then(function (r) { return r.json(); })
-          .then(function (json) {
-            if (seq !== _relBuscaLinhaSeq) return; // resposta antiga, ignora
-            var itens = (json && json.data) || [];
-            if (!itens.length) {
-              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhuma linha encontrada.</div>';
-              lista.classList.remove("hidden");
-              return;
-            }
-            lista.innerHTML = itens.slice(0, 20).map(function (t, i) {
-              return '<div class="oc-autocomplete-item" onclick="_selecionarLinha(' + i + ')" data-idx="' + i + '">' +
-                (t.lineCode || "") + ' — ' + (t.lineName || "") +
-                '<span class="oc-ac-sub">' + (t.departureTime || "") + (t.direction ? " · " + t.direction : "") + '</span>' +
-              '</div>';
-            }).join("");
-            lista.classList.remove("hidden");
-            window._relLinhaOpcoes = itens;
-          })
-          .catch(function () {
-            lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar linhas.</div>';
-            lista.classList.remove("hidden");
-          });
+        if (!_relTripsCache) {
+          lista.innerHTML = '<div class="oc-autocomplete-empty">Carregando linhas...</div>';
+          lista.classList.remove("hidden");
+          _carregarTrips(function () { _buscarLinha(termo); });
+          return;
+        }
+
+        var termoNorm = _normTP(termo);
+        var termoDigitos = termo.replace(/\D/g, ""); // "10h30", "10:30", "10 30" → "1030"
+
+        var itens = _relTripsCache.filter(function (t) {
+          var textoCombinado = _normTP((t.lineCode || "") + " " + (t.lineName || ""));
+          if (textoCombinado.includes(termoNorm)) return true;
+          if (termoDigitos.length >= 3) {
+            var horaDigitos = String(t.departureTime || "").replace(/\D/g, "");
+            if (horaDigitos.includes(termoDigitos)) return true;
+          }
+          return false;
+        });
+
+        if (!itens.length) {
+          lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhuma linha encontrada.</div>';
+          lista.classList.remove("hidden");
+          return;
+        }
+        lista.innerHTML = itens.slice(0, 20).map(function (t, i) {
+          return '<div class="oc-autocomplete-item" onclick="_selecionarLinha(' + i + ')" data-idx="' + i + '">' +
+            (t.lineCode || "") + ' — ' + (t.lineName || "") +
+            '<span class="oc-ac-sub">' + (t.departureTime || "") + (t.direction ? " · " + t.direction : "") + '</span>' +
+          '</div>';
+        }).join("");
+        lista.classList.remove("hidden");
+        window._relLinhaOpcoes = itens;
       }
 
       function _selecionarLinha(i) {
@@ -1040,6 +1067,18 @@
         return m ? { data: m[1], hora: m[2] } : { data: "", hora: "" };
       }
 
+      // Horário de saída "HH:mm", calculado a partir da entrada + permanência
+      // (fonte já validada na detecção) em vez de confiar cegamente no campo
+      // bruto "Saída" do CSV — que pode vir vazio em paradas ainda abertas.
+      function _calcularHoraSaida(item) {
+        var entradaMatch = String(item.entrada || "").match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+        if (!entradaMatch) return _dataHoraPartes(item.saida).hora;
+        var totalMin = parseInt(entradaMatch[2], 10) * 60 + parseInt(entradaMatch[3], 10) + Math.round((item.permanenciaSeg || 0) / 60);
+        totalMin = totalMin % (24 * 60);
+        var h = Math.floor(totalMin / 60), m = totalMin % 60;
+        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+      }
+
       function _gerarRelatorio() {
         if (!_relItemAtual) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
@@ -1056,14 +1095,13 @@
 
         var item = _relItemAtual;
         var entradaP = _dataHoraPartes(item.entrada);
-        var saidaP = _dataHoraPartes(item.saida);
 
         var payload = {
           typeCode: "EXCESSO_PERMANENCIA",
           eventDate: entradaP.data,
           tripDate: entradaP.data,
           startTime: entradaP.hora,
-          endTime: saidaP.hora || entradaP.hora,
+          endTime: _calcularHoraSaida(item),
           vehicleNumber: item.veiculo,
           place: item.ponto,
           lineLabel: _relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName,
