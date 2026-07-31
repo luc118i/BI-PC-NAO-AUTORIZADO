@@ -1,0 +1,17 @@
+{
+  "name": "ocorrencias-api",
+  "version": "1.0.0",
+  "description": "API local — Ocorrências Inteligentes · Viação Catedral",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "puppeteer-core": "^22.12.0"
+  }
+}

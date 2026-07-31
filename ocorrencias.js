@@ -205,6 +205,72 @@ function addMotorista(payload) {
 }
 
 /** ==============================
+ *  ADICIONAR NOVOS PONTOS DE PARADA IRREGULAR (via CSV)
+ *  ============================== */
+function _normCodigoPonto_(v) {
+  return String(v || "").trim().toUpperCase();
+}
+
+function addPontosParadaIrregular(rows) {
+  if (!Array.isArray(rows) || !rows.length)
+    throw new Error("Nenhum registro para importar.");
+
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(OCORRENCIA_CFG.LOCAIS_SHEET);
+  if (!sh)
+    throw new Error(`Aba "${OCORRENCIA_CFG.LOCAIS_SHEET}" não encontrada.`);
+
+  const lastRow = sh.getLastRow();
+  const existentes = {};
+  if (lastRow >= OCORRENCIA_CFG.HEADER_ROWS + 1) {
+    sh.getRange(OCORRENCIA_CFG.HEADER_ROWS + 1, 1, lastRow - OCORRENCIA_CFG.HEADER_ROWS, 1)
+      .getValues()
+      .forEach((r) => {
+        const cod = _normCodigoPonto_(r[0]);
+        if (cod) existentes[cod] = true;
+      });
+  }
+
+  const added = [];
+  const skipped = [];
+  let nextRow = lastRow + 1;
+
+  rows.forEach((payload) => {
+    const codigo = _normCodigoPonto_(payload && payload.codigo);
+    const descricao = String((payload && payload.descricao) || "").trim();
+    const lat = Number(payload && payload.latitude);
+    const lng = Number(payload && payload.longitude);
+
+    if (!codigo || !descricao || !isFinite(lat) || !isFinite(lng)) {
+      skipped.push({ codigo: codigo || "(vazio)", motivo: "Dados obrigatórios ausentes ou inválidos." });
+      return;
+    }
+    if (existentes[codigo]) {
+      skipped.push({ codigo: codigo, motivo: "Código já cadastrado na base." });
+      return;
+    }
+
+    sh.getRange(nextRow, 1, 1, 4).setValues([[
+      payload.codigo,
+      payload.codEmb || "",
+      payload.descResumida || "",
+      descricao,
+    ]]);
+    sh.getRange(nextRow, 7, 1, 2).setValues([[
+      payload.unidadeEmpresarial || "",
+      payload.tipo || "",
+    ]]);
+    sh.getRange(nextRow, 31, 1, 2).setValues([[lat, lng]]);
+
+    existentes[codigo] = true;
+    added.push(codigo);
+    nextRow++;
+  });
+
+  return { ok: true, added: added.length, skipped: skipped };
+}
+
+/** ==============================
  *  WEB APP — recebe POST externo
  *  ============================== */
 function doPost(e) {
@@ -220,16 +286,20 @@ function doPost(e) {
       ).setMimeType(ContentService.MimeType.JSON);
     }
 
-    addOcorrencia({
-      localId: payload.localId,
-      localNome: payload.localNome,
-      carro: payload.carro,
-      motoristaId: payload.motoristaId,
-      motoristaNome: payload.motoristaNome,
-      base: payload.base,
-      dataRelatorio: payload.dataRelatorio,
-      linha: payload.linha,
-    });
+    if (payload.evento === "excesso_permanencia") {
+      salvarHistoricoExcesso(payload);
+    } else {
+      addOcorrencia({
+        localId: payload.localId,
+        localNome: payload.localNome,
+        carro: payload.carro,
+        motoristaId: payload.motoristaId,
+        motoristaNome: payload.motoristaNome,
+        base: payload.base,
+        dataRelatorio: payload.dataRelatorio,
+        linha: payload.linha,
+      });
+    }
 
     return ContentService.createTextOutput(
       JSON.stringify({ ok: true }),

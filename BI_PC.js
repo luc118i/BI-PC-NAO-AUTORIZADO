@@ -210,6 +210,106 @@ function marcarStatusPermanencia(payload) {
   return { ok: true };
 }
 
+// ── 5c. Histórico de excedências — Tempo de Permanência ────────
+// Aba "HISTORICO_EXCESSO": um registro por relatório gerado a
+// partir de uma excedência (não por excedência apenas detectada).
+// Alimenta o dashboard da tela tempo_permanencia.html.
+var HISTORICO_EXCESSO_HEADER = [
+  "Chave", "Data", "Veiculo", "Linha", "Ponto", "Cidade", "UF", "Regiao",
+  "Motorista", "MotoristaCodigo", "Entrada", "Saida", "PermanenciaMin",
+  "PermitidoMin", "ExcedenteMin", "OccurrenceId", "Lat", "Lng", "SalvoEm",
+];
+
+function _abaHistoricoExcesso(ss) {
+  var aba = ss.getSheetByName("HISTORICO_EXCESSO");
+  if (!aba) {
+    aba = ss.insertSheet("HISTORICO_EXCESSO");
+    aba.appendRow(HISTORICO_EXCESSO_HEADER);
+  }
+  return aba;
+}
+
+// payload: { chave, data, veiculo, linha, ponto, cidade, uf, regiao,
+//            motorista, motoristaCodigo, entrada, saida, permanenciaMin,
+//            permitidoMin, excedenteMin, occurrenceId }
+function salvarHistoricoExcesso(payload) {
+  payload = payload || {};
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = _abaHistoricoExcesso(ss);
+
+  aba.appendRow([
+    payload.chave || "",
+    payload.data || "",
+    payload.veiculo || "",
+    payload.linha || "",
+    payload.ponto || "",
+    payload.cidade || "",
+    payload.uf || "",
+    payload.regiao || "",
+    payload.motorista || "",
+    payload.motoristaCodigo || "",
+    payload.entrada || "",
+    payload.saida || "",
+    payload.permanenciaMin || 0,
+    payload.permitidoMin || 0,
+    payload.excedenteMin || 0,
+    payload.occurrenceId || "",
+    _numOuNull(payload.lat) || "",
+    _numOuNull(payload.lng) || "",
+    new Date(),
+  ]);
+
+  return { ok: true };
+}
+
+function getHistoricoExcesso(dataIni, dataFim) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = ss.getSheetByName("HISTORICO_EXCESSO");
+  if (!aba) return JSON.stringify([]);
+
+  var lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  var data = aba.getRange(2, 1, lastRow - 1, HISTORICO_EXCESSO_HEADER.length).getValues();
+
+  var dtIni = dataIni ? new Date(dataIni + "T00:00:00") : null;
+  var dtFim = dataFim ? new Date(dataFim + "T23:59:59") : null;
+
+  var registros = [];
+  data.forEach(function (r) {
+    var chave = String(r[0] || "").trim();
+    if (!chave) return;
+
+    var dataBruta = _normData(r[1]);
+    if (dtIni && dtFim) {
+      if (!dataBruta || dataBruta < dtIni || dataBruta > dtFim) return;
+    }
+
+    registros.push({
+      chave: chave,
+      data: dataBruta ? Utilities.formatDate(dataBruta, Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[1] || ""),
+      veiculo: String(r[2] || "").trim(),
+      linha: String(r[3] || "").trim(),
+      ponto: String(r[4] || "").trim(),
+      cidade: String(r[5] || "").trim(),
+      uf: String(r[6] || "").trim(),
+      regiao: String(r[7] || "").trim(),
+      motorista: String(r[8] || "").trim(),
+      motoristaCodigo: String(r[9] || "").trim(),
+      entrada: String(r[10] || "").trim(),
+      saida: String(r[11] || "").trim(),
+      permanenciaMin: Number(r[12]) || 0,
+      permitidoMin: Number(r[13]) || 0,
+      excedenteMin: Number(r[14]) || 0,
+      occurrenceId: String(r[15] || "").trim(),
+      lat: _numOuNull(r[16]),
+      lng: _numOuNull(r[17]),
+    });
+  });
+
+  return JSON.stringify(registros);
+}
+
 // ── 6. Helpers privados ───────────────────────────────────────
 // ── Normalização automática de nomes de bases ─────────────────
 function _normalizeBase(raw) {

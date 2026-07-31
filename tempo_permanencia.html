@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tempo de Permanência · Viação Catedral</title>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       /* ── CATEDRAL DESIGN SYSTEM (mesma paleta do dashboard) ──── */
       :root {
@@ -109,6 +112,59 @@
       .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
       .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
 
+      /* ── DASHBOARD HISTÓRICO ─────────────────────────────── */
+      .dash-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+      .dash-header h2 { font-family: "Barlow Condensed", sans-serif; font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--texto); }
+      .dash-periodo { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto2); }
+      .dash-periodo input[type="date"] {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; outline: none;
+      }
+      .dash-periodo input[type="date"]:focus { border-color: var(--laranja); }
+      .dash-graficos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; margin-bottom: 10px; }
+      @media (max-width: 900px) { .dash-graficos { grid-template-columns: 1fr; } }
+      .chart-wrap { position: relative; width: 100%; height: 240px; }
+
+      /* Mapa (Leaflet) — mesmo tema escuro do index.html */
+      .leaflet-container { font-family: "Barlow", sans-serif !important; }
+      .leaflet-popup-content-wrapper { background: var(--preto3); color: var(--texto); border: 1px solid var(--borda2); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+      .leaflet-popup-tip { background: var(--preto3); }
+      .leaflet-popup-content { font-family: "Barlow", sans-serif; font-size: 12px; }
+      .leaflet-tile-pane { filter: brightness(0.6) saturate(0.4); }
+      #dashMapa { height: 320px; border-radius: var(--radius-sm); }
+
+      /* Calendário de frequência — mesmo padrão bical-* do index.html */
+      .bical-months { display: flex; flex-wrap: wrap; gap: 18px; }
+      .bical-month { width: 210px; }
+      .bical-month-title { text-align: center; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+      .bical-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+      .bical-dow span { text-align: center; font-size: 9px; font-weight: 600; color: var(--texto3); }
+      .bical-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+      .bical-day { position: relative; aspect-ratio: 1; border-radius: 5px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; }
+      .bical-day.vazio { background: transparent; }
+      .bical-day.fora { background: transparent; opacity: 0.25; }
+      .bical-day-num { font-size: 10px; font-weight: 600; color: var(--texto2); }
+      .bical-day-cnt { position: absolute; top: 1px; right: 3px; font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.85); }
+      .bical-day.n1 { background: rgba(244,121,32,0.30); }
+      .bical-day.n2 { background: rgba(244,121,32,0.52); }
+      .bical-day.n3 { background: rgba(244,121,32,0.76); }
+      .bical-day.n4 { background: var(--laranja); }
+      .bical-day.n3 .bical-day-num, .bical-day.n4 .bical-day-num { color: #1a1208; }
+      .bical-legenda { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 10px; font-size: 10px; color: var(--texto3); }
+      .bical-cell { width: 14px; height: 14px; border-radius: 3px; background: rgba(255,255,255,0.05); }
+      .bical-cell.n1 { background: rgba(244,121,32,0.30); }
+      .bical-cell.n2 { background: rgba(244,121,32,0.52); }
+      .bical-cell.n3 { background: rgba(244,121,32,0.76); }
+      .bical-cell.n4 { background: var(--laranja); }
+
+      /* Ranking de motoristas */
+      .rank-list { display: flex; flex-direction: column; gap: 2px; }
+      .rank-item { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .rank-item:last-child { border-bottom: none; }
+      .rank-pos { font-family: "Barlow Condensed", sans-serif; font-size: 13px; font-weight: 700; color: var(--texto3); width: 18px; flex-shrink: 0; }
+      .rank-nome { flex: 1; font-size: 12px; color: var(--texto); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rank-count { font-size: 12px; font-weight: 700; color: var(--laranja); flex-shrink: 0; }
+
       /* ── UPLOAD ──────────────────────────────────────────── */
       .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-top: 14px; font-size: 13px; flex-wrap: wrap; }
       .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
@@ -193,6 +249,42 @@
       .perm-gerar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
       .perm-gerar-btn:disabled { opacity: 0.5; cursor: wait; }
 
+      /* ── Botão "Ver esquema" + painel de busca inline ──────── */
+      .perm-esquema-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+      }
+      .perm-esquema-btn:hover { border-color: var(--azul, #4f8ef7); color: var(--azul, #4f8ef7); background: rgba(79,142,247,0.1); }
+      .perm-esquema-btn:disabled { opacity: 0.5; cursor: wait; }
+      .perm-esquema-panel {
+        flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm);
+        background: var(--preto3); border: 1px solid var(--borda2);
+      }
+      .perm-esquema-input {
+        width: 100%; background: var(--preto2); border: 1px solid var(--cinza2); color: var(--texto);
+        font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; border-radius: var(--radius-sm);
+      }
+      .perm-esquema-input:focus { outline: none; border-color: var(--laranja); }
+      .perm-esquema-msg { font-size: 12px; color: var(--texto3); font-style: italic; padding: 8px 2px; }
+      .perm-esquema-lista { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+      .perm-esquema-item {
+        padding: 7px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2);
+        font-size: 12px; color: var(--texto2); cursor: pointer; transition: border-color 0.15s, color 0.15s;
+      }
+      .perm-esquema-item:hover { border-color: var(--laranja); color: var(--texto); }
+      .perm-esquema-item b { color: var(--texto); }
+      .perm-esquema-item .esquema-sub { display: block; font-size: 11px; color: var(--texto3); margin-top: 2px; }
+      .perm-esquema-detalhe { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); }
+      .perm-esquema-detalhe b { color: var(--texto); }
+      .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
+      .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .perm-esquema-editar-btn {
+        flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
+        color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;
+      }
+      .perm-esquema-editar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+
       /* ── MODAL GERAR RELATÓRIO (mesmo padrão do dashboard) ─── */
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
@@ -238,6 +330,21 @@
       .oc-evid-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .oc-evid-remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; border: none; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; }
       .oc-evid-remove:hover { background: var(--vermelho); }
+
+      /* Preview — nome do arquivo + texto padrão, pra copiar em outro documento */
+      .oc-preview { border-top: 1px solid var(--borda2); padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+      .oc-preview-title { font-size: 11px; font-weight: 700; color: var(--verde); text-transform: uppercase; letter-spacing: 0.06em; }
+      .oc-preview-row { display: flex; align-items: flex-start; gap: 8px; background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm); padding: 10px 12px; }
+      .oc-preview-text { font-family: "Barlow", sans-serif; font-size: 12px; color: var(--texto); flex: 1; white-space: pre-wrap; word-break: break-word; }
+      .oc-preview-texto { font-family: inherit; line-height: 1.5; margin: 0; max-height: 160px; overflow-y: auto; }
+      .oc-copy-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 6px 10px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+      }
+      .oc-copy-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .oc-copy-btn.copiado { border-color: var(--verde); color: var(--verde); }
+      .oc-copy-btn-icon { display: inline-flex; }
     </style>
   </head>
   <body>
@@ -266,6 +373,88 @@
     </div>
 
     <div class="main">
+
+      <!-- Dashboard histórico — alimentado pela aba HISTORICO_EXCESSO -->
+      <div class="dash-header">
+        <h2>Dashboard de excedências</h2>
+        <div class="dash-periodo">
+          <label for="dashDataIni">De</label>
+          <input type="date" id="dashDataIni" onchange="_carregarHistoricoExcesso()" />
+          <label for="dashDataFim">até</label>
+          <input type="date" id="dashDataFim" onchange="_carregarHistoricoExcesso()" />
+        </div>
+      </div>
+
+      <div class="kpi-row" id="dashKpis">
+        <div class="kpi" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Relatórios gerados</div>
+          <div class="kpi-value" id="dashKTotal">—</div>
+          <div class="kpi-sub">no período</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--laranja)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Veículos envolvidos</div>
+          <div class="kpi-value" id="dashKVeiculos">—</div>
+          <div class="kpi-sub">prefixos únicos</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--amarelo)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Ponto mais recorrente</div>
+          <div class="kpi-value" id="dashKPonto" style="font-size:18px">—</div>
+          <div class="kpi-sub" id="dashKPontoSub">—</div>
+        </div>
+        <div class="kpi" style="--kpi-c: var(--verde)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Motorista mais recorrente</div>
+          <div class="kpi-value" id="dashKMotorista" style="font-size:18px">—</div>
+          <div class="kpi-sub" id="dashKMotoristaSub">—</div>
+        </div>
+      </div>
+
+      <div id="dashEstadoVazio" class="card hidden">
+        <div class="estado-vazio">Nenhum relatório de excesso de permanência gerado no período selecionado.</div>
+      </div>
+
+      <div class="dash-graficos" id="dashGraficos">
+        <div class="card">
+          <div class="card-title">Excedências por dia</div>
+          <div class="chart-wrap"><canvas id="dashChartTimeline"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Por região</div>
+          <div class="chart-wrap"><canvas id="dashChartRegiao"></canvas></div>
+        </div>
+      </div>
+      <div class="card" id="dashCardPontos">
+        <div class="card-title">Top pontos de parada</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="dashChartPontos"></canvas></div>
+      </div>
+
+      <div class="dash-graficos" id="dashGraficos2">
+        <div class="card">
+          <div class="card-title">Ranking de linhas</div>
+          <div class="rank-list" id="dashRankLinhas"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ranking de motoristas</div>
+          <div class="rank-list" id="dashRankMotoristas"></div>
+        </div>
+      </div>
+
+      <div class="card" id="dashCardMapa">
+        <div class="card-title">Mapa dos pontos de parada</div>
+        <div id="dashMapa"></div>
+      </div>
+
+      <div class="card" id="dashCardCalendario">
+        <div class="card-title">Calendário de frequência</div>
+        <div id="dashCalendario"></div>
+      </div>
+
+      <div class="dash-header" style="margin-top:28px;border-top:1px solid var(--borda);padding-top:20px">
+        <h2 style="font-size:14px;color:var(--texto2)">Nova análise (CSV pontual)</h2>
+      </div>
 
       <div class="det-status" id="tpStatus" style="margin-top:0"></div>
 
@@ -331,6 +520,13 @@
         _carregarStatusAnalisado();
         document.getElementById("tpStatus").innerHTML =
           '<span style="color:var(--texto3)">Clique em "+ Nova análise" pra carregar o CSV de rastreamento.</span>';
+
+        var hoje = new Date();
+        var ha30 = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+        var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+        document.getElementById("dashDataIni").value = iso(ha30);
+        document.getElementById("dashDataFim").value = iso(hoje);
+        _carregarHistoricoExcesso();
       };
 
       window.addEventListener('scroll', function () {
@@ -513,6 +709,9 @@
         x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
         rotate: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>',
         file: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line>',
+        copy: '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+        clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+        edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -584,6 +783,269 @@
       function _fmtMin(min) {
         var h = Math.floor(min / 60), m = min % 60;
         return h > 0 ? (h + "h" + String(m).padStart(2, "0")) : (m + " min");
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Dashboard histórico — alimentado pela aba HISTORICO_EXCESSO
+      //  (um registro por relatório gerado, não por excedência
+      //   simplesmente detectada no CSV do dia).
+      // ─────────────────────────────────────────────────────────
+      var CORES_PAL = ["#f47920", "#3b82c4", "#22c97a", "#f0c040", "#e05050", "#8b5cf6", "#38bdf8", "#ec4899", "#a3e635", "#fb923c"];
+      var _dashCharts = {};
+
+      function _dashChartOpts(label, horizontal) {
+        return {
+          responsive: true, maintainAspectRatio: false,
+          indexAxis: horizontal ? "y" : "x",
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#aaa", font: { family: "Barlow", size: 11 } }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: "#aaa", font: { family: "Barlow", size: 11 } }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true },
+          },
+        };
+      }
+
+      function _destruirDashChart(id) {
+        if (_dashCharts[id]) { _dashCharts[id].destroy(); _dashCharts[id] = null; }
+      }
+
+      function _carregarHistoricoExcesso() {
+        var ini = document.getElementById("dashDataIni").value;
+        var fim = document.getElementById("dashDataFim").value;
+        if (!(window.google && google.script && google.script.run)) { _renderDashboard([]); return; }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            var lista = [];
+            try { lista = JSON.parse(json || "[]"); } catch (e) { lista = []; }
+            _renderDashboard(lista);
+          })
+          .withFailureHandler(function () { _renderDashboard([]); })
+          .getHistoricoExcesso(ini, fim);
+      }
+
+      function _renderDashboard(lista) {
+        document.getElementById("dashEstadoVazio").classList.toggle("hidden", lista.length > 0);
+        document.getElementById("dashGraficos").classList.toggle("hidden", !lista.length);
+        document.getElementById("dashCardPontos").classList.toggle("hidden", !lista.length);
+        document.getElementById("dashGraficos2").classList.toggle("hidden", !lista.length);
+        document.getElementById("dashCardMapa").classList.toggle("hidden", !lista.length);
+        document.getElementById("dashCardCalendario").classList.toggle("hidden", !lista.length);
+
+        var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
+        document.getElementById("dashKTotal").textContent = lista.length;
+        document.getElementById("dashKVeiculos").textContent = veiculos.size;
+
+        var contPonto = {};
+        lista.forEach(function (r) { if (r.ponto) contPonto[r.ponto] = (contPonto[r.ponto] || 0) + 1; });
+        var topPonto = Object.entries(contPonto).sort(function (a, b) { return b[1] - a[1]; })[0];
+        document.getElementById("dashKPonto").textContent = topPonto ? topPonto[0] : "—";
+        document.getElementById("dashKPontoSub").textContent = topPonto ? (topPonto[1] + " ocorrência" + (topPonto[1] !== 1 ? "s" : "")) : "—";
+
+        var contMotorista = {};
+        lista.forEach(function (r) { if (r.motorista) contMotorista[r.motorista] = (contMotorista[r.motorista] || 0) + 1; });
+        var topMotorista = Object.entries(contMotorista).sort(function (a, b) { return b[1] - a[1]; })[0];
+        document.getElementById("dashKMotorista").textContent = topMotorista ? topMotorista[0] : "—";
+        document.getElementById("dashKMotoristaSub").textContent = topMotorista ? (topMotorista[1] + " ocorrência" + (topMotorista[1] !== 1 ? "s" : "")) : "—";
+
+        if (!lista.length) {
+          _destruirDashChart("timeline"); _destruirDashChart("regiao"); _destruirDashChart("pontos");
+          document.getElementById("dashRankMotoristas").innerHTML = "";
+          document.getElementById("dashRankLinhas").innerHTML = "";
+          return;
+        }
+
+        _renderDashChartTimeline(lista);
+        _renderDashChartRegiao(lista);
+        _renderDashChartPontos(lista);
+        _renderDashRankLinhas(lista);
+        _renderDashRankMotoristas(lista);
+        _renderDashMapa(lista);
+        _renderDashCalendario(lista);
+      }
+
+      function _renderDashChartTimeline(lista) {
+        _destruirDashChart("timeline");
+        var cont = {};
+        lista.forEach(function (r) { if (r.data) cont[r.data] = (cont[r.data] || 0) + 1; });
+        var dias = Object.keys(cont).sort();
+        if (!dias.length) return;
+        _dashCharts["timeline"] = new Chart(document.getElementById("dashChartTimeline"), {
+          type: "line",
+          data: {
+            labels: dias.map(function (d) { return _fmtData(d) || d; }),
+            datasets: [{
+              data: dias.map(function (d) { return cont[d]; }),
+              borderColor: CORES_PAL[0], backgroundColor: "rgba(244,121,32,0.08)",
+              borderWidth: 2, pointRadius: 3, pointBackgroundColor: CORES_PAL[0],
+              fill: true, tension: 0.3,
+            }],
+          },
+          options: _dashChartOpts("Relatórios", false),
+        });
+      }
+
+      function _renderDashChartRegiao(lista) {
+        _destruirDashChart("regiao");
+        var cont = {};
+        lista.forEach(function (r) { var k = r.regiao || "Não identificada"; cont[k] = (cont[k] || 0) + 1; });
+        var sorted = Object.entries(cont).sort(function (a, b) { return b[1] - a[1]; });
+        if (!sorted.length) return;
+        _dashCharts["regiao"] = new Chart(document.getElementById("dashChartRegiao"), {
+          type: "doughnut",
+          data: {
+            labels: sorted.map(function (e) { return e[0]; }),
+            datasets: [{
+              data: sorted.map(function (e) { return e[1]; }),
+              backgroundColor: CORES_PAL.slice(0, sorted.length).map(function (c) { return c + "cc"; }),
+              borderColor: "transparent", borderWidth: 0,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: "right", labels: { color: "#aaa", font: { family: "Barlow", size: 11 }, boxWidth: 12, padding: 10 } } },
+            cutout: "65%",
+          },
+        });
+      }
+
+      function _renderDashChartPontos(lista) {
+        _destruirDashChart("pontos");
+        var cont = {};
+        lista.forEach(function (r) { if (r.ponto) cont[r.ponto] = (cont[r.ponto] || 0) + 1; });
+        var sorted = Object.entries(cont).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10).reverse();
+        if (!sorted.length) return;
+        _dashCharts["pontos"] = new Chart(document.getElementById("dashChartPontos"), {
+          type: "bar",
+          data: {
+            labels: sorted.map(function (e) { return e[0]; }),
+            datasets: [{ data: sorted.map(function (e) { return e[1]; }), backgroundColor: CORES_PAL[1] + "cc", borderColor: CORES_PAL[1], borderWidth: 1, borderRadius: 4 }],
+          },
+          options: _dashChartOpts("Ocorrências", true),
+        });
+      }
+
+      function _renderDashRankLinhas(lista) {
+        var cont = {};
+        lista.forEach(function (r) { var k = r.linha; if (k && k !== "—") cont[k] = (cont[k] || 0) + 1; });
+        var sorted = Object.entries(cont).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10);
+        var el = document.getElementById("dashRankLinhas");
+        if (!sorted.length) { el.innerHTML = '<div class="estado-vazio">Sem linhas no período.</div>'; return; }
+        el.innerHTML = sorted.map(function (e, i) {
+          return '<div class="rank-item">' +
+            '<span class="rank-pos">' + (i + 1) + '</span>' +
+            '<span class="rank-nome">' + e[0] + '</span>' +
+            '<span class="rank-count">' + e[1] + '</span>' +
+          '</div>';
+        }).join("");
+      }
+
+      function _renderDashRankMotoristas(lista) {
+        var cont = {};
+        lista.forEach(function (r) { if (r.motorista) cont[r.motorista] = (cont[r.motorista] || 0) + 1; });
+        var sorted = Object.entries(cont).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10);
+        var el = document.getElementById("dashRankMotoristas");
+        if (!sorted.length) { el.innerHTML = '<div class="estado-vazio">Sem motoristas no período.</div>'; return; }
+        el.innerHTML = sorted.map(function (e, i) {
+          return '<div class="rank-item">' +
+            '<span class="rank-pos">' + (i + 1) + '</span>' +
+            '<span class="rank-nome">' + e[0] + '</span>' +
+            '<span class="rank-count">' + e[1] + '</span>' +
+          '</div>';
+        }).join("");
+      }
+
+      var _dashMap = null;
+      var _dashMapMarkers = [];
+
+      function _renderDashMapa(lista) {
+        if (!window.L) return;
+        if (!_dashMap) {
+          _dashMap = L.map("dashMapa", { scrollWheelZoom: false }).setView([-15.78, -47.93], 4);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap",
+          }).addTo(_dashMap);
+        }
+        _dashMapMarkers.forEach(function (m) { _dashMap.removeLayer(m); });
+        _dashMapMarkers = [];
+
+        var cont = {}; // "lat,lng" -> { lat, lng, ponto, count }
+        lista.forEach(function (r) {
+          if (r.lat == null || r.lng == null) return;
+          var k = r.lat + "," + r.lng;
+          if (!cont[k]) cont[k] = { lat: r.lat, lng: r.lng, ponto: r.ponto, count: 0 };
+          cont[k].count++;
+        });
+
+        var pontos = Object.values(cont);
+        if (!pontos.length) return;
+
+        pontos.forEach(function (p) {
+          var raio = 6 + Math.min(14, p.count * 2);
+          var marker = L.circleMarker([p.lat, p.lng], {
+            radius: raio, color: "#f47920", fillColor: "#f47920", fillOpacity: 0.6, weight: 2,
+          }).bindPopup(
+            "<strong>" + p.ponto + "</strong><br>" + p.count + " ocorrência" + (p.count !== 1 ? "s" : ""),
+          );
+          marker.addTo(_dashMap);
+          _dashMapMarkers.push(marker);
+        });
+
+        var bounds = L.latLngBounds(pontos.map(function (p) { return [p.lat, p.lng]; }));
+        _dashMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+
+        setTimeout(function () { if (_dashMap) _dashMap.invalidateSize(); }, 100);
+      }
+
+      var MESES_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      var DOW_PT = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+      function _renderDashCalendario(lista) {
+        var calEl = document.getElementById("dashCalendario");
+        var cont = {};
+        lista.forEach(function (r) { if (r.data) cont[r.data] = (cont[r.data] || 0) + 1; });
+
+        var cfgIni = document.getElementById("dashDataIni").value;
+        var cfgFim = document.getElementById("dashDataFim").value;
+        if (!cfgIni || !cfgFim) { calEl.innerHTML = ""; return; }
+
+        var ini = new Date(cfgIni + "T00:00:00");
+        var fim = new Date(cfgFim + "T00:00:00");
+        var maxCount = Math.max(1, Math.max.apply(null, Object.values(cont).concat([0])));
+        var nivel = function (c) { if (!c) return 0; var r = c / maxCount; if (r <= 0.25) return 1; if (r <= 0.5) return 2; if (r <= 0.75) return 3; return 4; };
+        var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+
+        var meses = [];
+        var mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
+        var mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
+        while (mc <= mFim) { meses.push(new Date(mc)); mc.setMonth(mc.getMonth() + 1); }
+
+        var html = '<div class="bical-months">';
+        meses.forEach(function (m) {
+          var ano = m.getFullYear(), mes = m.getMonth();
+          var primeiroDow = new Date(ano, mes, 1).getDay();
+          var diasNoMes = new Date(ano, mes + 1, 0).getDate();
+          html += '<div class="bical-month">';
+          html += '<div class="bical-month-title">' + MESES_PT[mes] + " " + ano + "</div>";
+          html += '<div class="bical-dow">' + DOW_PT.map(function (d) { return "<span>" + d + "</span>"; }).join("") + "</div>";
+          html += '<div class="bical-grid">';
+          for (var b = 0; b < primeiroDow; b++) html += '<span class="bical-day vazio"></span>';
+          for (var dia = 1; dia <= diasNoMes; dia++) {
+            var dataObj = new Date(ano, mes, dia);
+            var key = iso(dataObj);
+            var dentro = dataObj >= ini && dataObj <= fim;
+            var c = cont[key] || 0;
+            if (!dentro) {
+              html += '<span class="bical-day fora"><span class="bical-day-num">' + dia + '</span></span>';
+            } else {
+              var t = (_fmtData(key) || key) + " · " + c + " excedência" + (c !== 1 ? "s" : "");
+              html += '<span class="bical-day n' + nivel(c) + '" title="' + t + '"><span class="bical-day-num">' + dia + '</span>' + (c > 0 ? '<span class="bical-day-cnt">' + c + '</span>' : '') + '</span>';
+            }
+          }
+          html += "</div></div>";
+        });
+        html += "</div>";
+        html += '<div class="bical-legenda"><span>Menos</span><span class="bical-cell"></span><span class="bical-cell n1"></span><span class="bical-cell n2"></span><span class="bical-cell n3"></span><span class="bical-cell n4"></span><span>Mais</span></div>';
+        calEl.innerHTML = html;
       }
 
       function handleTPUpload(evt) {
@@ -681,6 +1143,8 @@
           if (segReal <= segPermitido) return; // dentro do limite — ignora
           // filtro de excedente mínimo é aplicado dinamicamente em _renderTPFiltrado
 
+          var pcMatch = _matchPC(r.ponto);
+
           lista.push({
             chave: (r.veiculo || "—") + "|" + (r.entrada || ""),
             veiculo: r.veiculo || "—",
@@ -694,6 +1158,8 @@
             permanenciaSeg: segReal,
             permitidoSeg: segPermitido,
             excedenteSeg: segReal - segPermitido,
+            lat: pcMatch ? pcMatch.lat : null,
+            lng: pcMatch ? pcMatch.lng : null,
           });
         });
         lista.sort(function (a, b) { return b.excedenteSeg - a.excedenteSeg; });
@@ -772,9 +1238,195 @@
             '<span>Permitido<br><b>' + _fmtMin(Math.round(r.permitidoSeg / 60)) + '</b></span>' +
             '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
           '</div>' +
+          '<button type="button" class="perm-esquema-btn" onclick="event.stopPropagation();_verEsquema(' + idx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
           '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
           '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
+          '<div class="perm-esquema-panel hidden" id="esquema-' + idx + '"></div>' +
         '</div>';
+      }
+
+      // ── Ver esquema — busca manual no catálogo de esquemas do
+      //    projeto ANALISE_VIAGEM/GAS_PROJECT (mesma API que
+      //    alimenta o "Modo Apresentação dos Esquemas": getLinhas
+      //    busca por código/nome/horário/local, getRoteiro traz o
+      //    horário previsto em cada ponto do roteiro) — permite
+      //    comparar o horário previsto no ponto com a chegada real
+      //    e entender se o excesso é espera pelo horário de sessão.
+      var ESQUEMAS_API_URL = "https://script.google.com/macros/s/AKfycbxnnytktE4P5Ss2AlEY1cw1xUNVSGGxpKFl9I-yqLBTP9oR3KmhYAx1OkyZ7an32eCD/exec";
+      var _esquemasCache = null;
+
+      function _carregarEsquemas(cb) {
+        // _esquemasCache só é considerado "carregado" quando não é null —
+        // [] é um resultado válido (nenhum esquema), então não pode ser
+        // confundido com "ainda não tentei buscar". Falha de rede/parse
+        // também NÃO fica em cache, pra próxima busca poder tentar de novo
+        // (Apps Script "esfria" e às vezes a 1ª chamada falha/demora).
+        if (_esquemasCache !== null) { cb(_esquemasCache, null); return; }
+        fetch(ESQUEMAS_API_URL + "?action=getLinhas")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            var esquemas = (json && json.esquemas) || [];
+            // Pré-normaliza (acento/maiúsculas) uma única vez aqui — a busca
+            // roda a cada tecla digitada, então recalcular isso pra cada
+            // esquema (e cada ponto de parada) em todo keystroke deixava a
+            // filtragem visivelmente lenta com o catálogo cheio.
+            esquemas.forEach(function (e) {
+              e._nome = _normTP(e.nomeLinha);
+              e._cod = e.codLinha ? _normTP(e.codLinha) : "";
+              e._horario = String(e.horario || "");
+              e._horarioDigitos = e._horario.replace(/\D/g, "");
+              e._locais = (e.pontosNomes || []).map(function (p) { return _normTP(p); });
+            });
+            _esquemasCache = esquemas;
+            cb(_esquemasCache, null);
+          })
+          .catch(function (err) { cb([], err || true); });
+      }
+
+      var _esquemaQueryPorIdx = {}; // idx → último termo digitado (pra "alterar busca" voltar de onde parou)
+
+      function _verEsquema(idx, btnEl) {
+        var item = _relatorioItens[idx];
+        var panel = document.getElementById("esquema-" + idx);
+        if (!item || !panel) return;
+
+        if (!panel.classList.contains("hidden")) {
+          panel.classList.add("hidden");
+          return;
+        }
+        panel.classList.remove("hidden");
+        if (panel.getAttribute("data-init") === "1") return;
+        panel.setAttribute("data-init", "1");
+
+        panel.innerHTML = '<div class="perm-esquema-corpo" id="esquema-corpo-' + idx + '"></div>';
+        var termoInicial = (item.linha && item.linha !== "—") ? item.linha : "";
+        _esquemaQueryPorIdx[idx] = termoInicial;
+        _buscarEsquema(idx, termoInicial);
+      }
+
+      // (Re)monta o input de busca + a área de resultados — usado ao abrir
+      // o painel ou ao clicar "alterar" vindo do detalhe. NÃO é chamado a
+      // cada tecla digitada (ver _filtrarEsquema) — se fosse, o <input>
+      // seria recriado a cada keystroke e perderia o foco/cursor.
+      function _buscarEsquema(idx, termo) {
+        _esquemaQueryPorIdx[idx] = termo;
+        var corpo = document.getElementById("esquema-corpo-" + idx);
+        if (!corpo) return;
+
+        corpo.innerHTML =
+          '<input type="text" class="perm-esquema-input" placeholder="Buscar por código, linha, horário ou local..." ' +
+            'value="' + String(termo || "").replace(/"/g, "&quot;") + '" ' +
+            'oninput="_filtrarEsquema(' + idx + ', this.value)" onclick="event.stopPropagation()">' +
+          '<div class="perm-esquema-lista-wrap" id="esquema-lista-' + idx + '"></div>';
+        _filtrarEsquema(idx, termo);
+      }
+
+      // Só atualiza a lista de resultados (não mexe no <input>) — chamado a
+      // cada tecla digitada.
+      function _filtrarEsquema(idx, termo) {
+        _esquemaQueryPorIdx[idx] = termo;
+        var wrap = document.getElementById("esquema-lista-" + idx);
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="perm-esquema-msg">Carregando esquemas...</div>';
+
+        _carregarEsquemas(function (esquemas, err) {
+          // O termo pode ter mudado enquanto a 1ª chamada carregava —
+          // usa sempre o valor mais recente, não o que foi passado aqui.
+          var termoAtual = _esquemaQueryPorIdx[idx];
+          var wrapAtual = document.getElementById("esquema-lista-" + idx);
+          if (!wrapAtual) return;
+
+          if (err) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Não foi possível carregar os esquemas (falha de conexão). ' +
+              '<a href="#" onclick="event.preventDefault();event.stopPropagation();_filtrarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '])" ' +
+              'style="color:var(--laranja)">Tentar novamente</a></div>';
+            return;
+          }
+          if (!esquemas.length) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Nenhum esquema cadastrado.</div>';
+            return;
+          }
+          var tokens = _normTP(termoAtual).split(" ").filter(Boolean);
+          var itens = esquemas.filter(function (e) {
+            if (!tokens.length) return true;
+            return tokens.every(function (t) {
+              var tDigitos = t.replace(/\D/g, "");
+              return e._nome.includes(t) || e._cod.includes(t) || e._horario.includes(t) ||
+                (tDigitos.length >= 3 && e._horarioDigitos.includes(tDigitos)) ||
+                e._locais.some(function (l) { return l.includes(t); });
+            });
+          });
+
+          if (!itens.length) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Nenhum esquema encontrado.</div>';
+            return;
+          }
+
+          wrapAtual.innerHTML = '<div class="perm-esquema-lista">' + itens.slice(0, 30).map(function (e) {
+            return '<div class="perm-esquema-item" onclick="event.stopPropagation();_verDetalheEsquema(' + idx + ',' + e.id + ')">' +
+              '<b>' + (e.codLinha || "—") + '</b> — ' + e.nomeLinha +
+              '<span class="esquema-sub">' + (e.horario || "—") + (e.sentido ? " · " + e.sentido : "") + '</span>' +
+            '</div>';
+          }).join("") + '</div>';
+        });
+      }
+
+      function _verDetalheEsquema(idx, esquemaId) {
+        var item = _relatorioItens[idx];
+        var corpo = document.getElementById("esquema-corpo-" + idx);
+        if (!item || !corpo) return;
+        corpo.innerHTML = '<div class="perm-esquema-msg">Carregando roteiro...</div>';
+
+        fetch(ESQUEMAS_API_URL + "?action=getRoteiro&id=" + encodeURIComponent(esquemaId))
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            var alterarBtn = '<button type="button" class="perm-esquema-editar-btn" title="Alterar busca" ' +
+              'onclick="event.stopPropagation();_buscarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '] || \'\')">' +
+              _icon("edit", 12) + '</button>';
+
+            if (!json || !json.found) {
+              corpo.innerHTML = '<div class="perm-esquema-detalhe-head">' +
+                '<div class="perm-esquema-msg" style="padding:0">Roteiro não encontrado para este esquema.</div>' + alterarBtn + '</div>';
+              return;
+            }
+
+            var pontoNorm = _normTP(item.ponto);
+            var pontoMatch = (json.pontos || []).find(function (p) {
+              var nomeNorm = _normTP(p.nome);
+              return nomeNorm.includes(pontoNorm) || pontoNorm.includes(nomeNorm);
+            });
+
+            // Guarda no item pra "Gerar Relatório" reaproveitar: pré-selecionar
+            // a linha no modal e incluir o horário de sessão no PDF.
+            item._esquemaInfo = {
+              codLinha: json.esquema.codLinha || "",
+              nomeLinha: json.esquema.nomeLinha || "",
+              horario: json.esquema.horario || "",
+              sentido: json.esquema.sentido || "",
+              horarioSessao: pontoMatch ? (pontoMatch.horarioComercial || null) : null,
+              pontoSessao: pontoMatch ? pontoMatch.nome : null,
+            };
+
+            var html = '<div class="perm-esquema-detalhe">' +
+              '<div class="perm-esquema-detalhe-head">' +
+                '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
+                  ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
+                alterarBtn +
+              '</div>';
+
+            if (pontoMatch) {
+              html += '<div style="margin-top:6px">Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+                (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '') + '</div>';
+            } else {
+              html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
+            }
+
+            html += '</div>';
+            corpo.innerHTML = html;
+          })
+          .catch(function () {
+            corpo.innerHTML = '<div class="perm-esquema-msg">Erro ao buscar o roteiro. Verifique a conexão.</div>';
+          });
       }
 
       // ── Copiar prefixo (mesma UX de Paradas Irregulares) ──────
@@ -967,9 +1619,14 @@
         document.getElementById("relStatus").className = "oc-status";
         document.getElementById("relBtnGerar").disabled = false;
         document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+        document.getElementById("relPreview").classList.add("hidden");
+        document.querySelectorAll("#relPreview .oc-copy-btn").forEach(function (b) {
+          b.innerHTML = _icon("copy", 12) + " Copiar";
+          b.classList.remove("copiado");
+        });
 
         document.getElementById("relatorioModal").classList.remove("hidden");
-        _carregarTrips();
+        _carregarTrips(function () { _tentarAutoSelecionarLinha(idx); });
         // Ctrl+V precisa funcionar em qualquer lugar do modal, não só com o
         // foco exatamente na zona de evidências — escuta no documento inteiro
         // enquanto o modal estiver aberto.
@@ -1040,7 +1697,10 @@
       }
 
       function _selecionarLinha(i) {
-        var t = window._relLinhaOpcoes[i];
+        _aplicarLinhaSelecionada(window._relLinhaOpcoes[i]);
+      }
+
+      function _aplicarLinhaSelecionada(t) {
         if (!t) return;
         _relLinhaSelecionada = t;
         document.getElementById("relLinhaLista").classList.add("hidden");
@@ -1049,6 +1709,29 @@
         sel.innerHTML = '<span>' + t.lineCode + ' — ' + t.lineName + ' (' + t.departureTime + (t.direction ? " · " + t.direction : "") + ')</span>' +
           '<button type="button" onclick="_limparLinha()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
+      }
+
+      // Depois de já ter achado o esquema em "Ver esquema" (catálogo
+      // ANALISE_VIAGEM), tenta casar automaticamente com um item do
+      // catálogo /trips (base do Gerador de Relatórios) por código de linha
+      // + horário de partida. Sem correspondência exata, deixa a busca
+      // aberta pro usuário escolher manualmente — não força nada.
+      function _tentarAutoSelecionarLinha(idx) {
+        if (_relItemAtualIdx !== idx) return; // modal já mudou de item enquanto os trips carregavam
+        var item = _relatorioItens[idx];
+        var esq = item && item._esquemaInfo;
+        if (!esq || !esq.codLinha || !_relTripsCache) return;
+        if (_relLinhaSelecionada) return; // usuário já escolheu manualmente antes disso resolver
+
+        var codNorm = _normTP(esq.codLinha);
+        var horAlvo = (esq.horario || "").slice(0, 5);
+
+        var match = _relTripsCache.find(function (t) {
+          if (_normTP(t.lineCode || "") !== codNorm) return false;
+          if (horAlvo && String(t.departureTime || "").slice(0, 5) !== horAlvo) return false;
+          return true;
+        });
+        if (match) _aplicarLinhaSelecionada(match);
       }
 
       function _limparLinha() {
@@ -1197,6 +1880,61 @@
         return partes.join(" - ") + ".pdf";
       }
 
+      // ── Preview: nome do arquivo + texto padrão pra colar em outro
+      //    documento disciplinar (mesmo texto que o app de relatórios
+      //    gera pra EXCESSO_PERMANENCIA — ver gerarTextoRelatorioIndividual
+      //    em Gerador de Relatórios Operacionais/src/utils/relatorio.ts) ──
+      function _formatPermanenciaTexto(inicioHM, fimHM) {
+        if (!inicioHM || !fimHM) return null;
+        var pi = inicioHM.split(":").map(Number), pf = fimHM.split(":").map(Number);
+        if ([pi[0], pi[1], pf[0], pf[1]].some(function (n) { return isNaN(n); })) return null;
+        var mins = pf[0] * 60 + pf[1] - (pi[0] * 60 + pi[1]);
+        if (mins <= 0) mins += 24 * 60;
+        var h = Math.floor(mins / 60), m = mins % 60;
+        if (h && m) return h + "h " + m + "min";
+        if (h) return h + "h";
+        return m + "min";
+      }
+
+      function _gerarTextoExcessoPermanencia(item, linhaSel) {
+        var horaIni = _fmtHM(item.entrada);
+        var horaFim = _calcularHoraSaida(item);
+        var dataViagem = _fmtData(item.entrada) || "";
+        var linhaInfo = linhaSel ? " (linha " + linhaSel.lineCode + " - " + linhaSel.lineName + ")" : "";
+        var perm = _formatPermanenciaTexto(horaIni, horaFim);
+        var permInfo = perm ? " (tempo de permanência de " + perm + ")" : "";
+
+        return "Durante a análise das atividades do veículo de número " + item.veiculo + linhaInfo +
+          " na viagem do dia " + dataViagem + ", identificamos o descumprimento operacional por parte do " +
+          "condutor, em razão da permanência superior ao tempo previsto no ponto de parada " + item.ponto +
+          ", no período de " + horaIni + " às " + horaFim + permInfo + ".\n\n" +
+          "Esta conduta caracteriza uma violação dos procedimentos operacionais estabelecidos, impactando " +
+          "diretamente a programação da viagem, gerando atrasos e comprometendo a qualidade do serviço " +
+          "prestado aos passageiros.";
+      }
+
+      function _mostrarPreview(item, nomeArquivo, linhaSel) {
+        document.getElementById("relPreviewNome").textContent = nomeArquivo.replace(/\.pdf$/i, "");
+        document.getElementById("relPreviewTexto").textContent = _gerarTextoExcessoPermanencia(item, linhaSel);
+        document.getElementById("relPreview").classList.remove("hidden");
+      }
+
+      function _copiarPreview(tipo) {
+        var elId = tipo === "nome" ? "relPreviewNome" : "relPreviewTexto";
+        var texto = document.getElementById(elId).textContent;
+        navigator.clipboard.writeText(texto).then(function () {
+          var btn = document.querySelector('.oc-copy-btn[onclick="_copiarPreview(\'' + tipo + '\')"]');
+          if (!btn) return;
+          var orig = btn.innerHTML;
+          btn.innerHTML = _icon("check", 12) + " Copiado";
+          btn.classList.add("copiado");
+          setTimeout(function () {
+            btn.innerHTML = orig;
+            btn.classList.remove("copiado");
+          }, 1500);
+        });
+      }
+
       // Baixa o PDF via blob + <a download> — mais confiável que
       // window.open/target=_blank dentro do iframe restrito do Apps Script.
       function _baixarPdf(url, filename) {
@@ -1254,7 +1992,18 @@
           lineLabel: _relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName,
           tripId: _relLinhaSelecionada.id,
           tripTime: _relLinhaSelecionada.departureTime || null,
+          sessionTime: (item._esquemaInfo && item._esquemaInfo.horarioSessao) || null,
           drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+          // Repassados à planilha (aba HISTORICO_EXCESSO) via notifyAppsScriptExcesso
+          // na API — ver occurrences.service.ts. Alimenta o dashboard desta tela.
+          cidade: item.cidade || "",
+          uf: item.uf || "",
+          regiao: item.regiao || "",
+          permanenciaMin: Math.round(item.permanenciaSeg / 60),
+          permitidoMin: Math.round(item.permitidoSeg / 60),
+          excedenteMin: Math.round(item.excedenteSeg / 60),
+          lat: item.lat != null ? item.lat : null,
+          lng: item.lng != null ? item.lng : null,
         };
 
         fetch(REPORTS_API_URL + "/occurrences", {
@@ -1268,6 +2017,9 @@
           })
           .then(function (json) {
             var occurrenceId = json.id;
+            // A API já notificou a planilha (HISTORICO_EXCESSO) ao criar a
+            // ocorrência — só precisamos refletir isso no dashboard local.
+            _carregarHistoricoExcesso();
             if (!_relEvidencias.length) return { occurrenceId: occurrenceId };
 
             _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
@@ -1305,6 +2057,7 @@
               _relGerado = true;
               btn.disabled = false;
               btn.innerHTML = _icon("check") + " Concluído";
+              _mostrarPreview(item, nomeArquivo, _relLinhaSelecionada);
             });
           })
           .catch(function (err) {
@@ -1359,6 +2112,30 @@
               <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
             </div>
             <div class="oc-evid-grid" id="relEvidGrid"></div>
+          </div>
+
+          <div class="oc-preview hidden" id="relPreview">
+            <div class="oc-preview-title">Preview — copie para usar em outro documento disciplinar</div>
+
+            <div class="oc-field">
+              <label>Nome do arquivo</label>
+              <div class="oc-preview-row">
+                <span class="oc-preview-text" id="relPreviewNome">—</span>
+                <button type="button" class="oc-copy-btn" onclick="_copiarPreview('nome')" title="Copiar nome">
+                  <span class="oc-copy-btn-icon"></span> Copiar
+                </button>
+              </div>
+            </div>
+
+            <div class="oc-field">
+              <label>Texto padrão do relatório</label>
+              <div class="oc-preview-row oc-preview-row-texto">
+                <pre class="oc-preview-text oc-preview-texto" id="relPreviewTexto">—</pre>
+                <button type="button" class="oc-copy-btn" onclick="_copiarPreview('texto')" title="Copiar texto">
+                  <span class="oc-copy-btn-icon"></span> Copiar
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>

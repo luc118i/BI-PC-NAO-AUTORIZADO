@@ -1,0 +1,7 @@
+api/**
+tampermonkey_optz.user.js
+node_modules/**
+.env
+.env.*
+*.md
+LICENSE
