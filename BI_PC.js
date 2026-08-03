@@ -21,6 +21,12 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (view === "motoristas") {
+    return HtmlService.createHtmlOutputFromFile("motoristas")
+      .setTitle("Motoristas · Viação Catedral")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService.createHtmlOutputFromFile("index")
     .setTitle("BI PC's Não Autorizados · Viação Catedral")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

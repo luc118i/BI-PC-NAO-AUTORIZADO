@@ -304,6 +304,17 @@
       .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
       .oc-close:hover { color: var(--texto); background: var(--cinza); }
       .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+      #relCamposInput { display: flex; flex-direction: column; gap: 18px; }
+
+      /* Depois de gerar, os campos preenchidos (linha/motorista/evidências)
+         somem e só fica esse resumo de 1 linha + a preview — evita rolar a
+         modal inteira só pra copiar o texto do relatório já gerado. */
+      .oc-resumo-compacto {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--texto2);
+        background: var(--preto3); border: 1px solid var(--borda2); border-radius: var(--radius-sm); padding: 10px 14px;
+      }
+      .oc-resumo-compacto b { color: var(--texto); }
+      .oc-resumo-compacto .sep { color: var(--cinza3); }
       .oc-resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--preto3); border-radius: var(--radius-sm); padding: 12px 14px; }
       .oc-resumo-lista { margin-top: -8px; background: var(--preto3); border-radius: var(--radius-sm); padding: 4px 14px; max-height: 220px; overflow-y: auto; font-size: 12px; color: var(--texto2); }
       .oc-resumo-lista-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 6px; }
@@ -1935,6 +1946,11 @@
           b.classList.remove("copiado");
         });
 
+        // Desfaz o "modo compacto pós-geração" de uma eventual vez anterior
+        // que o modal ficou aberto (reabrir pra outro item/grupo).
+        document.getElementById("relCamposInput").classList.remove("hidden");
+        document.getElementById("relResumoCompacto").classList.add("hidden");
+
         document.getElementById("relatorioModal").classList.remove("hidden");
         document.addEventListener("paste", _handlePasteEvidencia);
         return ++_relModalToken;
@@ -2163,7 +2179,9 @@
             if (seq !== _relBuscaMotoristaSeq) return;
             var itens = (json && json.data) || [];
             if (!itens.length) {
-              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado.</div>';
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado. ' +
+                '<a href="#" onclick="event.preventDefault();_abrirCadastroMotorista(\'' + termo.replace(/'/g, "") + '\')" ' +
+                'style="color:var(--laranja)">Cadastrar motorista</a></div>';
               lista.classList.remove("hidden");
               return;
             }
@@ -2180,6 +2198,14 @@
             lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar motoristas.</div>';
             lista.classList.remove("hidden");
           });
+      }
+
+      // Abre a tela de cadastro de motoristas (motoristas.html) em outra
+      // aba, com a matrícula digitada já preenchida — pra não perder o que
+      // o usuário já tinha digitado quando a busca não encontra ninguém.
+      function _abrirCadastroMotorista(termo) {
+        var url = (webAppBaseUrl || "") + "?view=motoristas" + (termo ? "&novo=" + encodeURIComponent(termo) : "");
+        window.open(url, "_blank");
       }
 
       function _selecionarMotorista(i) {
@@ -2324,10 +2350,29 @@
           "prestado aos passageiros.";
       }
 
+      // Esconde os campos já preenchidos (linha/motorista/evidências) e
+      // deixa só um resumo de 1 linha + a preview — sem isso, depois de
+      // gerar, a modal continuava mostrando tudo (evidências, buscas já
+      // resolvidas etc.) e era preciso rolar bastante só pra chegar na
+      // preview e copiar o texto.
+      function _colapsarModalPosGeracao(resumoHtml) {
+        document.getElementById("relCamposInput").classList.add("hidden");
+        var el = document.getElementById("relResumoCompacto");
+        el.innerHTML = resumoHtml;
+        el.classList.remove("hidden");
+      }
+
       function _mostrarPreview(item, nomeArquivo, linhaSel) {
         document.getElementById("relPreviewNome").textContent = nomeArquivo.replace(/\.pdf$/i, "");
         document.getElementById("relPreviewTexto").textContent = _gerarTextoExcessoPermanencia(item, linhaSel);
         document.getElementById("relPreview").classList.remove("hidden");
+
+        _colapsarModalPosGeracao(
+          "Veículo <b>" + item.veiculo + "</b>" +
+          '<span class="sep">·</span>Motorista <b>' + _relMotoristaSelecionado.name + "</b>" +
+          (linhaSel ? '<span class="sep">·</span>Linha <b>' + linhaSel.lineCode + "</b>" : "") +
+          (_relEvidencias.length ? '<span class="sep">·</span>' + _relEvidencias.length + " evidência(s)" : "")
+        );
       }
 
       // Mesma ideia de _gerarTextoExcessoPermanencia, mas listando todos os
@@ -2359,6 +2404,13 @@
         document.getElementById("relPreviewNome").textContent = nomeArquivo.replace(/\.pdf$/i, "");
         document.getElementById("relPreviewTexto").textContent = _gerarTextoExcessoPermanenciaGrupo(itens, linhaSel);
         document.getElementById("relPreview").classList.remove("hidden");
+
+        _colapsarModalPosGeracao(
+          "Veículo <b>" + itens[0].veiculo + "</b>" +
+          '<span class="sep">·</span>Motorista <b>' + _relMotoristaSelecionado.name + "</b>" +
+          (linhaSel ? '<span class="sep">·</span>Linha <b>' + linhaSel.lineCode + "</b>" : "") +
+          '<span class="sep">·</span>' + itens.length + " ponto" + (itens.length !== 1 ? "s" : "")
+        );
       }
 
       function _copiarPreview(tipo) {
@@ -2624,41 +2676,45 @@
 
         <div class="oc-body">
 
-          <div class="oc-resumo">
-            <div class="oc-field"><label>Veículo</label><strong id="relVeiculo">—</strong></div>
-            <div class="oc-field"><label>Ponto</label><span id="relPonto">—</span></div>
-            <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
-            <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
-          </div>
-          <div class="oc-resumo-lista hidden" id="relResumoLista"></div>
-
-          <div class="oc-field">
-            <label>Linha (itinerário) *</label>
-            <input type="text" id="relLinhaBusca" placeholder="Buscar por código ou nome da linha..." autocomplete="off" oninput="_buscarLinha(this.value)" />
-            <div class="oc-autocomplete-list hidden" id="relLinhaLista"></div>
-            <div class="oc-selecionado hidden" id="relLinhaSelecionada"></div>
-          </div>
-
-          <div class="oc-field">
-            <label>Motorista responsável *</label>
-            <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
-            <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
-            <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
-          </div>
-
-          <div class="oc-field">
-            <label>Evidências</label>
-            <div class="oc-evid-zone" id="relEvidZone" tabindex="0"
-              onclick="document.getElementById('relEvidInput').click()"
-              ondragover="event.preventDefault(); this.classList.add('drag-over')"
-              ondragleave="this.classList.remove('drag-over')"
-              ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)">
-              <div class="oc-evid-zone-label">Cole (Ctrl+V), arraste ou clique pra selecionar</div>
-              <div class="oc-evid-zone-sub">Imagens (print, foto) · vão anexadas ao relatório</div>
-              <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
+          <div id="relCamposInput">
+            <div class="oc-resumo">
+              <div class="oc-field"><label>Veículo</label><strong id="relVeiculo">—</strong></div>
+              <div class="oc-field"><label>Ponto</label><span id="relPonto">—</span></div>
+              <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
+              <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
             </div>
-            <div class="oc-evid-grid" id="relEvidGrid"></div>
+            <div class="oc-resumo-lista hidden" id="relResumoLista"></div>
+
+            <div class="oc-field">
+              <label>Linha (itinerário) *</label>
+              <input type="text" id="relLinhaBusca" placeholder="Buscar por código ou nome da linha..." autocomplete="off" oninput="_buscarLinha(this.value)" />
+              <div class="oc-autocomplete-list hidden" id="relLinhaLista"></div>
+              <div class="oc-selecionado hidden" id="relLinhaSelecionada"></div>
+            </div>
+
+            <div class="oc-field">
+              <label>Motorista responsável *</label>
+              <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
+              <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
+              <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
+            </div>
+
+            <div class="oc-field">
+              <label>Evidências</label>
+              <div class="oc-evid-zone" id="relEvidZone" tabindex="0"
+                onclick="document.getElementById('relEvidInput').click()"
+                ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)">
+                <div class="oc-evid-zone-label">Cole (Ctrl+V), arraste ou clique pra selecionar</div>
+                <div class="oc-evid-zone-sub">Imagens (print, foto) · vão anexadas ao relatório</div>
+                <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
+              </div>
+              <div class="oc-evid-grid" id="relEvidGrid"></div>
+            </div>
           </div>
+
+          <div class="oc-resumo-compacto hidden" id="relResumoCompacto"></div>
 
           <div class="oc-preview hidden" id="relPreview">
             <div class="oc-preview-title">Preview — copie para usar em outro documento disciplinar</div>

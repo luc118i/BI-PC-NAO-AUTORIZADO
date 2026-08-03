@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Motoristas · Viação Catedral</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* ── CATEDRAL DESIGN SYSTEM (mesma paleta do dashboard/tempo_permanencia) ──── */
+      :root {
+        --preto: #0a0a0a;
+        --preto2: #111111;
+        --preto3: #1a1a1a;
+        --preto4: #242424;
+        --laranja: #f47920;
+        --laranja2: #e06510;
+        --laranja3: rgba(244, 121, 32, 0.15);
+        --laranja4: rgba(244, 121, 32, 0.08);
+        --cinza: #2e2e2e;
+        --cinza2: #3d3d3d;
+        --cinza3: #555555;
+        --borda: rgba(255, 255, 255, 0.07);
+        --borda2: rgba(255, 255, 255, 0.12);
+        --texto: #f0f0f0;
+        --texto2: #aaaaaa;
+        --texto3: #666666;
+        --verde: #22c97a;
+        --vermelho: #e05050;
+        --amarelo: #f0c040;
+        --radius: 10px;
+        --radius-sm: 6px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+
+      .topbar { background: var(--laranja); height: 4px; width: 100%; }
+      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .header-logo { display: flex; align-items: center; gap: 16px; }
+      .logo-icon { width: 44px; height: 44px; background: var(--laranja); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .logo-icon svg { width: 26px; height: 26px; fill: #fff; }
+      .logo-text h1 { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto); line-height: 1; }
+      .logo-text h1 span { color: var(--laranja); }
+      .logo-text p { font-size: 11px; color: var(--texto3); margin-top: 3px; }
+
+      .btn { font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); }
+      .btn-primary:hover { background: var(--laranja2); }
+      .btn-ghost { background: transparent; color: var(--texto2); border-color: var(--cinza2); }
+      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); }
+      .btn:disabled { opacity: 0.5; cursor: wait; }
+
+      .main { padding: 24px 28px 60px; max-width: 1100px; margin: 0 auto; }
+
+      .card { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 10px; }
+      .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
+
+      /* ── FILTROS ─────────────────────────────────────────── */
+      .filtro-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+      .filtro-bar input[type="text"], .filtro-bar select {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
+        padding: 9px 12px; outline: none; transition: border-color 0.15s;
+      }
+      .filtro-bar input[type="text"] { flex: 1; min-width: 200px; }
+      .filtro-bar input:focus, .filtro-bar select:focus { border-color: var(--laranja); background: var(--preto4); }
+
+      /* ── TABELA ──────────────────────────────────────────── */
+      .hist-table-wrap { overflow-x: auto; }
+      .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .hist-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--texto3); font-weight: 700; padding: 10px; border-bottom: 1px solid var(--borda2); white-space: nowrap; }
+      .hist-table td { padding: 10px; border-bottom: 1px solid var(--borda); color: var(--texto2); vertical-align: middle; }
+      .hist-table tr:hover td { background: var(--preto3); }
+      .hist-table tr:last-child td { border-bottom: none; }
+      .hist-table td.mot-nome { color: var(--texto); font-weight: 600; }
+      .hist-table td.mot-acoes { white-space: nowrap; text-align: right; }
+      .mot-status { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; border: 1px solid; }
+      .mot-status.ativo { color: var(--verde); border-color: var(--verde); }
+      .mot-status.inativo { color: var(--texto3); border-color: var(--cinza2); }
+      .mot-icon-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; margin-left: 6px;
+      }
+      .mot-icon-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .mot-icon-btn.perigo:hover { border-color: var(--vermelho); color: var(--vermelho); background: rgba(224,80,80,0.1); }
+      .mot-icon-btn.sucesso:hover { border-color: var(--verde); color: var(--verde); background: rgba(34,201,122,0.1); }
+      .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
+
+      /* ── MODAL CADASTRO/EDIÇÃO ────────────────────────────── */
+      .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+      .oc-overlay.hidden { display: none; }
+      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
+      .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+      .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+      .oc-close:hover { color: var(--texto); background: var(--cinza); }
+      .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+      .oc-field { display: flex; flex-direction: column; gap: 4px; position: relative; }
+      .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
+      .oc-field input { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 9px 11px; border-radius: var(--radius-sm); width: 100%; }
+      .oc-field input:focus { outline: none; border-color: var(--laranja); }
+      .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
+      .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
+      .oc-status.ok { color: var(--verde); }
+      .oc-status.err { color: var(--vermelho); }
+
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar"></div>
+
+    <header class="header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm0 12c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Cadastro de <span>Motoristas</span></h1>
+          <p>Matrícula, nome e base · usados nos relatórios operacionais</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <button class="btn btn-primary" onclick="_abrirModalMotorista(null)">+ Novo motorista</button>
+        <button class="btn btn-ghost" onclick="voltarDashboard()">← Voltar ao dashboard</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="card">
+        <div class="card-title">Motoristas cadastrados</div>
+
+        <div class="filtro-bar">
+          <input type="text" id="motBusca" placeholder="Buscar por matrícula, nome ou base..." oninput="_filtrarMotoristasDebounced()" />
+          <select id="motStatusSel" onchange="_carregarMotoristas()">
+            <option value="true">Ativos</option>
+            <option value="false">Inativos</option>
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+
+        <div id="motStatusMsg" class="oc-status" style="margin-bottom:10px"></div>
+
+        <div class="hist-table-wrap">
+          <table class="hist-table">
+            <thead>
+              <tr>
+                <th>Matrícula</th>
+                <th>Nome</th>
+                <th>Base</th>
+                <th>Status</th>
+                <th style="text-align:right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="motTbody"></tbody>
+          </table>
+        </div>
+        <div id="motVazio" class="estado-vazio hidden">Nenhum motorista encontrado.</div>
+      </div>
+    </div>
+
+    <!-- ── MODAL CADASTRO/EDIÇÃO ────────────────────────────── -->
+    <div class="oc-overlay hidden" id="motModal" onclick="if(event.target===this)_fecharModalMotorista()">
+      <div class="oc-panel">
+        <div class="oc-header">
+          <h3 id="motModalTitulo">Novo motorista</h3>
+          <button class="oc-close" onclick="_fecharModalMotorista()" title="Fechar">✕</button>
+        </div>
+        <div class="oc-body">
+          <div class="oc-field">
+            <label>Matrícula *</label>
+            <input type="text" id="motCodigo" placeholder="Ex: 5682" autocomplete="off" />
+          </div>
+          <div class="oc-field">
+            <label>Nome *</label>
+            <input type="text" id="motNome" placeholder="Nome completo" autocomplete="off" />
+          </div>
+          <div class="oc-field">
+            <label>Base</label>
+            <input type="text" id="motBase" placeholder="Ex: Salvador - BA" autocomplete="off" />
+          </div>
+        </div>
+        <div class="oc-footer">
+          <span class="oc-status" id="motModalStatus"></span>
+          <button class="btn btn-ghost" onclick="_fecharModalMotorista()">Cancelar</button>
+          <button class="btn btn-primary" id="motBtnSalvar" onclick="_salvarMotorista()">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var webAppBaseUrl = "";
+      var REPORTS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app";
+
+      window.onload = function () {
+        if (window.google && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
+        }
+
+        // Vindo do link "Cadastrar motorista" da tela de Relatório (tempo_permanencia.html)
+        // com a matrícula já digitada — abre o modal direto, pronto pra completar o nome.
+        var params = new URLSearchParams(window.location.search);
+        var termoInicial = params.get("novo");
+
+        _carregarMotoristas(function () {
+          if (termoInicial) _abrirModalMotorista(null, termoInicial);
+        });
+      };
+
+      function voltarDashboard() {
+        if (webAppBaseUrl) window.location.href = webAppBaseUrl;
+        else window.history.back();
+      }
+
+      function _setStatusMsg(msg, tipo) {
+        var el = document.getElementById("motStatusMsg");
+        el.textContent = msg || "";
+        el.className = "oc-status" + (tipo ? " " + tipo : "");
+      }
+
+      // ── Listagem + busca ───────────────────────────────────
+      var _motoristasCache = [];
+      var _debounceTimer = null;
+
+      function _filtrarMotoristasDebounced() {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(_carregarMotoristas, 300);
+      }
+
+      function _carregarMotoristas(cb) {
+        var busca = document.getElementById("motBusca").value.trim();
+        var statusSel = document.getElementById("motStatusSel").value;
+
+        _setStatusMsg("Carregando...", "");
+
+        var urls = [];
+        if (statusSel === "todos") {
+          urls = [
+            REPORTS_API_URL + "/drivers?limit=100&active=true" + (busca ? "&search=" + encodeURIComponent(busca) : ""),
+            REPORTS_API_URL + "/drivers?limit=100&active=false" + (busca ? "&search=" + encodeURIComponent(busca) : ""),
+          ];
+        } else {
+          urls = [REPORTS_API_URL + "/drivers?limit=100&active=" + statusSel + (busca ? "&search=" + encodeURIComponent(busca) : "")];
+        }
+
+        Promise.all(urls.map(function (u) { return fetch(u).then(function (r) { return r.json(); }); }))
+          .then(function (results) {
+            var lista = [];
+            results.forEach(function (json) { lista = lista.concat((json && json.data) || []); });
+            lista.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+            _motoristasCache = lista;
+            _renderMotoristas(lista);
+            _setStatusMsg("", "");
+          })
+          .catch(function () {
+            _setStatusMsg("Falha ao carregar motoristas. Verifique a conexão.", "err");
+          })
+          .then(function () { if (cb) cb(); });
+      }
+
+      function _renderMotoristas(lista) {
+        var tbody = document.getElementById("motTbody");
+        var vazio = document.getElementById("motVazio");
+
+        if (!lista.length) {
+          tbody.innerHTML = "";
+          vazio.classList.remove("hidden");
+          return;
+        }
+        vazio.classList.add("hidden");
+
+        tbody.innerHTML = lista.map(function (d, i) {
+          return "<tr>" +
+            "<td>" + _esc(d.code || "—") + "</td>" +
+            '<td class="mot-nome">' + _esc(d.name || "—") + "</td>" +
+            "<td>" + _esc(d.base || "—") + "</td>" +
+            '<td><span class="mot-status ' + (d.active ? "ativo" : "inativo") + '">' + (d.active ? "Ativo" : "Inativo") + "</span></td>" +
+            '<td class="mot-acoes">' +
+              '<button type="button" class="mot-icon-btn" onclick="_abrirModalMotorista(' + i + ')">Editar</button>' +
+              (d.active
+                ? '<button type="button" class="mot-icon-btn perigo" onclick="_desativarMotorista(' + i + ')">Desativar</button>'
+                : '<button type="button" class="mot-icon-btn sucesso" onclick="_reativarMotorista(' + i + ')">Reativar</button>') +
+            "</td>" +
+          "</tr>";
+        }).join("");
+      }
+
+      function _esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      // ── Modal criar/editar ─────────────────────────────────
+      var _motEditandoId = null;
+
+      function _abrirModalMotorista(idx, codigoInicial) {
+        var driver = idx != null ? _motoristasCache[idx] : null;
+        _motEditandoId = driver ? driver.id : null;
+
+        document.getElementById("motModalTitulo").textContent = driver ? "Editar motorista" : "Novo motorista";
+        document.getElementById("motCodigo").value = driver ? (driver.code || "") : (codigoInicial || "");
+        document.getElementById("motNome").value = driver ? (driver.name || "") : "";
+        document.getElementById("motBase").value = driver ? (driver.base || "") : "";
+        document.getElementById("motModalStatus").textContent = "";
+        document.getElementById("motModalStatus").className = "oc-status";
+        document.getElementById("motBtnSalvar").disabled = false;
+        document.getElementById("motBtnSalvar").textContent = "Salvar";
+
+        document.getElementById("motModal").classList.remove("hidden");
+        document.getElementById(driver ? "motNome" : "motCodigo").focus();
+      }
+
+      function _fecharModalMotorista() {
+        document.getElementById("motModal").classList.add("hidden");
+      }
+
+      function _salvarMotorista() {
+        var codigo = document.getElementById("motCodigo").value.trim();
+        var nome = document.getElementById("motNome").value.trim();
+        var base = document.getElementById("motBase").value.trim();
+        var statusEl = document.getElementById("motModalStatus");
+
+        if (!codigo) { statusEl.textContent = "Informe a matrícula."; statusEl.className = "oc-status err"; return; }
+        if (!nome) { statusEl.textContent = "Informe o nome."; statusEl.className = "oc-status err"; return; }
+
+        var btn = document.getElementById("motBtnSalvar");
+        btn.disabled = true;
+        btn.textContent = "Salvando...";
+        statusEl.textContent = "";
+        statusEl.className = "oc-status";
+
+        var payload = { code: codigo, name: nome, base: base || null };
+        var req = _motEditandoId
+          ? fetch(REPORTS_API_URL + "/drivers/" + _motEditandoId, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            })
+          : fetch(REPORTS_API_URL + "/drivers", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+        req
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) {
+              throw new Error((j && (j.message || (j.error && (j.error.message || j.error)))) || "Falha ao salvar motorista");
+            });
+            return r.status === 204 ? null : r.json();
+          })
+          .then(function () {
+            _fecharModalMotorista();
+            _carregarMotoristas();
+          })
+          .catch(function (err) {
+            statusEl.textContent = err.message || "Erro ao salvar motorista";
+            statusEl.className = "oc-status err";
+            btn.disabled = false;
+            btn.textContent = "Salvar";
+          });
+      }
+
+      // ── Desativar / reativar ───────────────────────────────
+      function _desativarMotorista(idx) {
+        var d = _motoristasCache[idx];
+        if (!d) return;
+        if (!window.confirm('Desativar o motorista "' + d.name + '" (matrícula ' + d.code + ')?')) return;
+
+        _setStatusMsg("Desativando...", "");
+        fetch(REPORTS_API_URL + "/drivers/" + d.id, { method: "DELETE" })
+          .then(function (r) {
+            if (!r.ok && r.status !== 204) throw new Error("Falha ao desativar motorista");
+            _carregarMotoristas();
+          })
+          .catch(function () { _setStatusMsg("Falha ao desativar motorista.", "err"); });
+      }
+
+      // Não existe endpoint dedicado de "reativar" — POST /drivers/upsert
+      // grava por matrícula e sempre força active=true nesse caso.
+      function _reativarMotorista(idx) {
+        var d = _motoristasCache[idx];
+        if (!d) return;
+
+        _setStatusMsg("Reativando...", "");
+        fetch(REPORTS_API_URL + "/drivers/upsert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: d.code, name: d.name, base: d.base || null }),
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Falha ao reativar motorista");
+            _carregarMotoristas();
+          })
+          .catch(function () { _setStatusMsg("Falha ao reativar motorista.", "err"); });
+      }
+    </script>
+  </body>
+</html>
