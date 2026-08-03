@@ -279,6 +279,16 @@
       .perm-esquema-detalhe b { color: var(--texto); }
       .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
       .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+
+      /* Chegada real vs. horário de sessão do esquema — amarelo quando chegou
+         antes do horário (esperou por causa da sessão), vermelho quando
+         chegou depois (não é o horário que explica o excesso). */
+      .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; }
+      .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); }
+      .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); }
+      .esquema-sessao-linha .esquema-sessao-icone { flex-shrink: 0; }
+      .esquema-sessao-linha.cedo .esquema-sessao-icone { color: var(--amarelo); }
+      .esquema-sessao-linha.atraso .esquema-sessao-icone { color: var(--vermelho); }
       .perm-esquema-editar-btn {
         flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
         color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;
@@ -295,6 +305,22 @@
       .oc-close:hover { color: var(--texto); background: var(--cinza); }
       .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
       .oc-resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--preto3); border-radius: var(--radius-sm); padding: 12px 14px; }
+      .oc-resumo-lista { margin-top: -8px; background: var(--preto3); border-radius: var(--radius-sm); padding: 4px 14px; max-height: 220px; overflow-y: auto; font-size: 12px; color: var(--texto2); }
+      .oc-resumo-lista-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); border-radius: 6px; }
+      .oc-resumo-lista-item:last-child { border-bottom: none; }
+      .oc-resumo-lista-item b { color: var(--texto); }
+      .oc-resumo-lista-item.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); border-bottom-color: transparent; }
+      .oc-resumo-lista-item.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); border-bottom-color: transparent; }
+      .oc-resumo-lista-item.cedo .esquema-sessao-icone { color: var(--amarelo); }
+      .oc-resumo-lista-item.atraso .esquema-sessao-icone { color: var(--vermelho); }
+      .oc-resumo-lista-info { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .oc-resumo-lista-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .oc-resumo-lista-badge { flex-shrink: 0; font-weight: 700; }
+      .oc-resumo-lista-remover {
+        flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
+        color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;
+      }
+      .oc-resumo-lista-remover:hover { border-color: var(--vermelho); color: var(--vermelho); background: rgba(224,80,80,0.1); }
       .oc-field { display: flex; flex-direction: column; gap: 4px; position: relative; }
       .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
       .oc-field span, .oc-field strong { font-size: 13px; color: var(--texto); }
@@ -512,12 +538,27 @@
 
     <script>
       var webAppBaseUrl = "";
+
+      // Dispara assim que o navegador chega nesta linha (script no fim do
+      // <body>, então o HTML acima já está todo parseado) — bem antes do
+      // evento "load", que só dispara depois de imagens/fontes/etc.
+      // terminarem. É a chamada mais lenta (Apps Script "frio"), então
+      // quanto mais cedo começar, maior a chance de já estar pronta quando
+      // o usuário clicar em "Ver esquema".
+      _preAquecerEsquemas();
+
       window.onload = function () {
         if (window.google && google.script && google.script.run) {
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
         _carregarPCs();
-        _carregarStatusAnalisado();
+        // Corre em paralelo com o carregamento do CSV (que o usuário dispara
+        // manualmente). Se o accordion já tiver renderizado antes desta
+        // chamada voltar, a 1ª tentativa de _aplicarStatusPersistido (feita
+        // no fim de _renderTPFiltrado) encontra o cache ainda vazio e não
+        // marca nada — por isso reaplicamos aqui também, assim que o cache
+        // chega, não importa a ordem.
+        _carregarStatusAnalisado(_aplicarStatusPersistido);
         document.getElementById("tpStatus").innerHTML =
           '<span style="color:var(--texto3)">Clique em "+ Nova análise" pra carregar o CSV de rastreamento.</span>';
 
@@ -712,6 +753,8 @@
         copy: '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
         clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
         edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>',
+        alertTriangle: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
+        alertOctagon: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -722,10 +765,30 @@
 
       function _parseHMtoMin(str) {
         var p = String(str || "").trim().split(":");
-        if (p.length !== 2) return null;
+        if (p.length < 2) return null;
         var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
         if (!isFinite(h) || !isFinite(m)) return null;
         return h * 60 + m;
+      }
+
+      // Compara a chegada real com o horário de sessão do esquema —
+      // "cedo" = chegou antes (amarelo/alerta), "atraso" = chegou depois
+      // (vermelho/urgente), null = no horário exato ou algo não parseável
+      // (não destaca, pra não sugerir uma leitura errada).
+      function _compararChegadaSessao(horaChegada, horaSessao) {
+        var c = _parseHMtoMin(horaChegada), s = _parseHMtoMin(horaSessao);
+        if (c == null || s == null || c === s) return null;
+        return c < s ? "cedo" : "atraso";
+      }
+
+      function _htmlLinhaSessao(textoHtml, comparacao, estiloExtra) {
+        if (!comparacao) {
+          return '<div style="' + (estiloExtra || "margin-top:6px") + '">' + textoHtml + '</div>';
+        }
+        var icone = comparacao === "cedo" ? "alertTriangle" : "alertOctagon";
+        return '<div class="esquema-sessao-linha ' + comparacao + '" style="margin-top:6px">' +
+          '<span class="esquema-sessao-icone">' + _icon(icone, 14) + '</span><span>' + textoHtml + '</span>' +
+        '</div>';
       }
 
       // Monta a lista de referência processada: {codigo, cidade, uf, origemFull, min}
@@ -1220,6 +1283,8 @@
       }
 
       var _relatorioItens = [];
+      var _grupoEsquemaCounter = 0;
+      var _grupoEsquemaIdxs = {}; // gidx → [idx, ...] dos itens daquele grupo (prefixo)
 
       function _renderItemHtml(r) {
         var cor = _corExcedente(r.excedenteSeg);
@@ -1255,6 +1320,38 @@
       var ESQUEMAS_API_URL = "https://script.google.com/macros/s/AKfycbxnnytktE4P5Ss2AlEY1cw1xUNVSGGxpKFl9I-yqLBTP9oR3KmhYAx1OkyZ7an32eCD/exec";
       var _esquemasCache = null;
 
+      // Busca com 1 retentativa automática — o Apps Script "esfria" quando
+      // fica um tempo sem uso e a 1ª chamada às vezes falha ou expira antes
+      // de "esquentar"; uma 2ª tentativa logo em seguida quase sempre
+      // resolve, então tentamos de novo sozinhos antes de mostrar erro.
+      // Sem timeout, um fetch que trava (Apps Script sem responder nem dar
+      // erro) nunca resolve nem rejeita — a retentativa abaixo nunca é
+      // acionada e a tela fica presa em "Carregando..." pra sempre. O
+      // AbortController força a desistência depois de um tempo, o que conta
+      // como falha e libera a retentativa (ou o erro final com "Tentar
+      // novamente") normalmente.
+      function _fetchComRetry(url, tentativasRestantes, timeoutMs) {
+        timeoutMs = timeoutMs || 15000;
+        var controller = new AbortController();
+        var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+
+        return fetch(url, { signal: controller.signal }).then(function (r) {
+          clearTimeout(timer);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).catch(function (err) {
+          clearTimeout(timer);
+          if (tentativasRestantes <= 0) {
+            console.error("[esquemas] falha ao buscar " + url + ":", err);
+            throw err;
+          }
+          return new Promise(function (resolve) { setTimeout(resolve, 700); })
+            .then(function () { return _fetchComRetry(url, tentativasRestantes - 1, timeoutMs); });
+        });
+      }
+
+      var _esquemasCarregando = null; // Promise em andamento — evita disparar um 2º fetch em paralelo (ex.: pré-aquecimento + clique do usuário ao mesmo tempo)
+
       function _carregarEsquemas(cb) {
         // _esquemasCache só é considerado "carregado" quando não é null —
         // [] é um resultado válido (nenhum esquema), então não pode ser
@@ -1262,25 +1359,59 @@
         // também NÃO fica em cache, pra próxima busca poder tentar de novo
         // (Apps Script "esfria" e às vezes a 1ª chamada falha/demora).
         if (_esquemasCache !== null) { cb(_esquemasCache, null); return; }
-        fetch(ESQUEMAS_API_URL + "?action=getLinhas")
-          .then(function (r) { return r.json(); })
-          .then(function (json) {
-            var esquemas = (json && json.esquemas) || [];
-            // Pré-normaliza (acento/maiúsculas) uma única vez aqui — a busca
-            // roda a cada tecla digitada, então recalcular isso pra cada
-            // esquema (e cada ponto de parada) em todo keystroke deixava a
-            // filtragem visivelmente lenta com o catálogo cheio.
-            esquemas.forEach(function (e) {
-              e._nome = _normTP(e.nomeLinha);
-              e._cod = e.codLinha ? _normTP(e.codLinha) : "";
-              e._horario = String(e.horario || "");
-              e._horarioDigitos = e._horario.replace(/\D/g, "");
-              e._locais = (e.pontosNomes || []).map(function (p) { return _normTP(p); });
+
+        if (!_esquemasCarregando) {
+          _esquemasCarregando = _fetchComRetry(ESQUEMAS_API_URL + "?action=getLinhas", 1)
+            .then(function (json) {
+              var esquemas = (json && json.esquemas) || [];
+              // Pré-normaliza (acento/maiúsculas) uma única vez aqui — a busca
+              // roda a cada tecla digitada, então recalcular isso pra cada
+              // esquema (e cada ponto de parada) em todo keystroke deixava a
+              // filtragem visivelmente lenta com o catálogo cheio.
+              esquemas.forEach(function (e) {
+                e._nome = _normTP(e.nomeLinha);
+                e._cod = e.codLinha ? _normTP(e.codLinha) : "";
+                e._horario = String(e.horario || "");
+                e._horarioDigitos = e._horario.replace(/\D/g, "");
+                e._locais = (e.pontosNomes || []).map(function (p) { return _normTP(p); });
+              });
+              _esquemasCache = esquemas;
+              return esquemas;
+            })
+            .catch(function (err) {
+              _esquemasCarregando = null;
+              throw err;
             });
-            _esquemasCache = esquemas;
-            cb(_esquemasCache, null);
+        }
+
+        _esquemasCarregando.then(function (esquemas) {
+          _esquemasCarregando = null;
+          cb(esquemas, null);
+        }).catch(function (err) { cb([], err || true); });
+      }
+
+      // Dispara a busca de esquemas assim que a página abre, antes do
+      // usuário clicar em "Ver esquema" — o Apps Script alvo "esfria"
+      // quando fica sem uso, então a 1ª chamada real costuma ser a mais
+      // lenta; começá-la cedo, em segundo plano, faz o catálogo já estar
+      // pronto (ou o servidor já aquecido) quando o usuário precisar dele.
+      function _preAquecerEsquemas() {
+        _carregarEsquemas(function () {});
+      }
+
+      // Cache de roteiros por esquemaId — evita rebuscar o mesmo roteiro
+      // (getRoteiro) quando o usuário confere o esquema de mais de uma
+      // ocorrência/grupo que usam a mesma linha.
+      var _roteirosCache = {};
+
+      function _carregarRoteiro(esquemaId, cb) {
+        if (_roteirosCache[esquemaId]) { cb(_roteirosCache[esquemaId], null); return; }
+        _fetchComRetry(ESQUEMAS_API_URL + "?action=getRoteiro&id=" + encodeURIComponent(esquemaId), 2)
+          .then(function (json) {
+            _roteirosCache[esquemaId] = json;
+            cb(json, null);
           })
-          .catch(function (err) { cb([], err || true); });
+          .catch(function (err) { cb(null, err || true); });
       }
 
       var _esquemaQueryPorIdx = {}; // idx → último termo digitado (pra "alterar busca" voltar de onde parou)
@@ -1371,18 +1502,182 @@
         });
       }
 
+      // Acha o ponto do roteiro que corresponde ao local do item, grava
+      // "_esquemaInfo" nele (reaproveitado por "Gerar Relatório") e devolve
+      // o ponto encontrado (ou undefined) pra quem chamou montar o texto.
+      function _aplicarEsquemaAoItem(idx, json) {
+        var item = _relatorioItens[idx];
+        var pontoNorm = _normTP(item.ponto);
+        var pontoMatch = (json.pontos || []).find(function (p) {
+          var nomeNorm = _normTP(p.nome);
+          return nomeNorm.includes(pontoNorm) || pontoNorm.includes(nomeNorm);
+        });
+        item._esquemaInfo = {
+          codLinha: json.esquema.codLinha || "",
+          nomeLinha: json.esquema.nomeLinha || "",
+          horario: json.esquema.horario || "",
+          sentido: json.esquema.sentido || "",
+          horarioSessao: pontoMatch ? (pontoMatch.horarioComercial || null) : null,
+          pontoSessao: pontoMatch ? pontoMatch.nome : null,
+        };
+        return pontoMatch;
+      }
+
+      function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml) {
+        var html = '<div class="perm-esquema-detalhe">' +
+          '<div class="perm-esquema-detalhe-head">' +
+            '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
+              ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
+            alterarBtnHtml +
+          '</div>';
+
+        if (pontoMatch) {
+          var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+            (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '');
+          var cmp = pontoMatch.horarioComercial ? _compararChegadaSessao(_fmtHM(item.entrada), pontoMatch.horarioComercial) : null;
+          if (cmp === "cedo") textoSessao += ' — chegou <b>antes</b> do horário de sessão';
+          if (cmp === "atraso") textoSessao += ' — chegou <b>depois</b> do horário de sessão';
+          html += _htmlLinhaSessao(textoSessao, cmp);
+        } else {
+          html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+
       function _verDetalheEsquema(idx, esquemaId) {
         var item = _relatorioItens[idx];
         var corpo = document.getElementById("esquema-corpo-" + idx);
         if (!item || !corpo) return;
         corpo.innerHTML = '<div class="perm-esquema-msg">Carregando roteiro...</div>';
 
-        fetch(ESQUEMAS_API_URL + "?action=getRoteiro&id=" + encodeURIComponent(esquemaId))
-          .then(function (r) { return r.json(); })
-          .then(function (json) {
+        _carregarRoteiro(esquemaId, function (json, err) {
+          var alterarBtn = '<button type="button" class="perm-esquema-editar-btn" title="Alterar busca" ' +
+            'onclick="event.stopPropagation();_buscarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '] || \'\')">' +
+            _icon("edit", 12) + '</button>';
+
+          if (err) {
+            corpo.innerHTML = '<div class="perm-esquema-msg">Erro ao buscar o roteiro (falha de conexão). ' +
+              '<a href="#" onclick="event.preventDefault();event.stopPropagation();_verDetalheEsquema(' + idx + ',' + esquemaId + ')" ' +
+              'style="color:var(--laranja)">Tentar novamente</a></div>';
+            return;
+          }
+
+          if (!json || !json.found) {
+            corpo.innerHTML = '<div class="perm-esquema-detalhe-head">' +
+              '<div class="perm-esquema-msg" style="padding:0">Roteiro não encontrado para este esquema.</div>' + alterarBtn + '</div>';
+            return;
+          }
+
+          var pontoMatch = _aplicarEsquemaAoItem(idx, json);
+          corpo.innerHTML = _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtn);
+        });
+      }
+
+      // ── Ver esquema no nível do GRUPO (prefixo/veículo) — vincula o
+      //    mesmo esquema a todas as ocorrências do veículo de uma vez,
+      //    achando o horário de sessão de cada ponto individualmente no
+      //    roteiro. Também pré-preenche o painel "Ver esquema" de cada
+      //    item, pra abrir ali já mostrar o resultado sem buscar de novo.
+      var _esquemaQueryPorGrupo = {};
+
+      function _verEsquemaGrupo(gidx, btnEl) {
+        var panel = document.getElementById("esquema-grupo-" + gidx);
+        if (!panel) return;
+
+        if (!panel.classList.contains("hidden")) {
+          panel.classList.add("hidden");
+          return;
+        }
+        panel.classList.remove("hidden");
+        if (panel.getAttribute("data-init") === "1") return;
+        panel.setAttribute("data-init", "1");
+
+        panel.innerHTML = '<div class="perm-esquema-corpo" id="esquema-grupo-corpo-' + gidx + '"></div>';
+        var idxs = _grupoEsquemaIdxs[gidx] || [];
+        var primeiro = idxs.length ? _relatorioItens[idxs[0]] : null;
+        var termoInicial = (primeiro && primeiro.linha && primeiro.linha !== "—") ? primeiro.linha : "";
+        _esquemaQueryPorGrupo[gidx] = termoInicial;
+        _buscarEsquemaGrupo(gidx, termoInicial);
+      }
+
+      function _buscarEsquemaGrupo(gidx, termo) {
+        _esquemaQueryPorGrupo[gidx] = termo;
+        var corpo = document.getElementById("esquema-grupo-corpo-" + gidx);
+        if (!corpo) return;
+
+        corpo.innerHTML =
+          '<input type="text" class="perm-esquema-input" placeholder="Buscar por código, linha, horário ou local..." ' +
+            'value="' + String(termo || "").replace(/"/g, "&quot;") + '" ' +
+            'oninput="_filtrarEsquemaGrupo(' + gidx + ', this.value)" onclick="event.stopPropagation()">' +
+          '<div class="perm-esquema-lista-wrap" id="esquema-grupo-lista-' + gidx + '"></div>';
+        _filtrarEsquemaGrupo(gidx, termo);
+      }
+
+      function _filtrarEsquemaGrupo(gidx, termo) {
+        _esquemaQueryPorGrupo[gidx] = termo;
+        var wrap = document.getElementById("esquema-grupo-lista-" + gidx);
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="perm-esquema-msg">Carregando esquemas...</div>';
+
+        _carregarEsquemas(function (esquemas, err) {
+          var termoAtual = _esquemaQueryPorGrupo[gidx];
+          var wrapAtual = document.getElementById("esquema-grupo-lista-" + gidx);
+          if (!wrapAtual) return;
+
+          if (err) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Não foi possível carregar os esquemas (falha de conexão). ' +
+              '<a href="#" onclick="event.preventDefault();event.stopPropagation();_filtrarEsquemaGrupo(' + gidx + ', _esquemaQueryPorGrupo[' + gidx + '])" ' +
+              'style="color:var(--laranja)">Tentar novamente</a></div>';
+            return;
+          }
+          if (!esquemas.length) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Nenhum esquema cadastrado.</div>';
+            return;
+          }
+          var tokens = _normTP(termoAtual).split(" ").filter(Boolean);
+          var itens = esquemas.filter(function (e) {
+            if (!tokens.length) return true;
+            return tokens.every(function (t) {
+              var tDigitos = t.replace(/\D/g, "");
+              return e._nome.includes(t) || e._cod.includes(t) || e._horario.includes(t) ||
+                (tDigitos.length >= 3 && e._horarioDigitos.includes(tDigitos)) ||
+                e._locais.some(function (l) { return l.includes(t); });
+            });
+          });
+
+          if (!itens.length) {
+            wrapAtual.innerHTML = '<div class="perm-esquema-msg">Nenhum esquema encontrado.</div>';
+            return;
+          }
+
+          wrapAtual.innerHTML = '<div class="perm-esquema-lista">' + itens.slice(0, 30).map(function (e) {
+            return '<div class="perm-esquema-item" onclick="event.stopPropagation();_verDetalheEsquemaGrupo(' + gidx + ',' + e.id + ')">' +
+              '<b>' + (e.codLinha || "—") + '</b> — ' + e.nomeLinha +
+              '<span class="esquema-sub">' + (e.horario || "—") + (e.sentido ? " · " + e.sentido : "") + '</span>' +
+            '</div>';
+          }).join("") + '</div>';
+        });
+      }
+
+      function _verDetalheEsquemaGrupo(gidx, esquemaId) {
+        var idxs = _grupoEsquemaIdxs[gidx] || [];
+        var corpo = document.getElementById("esquema-grupo-corpo-" + gidx);
+        if (!idxs.length || !corpo) return;
+        corpo.innerHTML = '<div class="perm-esquema-msg">Carregando roteiro...</div>';
+
+        _carregarRoteiro(esquemaId, function (json, err) {
             var alterarBtn = '<button type="button" class="perm-esquema-editar-btn" title="Alterar busca" ' +
-              'onclick="event.stopPropagation();_buscarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '] || \'\')">' +
+              'onclick="event.stopPropagation();_buscarEsquemaGrupo(' + gidx + ', _esquemaQueryPorGrupo[' + gidx + '] || \'\')">' +
               _icon("edit", 12) + '</button>';
+
+            if (err) {
+              corpo.innerHTML = '<div class="perm-esquema-msg">Erro ao buscar o roteiro (falha de conexão). ' +
+                '<a href="#" onclick="event.preventDefault();event.stopPropagation();_verDetalheEsquemaGrupo(' + gidx + ',' + esquemaId + ')" ' +
+                'style="color:var(--laranja)">Tentar novamente</a></div>';
+              return;
+            }
 
             if (!json || !json.found) {
               corpo.innerHTML = '<div class="perm-esquema-detalhe-head">' +
@@ -1390,43 +1685,51 @@
               return;
             }
 
-            var pontoNorm = _normTP(item.ponto);
-            var pontoMatch = (json.pontos || []).find(function (p) {
-              var nomeNorm = _normTP(p.nome);
-              return nomeNorm.includes(pontoNorm) || pontoNorm.includes(nomeNorm);
-            });
+            var linhasHtml = idxs.map(function (idx) {
+              var item = _relatorioItens[idx];
+              if (!item) return "";
+              var pontoMatch = _aplicarEsquemaAoItem(idx, json);
 
-            // Guarda no item pra "Gerar Relatório" reaproveitar: pré-selecionar
-            // a linha no modal e incluir o horário de sessão no PDF.
-            item._esquemaInfo = {
-              codLinha: json.esquema.codLinha || "",
-              nomeLinha: json.esquema.nomeLinha || "",
-              horario: json.esquema.horario || "",
-              sentido: json.esquema.sentido || "",
-              horarioSessao: pontoMatch ? (pontoMatch.horarioComercial || null) : null,
-              pontoSessao: pontoMatch ? pontoMatch.nome : null,
-            };
+              // Pré-preenche o painel individual do item — abrir "Ver esquema"
+              // ali já mostra o resultado vinculado aqui, sem buscar de novo.
+              var painelItem = document.getElementById("esquema-" + idx);
+              if (painelItem) {
+                var alterarBtnItem = '<button type="button" class="perm-esquema-editar-btn" title="Alterar busca" ' +
+                  'onclick="event.stopPropagation();_buscarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '] || \'\')">' +
+                  _icon("edit", 12) + '</button>';
+                painelItem.innerHTML = '<div class="perm-esquema-corpo" id="esquema-corpo-' + idx + '">' +
+                  _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnItem) + '</div>';
+                painelItem.setAttribute("data-init", "1");
+              }
 
-            var html = '<div class="perm-esquema-detalhe">' +
+              var textoLinha = '<b>' + item.ponto + '</b>: ' +
+                (pontoMatch
+                  ? ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+                    (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : ''))
+                  : 'local não encontrado no roteiro deste esquema');
+              var cmpLinha = pontoMatch && pontoMatch.horarioComercial
+                ? _compararChegadaSessao(_fmtHM(item.entrada), pontoMatch.horarioComercial)
+                : null;
+              if (cmpLinha === "cedo") textoLinha += ' — chegou <b>antes</b> do horário';
+              if (cmpLinha === "atraso") textoLinha += ' — chegou <b>depois</b> do horário';
+
+              return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)");
+            }).join("");
+
+            corpo.innerHTML = '<div class="perm-esquema-detalhe">' +
               '<div class="perm-esquema-detalhe-head">' +
                 '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
                   ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
                 alterarBtn +
-              '</div>';
+              '</div>' +
+              '<div style="margin-top:2px;font-size:11px;color:var(--texto3)">Vinculado a ' + idxs.length +
+                ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo:</div>' +
+              linhasHtml +
+            '</div>';
 
-            if (pontoMatch) {
-              html += '<div style="margin-top:6px">Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
-                (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '') + '</div>';
-            } else {
-              html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
-            }
-
-            html += '</div>';
-            corpo.innerHTML = html;
-          })
-          .catch(function () {
-            corpo.innerHTML = '<div class="perm-esquema-msg">Erro ao buscar o roteiro. Verifique a conexão.</div>';
-          });
+            var btn = document.getElementById("esquema-grupo-btn-" + gidx);
+            if (btn) { btn.classList.add("ativo"); btn.innerHTML = _icon("check") + " Esquema vinculado"; }
+        });
       }
 
       // ── Copiar prefixo (mesma UX de Paradas Irregulares) ──────
@@ -1487,6 +1790,7 @@
 
       function _renderTPFiltrado() {
         _relatorioItens = [];
+        _grupoEsquemaIdxs = {};
         var busca = _normTP(document.getElementById("tpBusca").value);
         var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
         var excedenteMinInput = parseInt(document.getElementById("tpExcedenteMin").value, 10);
@@ -1544,6 +1848,9 @@
             var grupo = grupos[veiculo];
             var linhasGrupo = new Set(grupo.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
             var veiculoEsc = veiculo.replace(/'/g, "");
+            var gidx = _grupoEsquemaCounter++;
+            var startIdx = _relatorioItens.length;
+
             html += '<details class="acc-group acc-prefixo-group"' + (ri === 0 && gi === 0 ? ' open' : '') + '>' +
               '<summary class="acc-summary">' +
                 '<div class="acc-left">' +
@@ -1555,13 +1862,21 @@
                 '</div>' +
                 '<div class="acc-right">' +
                   '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
+                  '<button type="button" class="acc-mini-btn" id="esquema-grupo-btn-' + gidx + '" title="Vincular um esquema a todas as ocorrências deste veículo de uma vez" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
+                  '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();abrirModalRelatorioGrupo(' + gidx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
                   '<button type="button" class="acc-mini-btn" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">' + _icon("check") + ' Analisado</button>' +
                 '</div>' +
               '</summary>' +
-              '<div class="acc-body">';
+              '<div class="acc-body">' +
+                '<div class="perm-esquema-panel hidden" id="esquema-grupo-' + gidx + '"></div>';
 
             grupo.forEach(function (r) { html += _renderItemHtml(r); });
+
+            _grupoEsquemaIdxs[gidx] = [];
+            for (var _i = startIdx; _i < _relatorioItens.length; _i++) _grupoEsquemaIdxs[gidx].push(_i);
 
             html += '</div></details>';
           });
@@ -1589,22 +1904,17 @@
       var _relBuscaMotoristaSeq = 0;
       var _relTripsCache = null; // catálogo completo de viagens, carregado 1x por sessão
       var _relGerado = false;   // true depois que o relatório é gerado com sucesso
+      var _relModoGrupo = false; // true = gerando um relatório pra cada ocorrência do grupo (veículo)
+      var _relGrupoIdxs = [];    // idxs de _relatorioItens incluídos no modo grupo
+      var _relModalToken = 0;    // invalidação de callback assíncrono (trips) se o modal reabrir antes de carregar
 
-      function abrirModalRelatorio(idx) {
-        var item = _relatorioItens[idx];
-        if (!item) return;
-
-        _relItemAtual = item;
-        _relItemAtualIdx = idx;
+      // Reseta os campos comuns do modal (linha/motorista/evidências/status),
+      // usado tanto no modo individual quanto no modo grupo.
+      function _resetModalRelatorioComum() {
         _relLinhaSelecionada = null;
         _relMotoristaSelecionado = null;
         _relEvidencias = [];
         _relGerado = false;
-
-        document.getElementById("relVeiculo").textContent = item.veiculo || "—";
-        document.getElementById("relPonto").textContent = item.ponto || "—";
-        document.getElementById("relHorarios").textContent = _fmtHM(item.entrada) + " – " + _fmtHM(item.saida);
-        document.getElementById("relExcedente").textContent = "+" + _fmtMin(Math.round(item.excedenteSeg / 60));
 
         document.getElementById("relLinhaBusca").value = "";
         document.getElementById("relMotoristaBusca").value = "";
@@ -1626,11 +1936,104 @@
         });
 
         document.getElementById("relatorioModal").classList.remove("hidden");
-        _carregarTrips(function () { _tentarAutoSelecionarLinha(idx); });
-        // Ctrl+V precisa funcionar em qualquer lugar do modal, não só com o
-        // foco exatamente na zona de evidências — escuta no documento inteiro
-        // enquanto o modal estiver aberto.
         document.addEventListener("paste", _handlePasteEvidencia);
+        return ++_relModalToken;
+      }
+
+      function abrirModalRelatorio(idx) {
+        var item = _relatorioItens[idx];
+        if (!item) return;
+
+        _relModoGrupo = false;
+        _relGrupoIdxs = [];
+        _relItemAtual = item;
+        _relItemAtualIdx = idx;
+
+        document.getElementById("relModalTitulo").lastChild.textContent = " Gerar Relatório — Excesso de Permanência";
+        document.getElementById("relResumoLista").classList.add("hidden");
+        document.getElementById("relPonto").textContent = item.ponto || "—";
+        document.getElementById("relHorarios").textContent = _fmtHM(item.entrada) + " – " + _fmtHM(item.saida);
+        document.getElementById("relExcedente").textContent = "+" + _fmtMin(Math.round(item.excedenteSeg / 60));
+        document.getElementById("relVeiculo").textContent = item.veiculo || "—";
+
+        var token = _resetModalRelatorioComum();
+        _carregarTrips(function () { _tentarAutoSelecionarLinhaAtual(token); });
+      }
+
+      // Abre o modal já preparado pra gerar um relatório pra CADA ocorrência
+      // do grupo (mesmo veículo) de uma vez só — reaproveita a mesma linha,
+      // motorista e evidências escolhidas, evitando repetir o modal N vezes.
+      function abrirModalRelatorioGrupo(gidx) {
+        var idxs = (_grupoEsquemaIdxs[gidx] || []).filter(function (idx) { return !!_relatorioItens[idx]; });
+        if (!idxs.length) return;
+
+        _relModoGrupo = true;
+        _relGrupoIdxs = idxs;
+        _relItemAtual = null;
+        _relItemAtualIdx = null;
+
+        document.getElementById("relVeiculo").textContent = _relatorioItens[idxs[0]].veiculo || "—";
+        document.getElementById("relHorarios").textContent = "—";
+        _renderResumoListaGrupo();
+
+        var token = _resetModalRelatorioComum();
+        _carregarTrips(function () { _tentarAutoSelecionarLinhaAtual(token); });
+      }
+
+      // (Re)desenha a lista de ocorrências do modo grupo — cabeçalho
+      // (contagem/maior excedente/título) + cada linha, já destacando
+      // cedo/atraso vs. o horário de sessão (se um esquema foi vinculado
+      // pelo "Ver esquema" do grupo) e com botão pra remover o ponto do
+      // relatório antes de gerar (ex.: se aquele local não deveria entrar).
+      function _renderResumoListaGrupo() {
+        var itens = _relGrupoIdxs.map(function (idx) { return { idx: idx, item: _relatorioItens[idx] }; })
+          .filter(function (x) { return !!x.item; });
+
+        document.getElementById("relModalTitulo").lastChild.textContent =
+          " Gerar Relatório — Excesso de Permanência (" + itens.length + " ocorrência" + (itens.length !== 1 ? "s" : "") + ")";
+        document.getElementById("relPonto").textContent = itens.length + " ponto" + (itens.length !== 1 ? "s" : "");
+
+        var maiorExcedente = itens.reduce(function (m, x) { return Math.max(m, x.item.excedenteSeg); }, 0);
+        document.getElementById("relExcedente").textContent = itens.length
+          ? ("+" + _fmtMin(Math.round(maiorExcedente / 60)) + " (maior)")
+          : "—";
+
+        document.getElementById("relResumoLista").innerHTML = itens.length
+          ? itens.map(function (x) {
+              var it = x.item;
+              var cor = _corExcedente(it.excedenteSeg);
+              var cmp = (it._esquemaInfo && it._esquemaInfo.horarioSessao)
+                ? _compararChegadaSessao(_fmtHM(it.entrada), it._esquemaInfo.horarioSessao)
+                : null;
+              var icone = cmp
+                ? '<span class="esquema-sessao-icone">' + _icon(cmp === "cedo" ? "alertTriangle" : "alertOctagon", 13) + '</span>'
+                : "";
+              return '<div class="oc-resumo-lista-item' + (cmp ? (" " + cmp) : "") + '">' +
+                '<span class="oc-resumo-lista-info">' + icone +
+                  '<span><b>' + it.ponto + '</b> · ' + _fmtHM(it.entrada) + '–' + _fmtHM(it.saida) + '</span>' +
+                '</span>' +
+                '<span class="oc-resumo-lista-right">' +
+                  '<span class="oc-resumo-lista-badge" style="color:' + cor + '">+' + _fmtMin(Math.round(it.excedenteSeg / 60)) + '</span>' +
+                  '<button type="button" class="oc-resumo-lista-remover" title="Remover este ponto do relatório" ' +
+                    'onclick="_removerDoGrupoRelatorio(' + x.idx + ')">' + _icon("x", 12) + '</button>' +
+                '</span>' +
+              '</div>';
+            }).join("")
+          : '<div class="perm-esquema-msg" style="padding:6px 0">Nenhum ponto selecionado — remova a marcação acima ou feche e reabra o grupo.</div>';
+        document.getElementById("relResumoLista").classList.remove("hidden");
+
+        if (!_relGerado) document.getElementById("relBtnGerar").disabled = itens.length === 0;
+      }
+
+      // Tira um ponto do grupo antes de gerar — ele simplesmente não entra
+      // na próxima chamada de _gerarRelatorioGrupo nem é marcado como
+      // analisado ao final (não precisa desfazer nada no backend, porque
+      // nenhuma ocorrência chegou a ser criada pra ele).
+      function _removerDoGrupoRelatorio(idx) {
+        var i = _relGrupoIdxs.indexOf(idx);
+        if (i === -1) return;
+        _relGrupoIdxs.splice(i, 1);
+        _renderResumoListaGrupo();
       }
 
       function fecharModalRelatorio() {
@@ -1716,12 +2119,17 @@
       // catálogo /trips (base do Gerador de Relatórios) por código de linha
       // + horário de partida. Sem correspondência exata, deixa a busca
       // aberta pro usuário escolher manualmente — não força nada.
-      function _tentarAutoSelecionarLinha(idx) {
-        if (_relItemAtualIdx !== idx) return; // modal já mudou de item enquanto os trips carregavam
-        var item = _relatorioItens[idx];
-        var esq = item && item._esquemaInfo;
-        if (!esq || !esq.codLinha || !_relTripsCache) return;
-        if (_relLinhaSelecionada) return; // usuário já escolheu manualmente antes disso resolver
+      function _tentarAutoSelecionarLinhaAtual(token) {
+        if (_relModalToken !== token) return; // modal já reabriu/mudou enquanto os trips carregavam
+        if (!_relTripsCache || _relLinhaSelecionada) return; // usuário já escolheu manualmente antes disso resolver
+
+        // No modo grupo, usa o primeiro item que já tenha um esquema vinculado
+        // ("Ver esquema" do grupo) — todos compartilham o mesmo veículo/viagem.
+        var itemBase = _relModoGrupo
+          ? _relGrupoIdxs.map(function (i) { return _relatorioItens[i]; }).find(function (it) { return it && it._esquemaInfo && it._esquemaInfo.codLinha; })
+          : _relItemAtual;
+        var esq = itemBase && itemBase._esquemaInfo;
+        if (!esq || !esq.codLinha) return;
 
         var codNorm = _normTP(esq.codLinha);
         var horAlvo = (esq.horario || "").slice(0, 5);
@@ -1869,7 +2277,9 @@
       }
 
       // Nome de arquivo: "MATRICULA - MOTORISTA - BASE - EXCES_PERMA - DD.MM.AA"
-      function _nomeArquivoRelatorio(item, motorista) {
+      // (+ o ponto, no modo grupo, pra não colidir entre as várias ocorrências
+      // do mesmo veículo/motorista/data)
+      function _nomeArquivoRelatorio(item, motorista, sufixo) {
         var partes = [
           motorista.code || "SEMCOD",
           (motorista.name || "MOTORISTA").trim(),
@@ -1877,6 +2287,7 @@
           "EXCES_PERMA",
           _fmtDataCurta(item.entrada),
         ].filter(Boolean);
+        if (sufixo) partes.push(String(sufixo).replace(/[\\/:*?"<>|]/g, "").trim());
         return partes.join(" - ") + ".pdf";
       }
 
@@ -1916,6 +2327,37 @@
       function _mostrarPreview(item, nomeArquivo, linhaSel) {
         document.getElementById("relPreviewNome").textContent = nomeArquivo.replace(/\.pdf$/i, "");
         document.getElementById("relPreviewTexto").textContent = _gerarTextoExcessoPermanencia(item, linhaSel);
+        document.getElementById("relPreview").classList.remove("hidden");
+      }
+
+      // Mesma ideia de _gerarTextoExcessoPermanencia, mas listando todos os
+      // pontos do grupo num texto só (equivalente ao "distribuído em N
+      // paradas" que já aparece no PDF combinado).
+      function _gerarTextoExcessoPermanenciaGrupo(itens, linhaSel) {
+        var primeiro = itens[0];
+        var linhaInfo = linhaSel ? " (linha " + linhaSel.lineCode + " - " + linhaSel.lineName + ")" : "";
+        var dataViagem = _fmtData(primeiro.entrada) || "";
+
+        var pontosTexto = itens.map(function (item) {
+          var horaIni = _fmtHM(item.entrada);
+          var horaFim = _calcularHoraSaida(item);
+          var perm = _formatPermanenciaTexto(horaIni, horaFim);
+          return "- " + item.ponto + ", no período de " + horaIni + " às " + horaFim +
+            (perm ? " (permanência de " + perm + ")" : "");
+        }).join("\n");
+
+        return "Durante a análise das atividades do veículo de número " + primeiro.veiculo + linhaInfo +
+          " na viagem do dia " + dataViagem + ", identificamos o descumprimento operacional por parte do " +
+          "condutor, em razão da permanência superior ao tempo previsto nos seguintes pontos de parada:\n\n" +
+          pontosTexto + "\n\n" +
+          "Esta conduta caracteriza uma violação dos procedimentos operacionais estabelecidos, impactando " +
+          "diretamente a programação da viagem, gerando atrasos e comprometendo a qualidade do serviço " +
+          "prestado aos passageiros.";
+      }
+
+      function _mostrarPreviewGrupo(itens, nomeArquivo, linhaSel) {
+        document.getElementById("relPreviewNome").textContent = nomeArquivo.replace(/\.pdf$/i, "");
+        document.getElementById("relPreviewTexto").textContent = _gerarTextoExcessoPermanenciaGrupo(itens, linhaSel);
         document.getElementById("relPreview").classList.remove("hidden");
       }
 
@@ -1960,25 +2402,31 @@
       // analisada (2º clique, quando o texto já virou "Concluído").
       function _onClickBtnGerar() {
         if (_relGerado) {
-          var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
-          if (el) _setItemAnalisado(el, true);
+          if (_relModoGrupo) {
+            _relGrupoIdxs.forEach(function (idx) {
+              var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+              if (el) _setItemAnalisado(el, true);
+            });
+          } else {
+            var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
+            if (el) _setItemAnalisado(el, true);
+          }
           fecharModalRelatorio();
           return;
         }
+        if (_relModoGrupo) { _gerarRelatorioGrupo(); return; }
         _gerarRelatorio();
       }
 
-      function _gerarRelatorio() {
-        if (!_relItemAtual) return;
-        if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
-        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
-
-        var btn = document.getElementById("relBtnGerar");
-        btn.disabled = true;
-        btn.textContent = "Gerando...";
-        _setRelStatus("Criando ocorrência...", "");
-
-        var item = _relItemAtual;
+      // Cria a ocorrência (typeCode=EXCESSO_PERMANENCIA), sobe as evidências
+      // já escolhidas no modal e gera+baixa o PDF. Usado tanto pelo modo
+      // individual quanto, em loop, pelo modo grupo (mesma linha/motorista/
+      // evidências reaproveitadas pra cada ocorrência do veículo).
+      // Cria a ocorrência (typeCode=EXCESSO_PERMANENCIA) e sobe as evidências
+      // já escolhidas no modal — não gera PDF. Usado tanto pelo modo
+      // individual (que gera o PDF logo em seguida) quanto pelo modo grupo
+      // (que só gera 1 PDF combinado depois de criar todas as ocorrências).
+      function _criarOcorrencia(item) {
         var entradaP = _dataHoraPartes(item.entrada);
 
         var payload = {
@@ -2006,7 +2454,7 @@
           lng: item.lng != null ? item.lng : null,
         };
 
-        fetch(REPORTS_API_URL + "/occurrences", {
+        return fetch(REPORTS_API_URL + "/occurrences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -2020,7 +2468,7 @@
             // A API já notificou a planilha (HISTORICO_EXCESSO) ao criar a
             // ocorrência — só precisamos refletir isso no dashboard local.
             _carregarHistoricoExcesso();
-            if (!_relEvidencias.length) return { occurrenceId: occurrenceId };
+            if (!_relEvidencias.length) return occurrenceId;
 
             _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
             var form = new FormData();
@@ -2032,36 +2480,133 @@
               body: form,
             }).then(function (r) {
               if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error) || "Falha ao enviar evidências"); });
-              return { occurrenceId: occurrenceId };
+              return occurrenceId;
             });
-          })
-          .then(function (ctx) {
-            _setRelStatus("Gerando PDF...", "");
-            return fetch(REPORTS_API_URL + "/reports/occurrences/" + ctx.occurrenceId + "/pdf?force=true")
-              .then(function (r) {
-                if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF"); });
-                return r.json();
-              });
+          });
+      }
+
+      // Gera+baixa o PDF de UMA ocorrência já criada (modo individual).
+      function _gerarEBaixarPdfOcorrencia(occurrenceId, item, sufixoArquivo) {
+        _setRelStatus("Gerando PDF...", "");
+        return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/pdf?force=true")
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF"); });
+            return r.json();
           })
           .then(function (json) {
             var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
             if (!url) throw new Error("PDF gerado, mas sem link de download");
 
-            var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado);
+            var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado, sufixoArquivo);
             _setRelStatus("Baixando PDF...", "");
 
             return _baixarPdf(url, nomeArquivo).then(function () {
-              var status = document.getElementById("relStatus");
-              status.innerHTML = _icon("check") + ' Relatório baixado! <a href="' + url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir de novo</a>';
-              status.className = "oc-status ok";
-              _relGerado = true;
-              btn.disabled = false;
-              btn.innerHTML = _icon("check") + " Concluído";
-              _mostrarPreview(item, nomeArquivo, _relLinhaSelecionada);
+              return { url: url, nomeArquivo: nomeArquivo };
             });
+          });
+      }
+
+      function _criarOcorrenciaEBaixarPdf(item, sufixoArquivo) {
+        return _criarOcorrencia(item).then(function (occurrenceId) {
+          return _gerarEBaixarPdfOcorrencia(occurrenceId, item, sufixoArquivo);
+        });
+      }
+
+      // Gera+baixa UM PDF só, cobrindo todas as ocorrências já criadas do
+      // grupo (endpoint novo: /reports/occurrences-group/pdf?ids=a,b,c) —
+      // usa o 1º item só pra montar o nome do arquivo.
+      function _gerarEBaixarPdfGrupo(occurrenceIds, primeiroItem) {
+        _setRelStatus("Gerando PDF do grupo (" + occurrenceIds.length + " pontos)...", "");
+        var idsParam = occurrenceIds.join(",");
+        return fetch(REPORTS_API_URL + "/reports/occurrences-group/pdf?force=true&ids=" + encodeURIComponent(idsParam))
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF do grupo"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
+            if (!url) throw new Error("PDF gerado, mas sem link de download");
+
+            var nomeArquivo = _nomeArquivoRelatorio(primeiroItem, _relMotoristaSelecionado, primeiroItem.veiculo);
+            _setRelStatus("Baixando PDF...", "");
+
+            return _baixarPdf(url, nomeArquivo).then(function () {
+              return { url: url, nomeArquivo: nomeArquivo };
+            });
+          });
+      }
+
+      function _gerarRelatorio() {
+        if (!_relItemAtual) return;
+        if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
+        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+
+        var btn = document.getElementById("relBtnGerar");
+        btn.disabled = true;
+        btn.textContent = "Gerando...";
+        _setRelStatus("Criando ocorrência...", "");
+
+        var item = _relItemAtual;
+
+        _criarOcorrenciaEBaixarPdf(item, null)
+          .then(function (res) {
+            var status = document.getElementById("relStatus");
+            status.innerHTML = _icon("check") + ' Relatório baixado! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir de novo</a>';
+            status.className = "oc-status ok";
+            _relGerado = true;
+            btn.disabled = false;
+            btn.innerHTML = _icon("check") + " Concluído";
+            _mostrarPreview(item, res.nomeArquivo, _relLinhaSelecionada);
           })
           .catch(function (err) {
             _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório"), "err");
+            btn.disabled = false;
+            btn.textContent = "Gerar relatório";
+          });
+      }
+
+      // Gera um relatório (ocorrência + PDF) pra CADA ocorrência do grupo,
+      // em sequência (não em paralelo, pra não disparar vários downloads/
+      // requisições simultâneas e pra a mensagem de status ficar clara).
+      // Cria uma ocorrência por ponto do grupo (preserva o histórico/planilha
+      // por parada), mas gera só UM PDF no final cobrindo todas elas —
+      // ver /reports/occurrences-group/pdf na API do Gerador de Relatórios.
+      function _gerarRelatorioGrupo() {
+        if (!_relGrupoIdxs.length) return;
+        if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
+        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+
+        var btn = document.getElementById("relBtnGerar");
+        btn.disabled = true;
+        btn.textContent = "Gerando...";
+
+        var itens = _relGrupoIdxs.map(function (idx) { return _relatorioItens[idx]; }).filter(Boolean);
+        var total = itens.length;
+        var occurrenceIds = [];
+
+        itens.reduce(function (promessa, item, i) {
+          return promessa.then(function () {
+            _setRelStatus("Criando ocorrência " + (i + 1) + " de " + total + " — " + item.ponto + "...", "");
+            return _criarOcorrencia(item).then(function (occurrenceId) {
+              occurrenceIds.push(occurrenceId);
+            }).catch(function (err) {
+              throw new Error(item.ponto + ": " + (err.message || "erro ao criar ocorrência"));
+            });
+          });
+        }, Promise.resolve())
+          .then(function () {
+            return _gerarEBaixarPdfGrupo(occurrenceIds, itens[0]);
+          })
+          .then(function (res) {
+            _setRelStatus(_icon("check") + " Relatório gerado e baixado (" + total + " pontos)!", "ok");
+            _relGerado = true;
+            btn.disabled = false;
+            btn.innerHTML = _icon("check") + " Concluído";
+            _mostrarPreviewGrupo(itens, res.nomeArquivo, _relLinhaSelecionada);
+          })
+          .catch(function (err) {
+            _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório") +
+              (occurrenceIds.length ? " (" + occurrenceIds.length + " de " + total + " ocorrências já criadas)" : ""), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
           });
@@ -2073,7 +2618,7 @@
       <div class="oc-panel">
 
         <div class="oc-header">
-          <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Excesso de Permanência</h3>
+          <h3 id="relModalTitulo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Excesso de Permanência</h3>
           <button class="oc-close" onclick="fecharModalRelatorio()" title="Fechar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
 
@@ -2085,6 +2630,7 @@
             <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
             <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
           </div>
+          <div class="oc-resumo-lista hidden" id="relResumoLista"></div>
 
           <div class="oc-field">
             <label>Linha (itinerário) *</label>

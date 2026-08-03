@@ -150,6 +150,24 @@ function getDadosBI(dataIni, dataFim) {
 // STATUS, ATUALIZADO_EM — guarda quais excedências já foram
 // marcadas como analisadas, pra sobreviver a reload/novo upload
 // do mesmo CSV. CHAVE = "<veiculo>|<entrada>" (gerada no front-end).
+var TEMPO_PERMANENCIA_STATUS_HEADER = [
+  "CHAVE", "VEICULO", "PONTO", "ENTRADA", "STATUS", "ATUALIZADO_EM",
+];
+
+// Antes disto, marcarStatusPermanencia() lançava erro se a aba não
+// existisse — como ela nunca é criada manualmente, TODA marcação de
+// "analisado" falhava silenciosamente (o erro só ia pro console via
+// withFailureHandler) e nada era persistido, por isso sumia após F5.
+// Agora a aba é criada sozinha aqui, igual _abaHistoricoExcesso().
+function _abaStatusPermanencia(ss) {
+  var aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
+  if (!aba) {
+    aba = ss.insertSheet("TEMPO_PERMANENCIA_STATUS");
+    aba.appendRow(TEMPO_PERMANENCIA_STATUS_HEADER);
+  }
+  return aba;
+}
+
 function getStatusPermanencia() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
@@ -176,8 +194,7 @@ function marcarStatusPermanencia(payload) {
   if (!chave) throw new Error("chave é obrigatória.");
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
-  if (!aba) throw new Error('Aba "TEMPO_PERMANENCIA_STATUS" não encontrada.');
+  const aba = _abaStatusPermanencia(ss);
 
   const status = payload.analisado ? "ANALISADO" : "";
   const agora = new Date();
