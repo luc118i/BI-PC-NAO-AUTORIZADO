@@ -36,6 +36,27 @@ function getWebAppUrl() {
   return ScriptApp.getService().getUrl();
 }
 
+// ── 1.1 Drive — pasta de relatórios (Excesso de Permanência) ───
+// Chamada via google.script.run pelo tempo_permanencia.html antes de
+// enviar o PDF ao Drive. Evita depender de service account + env var
+// no backend (Koyeb): usa a autorização do próprio Apps Script (roda
+// como o usuário que fez o deploy — ver "executeAs" no appsscript.json)
+// pra achar (ou criar, na 1ª vez) a pasta e emprestar um token OAuth
+// válido só pra essa chamada. O token dura ~1h, por isso é buscado de
+// novo a cada "Gerar Relatório" em vez de guardado.
+var DRIVE_PASTA_RELATORIOS_NOME = "Relatórios - Excesso de Permanência";
+
+function getCredenciaisDriveRelatorios() {
+  var pastas = DriveApp.getFoldersByName(DRIVE_PASTA_RELATORIOS_NOME);
+  var pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder(DRIVE_PASTA_RELATORIOS_NOME);
+
+  return {
+    folderId: pasta.getId(),
+    folderName: pasta.getName(),
+    accessToken: ScriptApp.getOAuthToken(),
+  };
+}
+
 // ── 2. Estrutura da aba "PC'S NÃO AUTORIZADO" (índices 0-based) ─
 // Col  0  → Código
 // Col  1  → Cód. Emb.

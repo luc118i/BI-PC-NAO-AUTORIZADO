@@ -2519,14 +2519,36 @@
 
       // Gera o PDF de UMA ocorrência já criada e envia direto pro Drive
       // (modo individual) — em vez de baixar localmente.
+
+      // Pega { folderId, accessToken } do Apps Script (getCredenciaisDriveRelatorios
+      // em BI_PC.js) — acha/cria a pasta e empresta um token OAuth da conta que
+      // fez o deploy deste projeto. Token dura ~1h, então busca de novo a cada
+      // envio em vez de guardar.
+      function _obterCredenciaisDrive() {
+        return new Promise(function (resolve, reject) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(function (err) { reject(new Error((err && err.message) || "Falha ao obter credenciais do Drive")); })
+            .getCredenciaisDriveRelatorios();
+        });
+      }
+
       function _gerarEBaixarPdfOcorrencia(occurrenceId, item, sufixoArquivo) {
         var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado, sufixoArquivo);
-        _setRelStatus("Gerando PDF e enviando ao Drive...", "");
+        _setRelStatus("Conectando ao Drive...", "");
 
-        return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/drive", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: nomeArquivo, force: true }),
+        return _obterCredenciaisDrive().then(function (cred) {
+          _setRelStatus("Gerando PDF e enviando ao Drive...", "");
+          return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/drive", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: nomeArquivo,
+              force: true,
+              accessToken: cred.accessToken,
+              folderId: cred.folderId,
+            }),
+          });
         })
           .then(function (r) {
             if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao enviar PDF ao Drive"); });
@@ -2550,13 +2572,21 @@
       // ids=a,b,c) — usa o 1º item só pra montar o nome do arquivo.
       function _gerarEBaixarPdfGrupo(occurrenceIds, primeiroItem) {
         var nomeArquivo = _nomeArquivoRelatorio(primeiroItem, _relMotoristaSelecionado, primeiroItem.veiculo);
-        _setRelStatus("Gerando PDF do grupo (" + occurrenceIds.length + " pontos) e enviando ao Drive...", "");
+        _setRelStatus("Conectando ao Drive...", "");
         var idsParam = occurrenceIds.join(",");
 
-        return fetch(REPORTS_API_URL + "/reports/occurrences-group/drive?ids=" + encodeURIComponent(idsParam), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: nomeArquivo, force: true }),
+        return _obterCredenciaisDrive().then(function (cred) {
+          _setRelStatus("Gerando PDF do grupo (" + occurrenceIds.length + " pontos) e enviando ao Drive...", "");
+          return fetch(REPORTS_API_URL + "/reports/occurrences-group/drive?ids=" + encodeURIComponent(idsParam), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: nomeArquivo,
+              force: true,
+              accessToken: cred.accessToken,
+              folderId: cred.folderId,
+            }),
+          });
         })
           .then(function (r) {
             if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao enviar PDF do grupo ao Drive"); });
