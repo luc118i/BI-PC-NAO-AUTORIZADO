@@ -2429,26 +2429,6 @@
         });
       }
 
-      // Baixa o PDF via blob + <a download> — mais confiável que
-      // window.open/target=_blank dentro do iframe restrito do Apps Script.
-      function _baixarPdf(url, filename) {
-        return fetch(url)
-          .then(function (r) {
-            if (!r.ok) throw new Error("Falha ao baixar o PDF gerado");
-            return r.blob();
-          })
-          .then(function (blob) {
-            var blobUrl = URL.createObjectURL(blob);
-            var a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 10000);
-          });
-      }
-
       // O botão do rodapé serve pra duas ações: gerar o relatório (1ª vez)
       // e, depois de gerado, fechar o modal + marcar a ocorrência como
       // analisada (2º clique, quando o texto já virou "Concluído").
@@ -2537,24 +2517,25 @@
           });
       }
 
-      // Gera+baixa o PDF de UMA ocorrência já criada (modo individual).
+      // Gera o PDF de UMA ocorrência já criada e envia direto pro Drive
+      // (modo individual) — em vez de baixar localmente.
       function _gerarEBaixarPdfOcorrencia(occurrenceId, item, sufixoArquivo) {
-        _setRelStatus("Gerando PDF...", "");
-        return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/pdf?force=true")
+        var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado, sufixoArquivo);
+        _setRelStatus("Gerando PDF e enviando ao Drive...", "");
+
+        return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/drive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: nomeArquivo, force: true }),
+        })
           .then(function (r) {
-            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF"); });
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao enviar PDF ao Drive"); });
             return r.json();
           })
           .then(function (json) {
-            var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
-            if (!url) throw new Error("PDF gerado, mas sem link de download");
-
-            var nomeArquivo = _nomeArquivoRelatorio(item, _relMotoristaSelecionado, sufixoArquivo);
-            _setRelStatus("Baixando PDF...", "");
-
-            return _baixarPdf(url, nomeArquivo).then(function () {
-              return { url: url, nomeArquivo: nomeArquivo };
-            });
+            var drive = json && json.data && json.data.drive;
+            if (!drive || !drive.webViewLink) throw new Error("PDF enviado, mas sem link do Drive");
+            return { url: drive.webViewLink, nomeArquivo: drive.fileName || nomeArquivo };
           });
       }
 
@@ -2564,27 +2545,27 @@
         });
       }
 
-      // Gera+baixa UM PDF só, cobrindo todas as ocorrências já criadas do
-      // grupo (endpoint novo: /reports/occurrences-group/pdf?ids=a,b,c) —
-      // usa o 1º item só pra montar o nome do arquivo.
+      // Gera UM PDF só cobrindo todas as ocorrências já criadas do grupo e
+      // envia direto pro Drive (endpoint /reports/occurrences-group/drive?
+      // ids=a,b,c) — usa o 1º item só pra montar o nome do arquivo.
       function _gerarEBaixarPdfGrupo(occurrenceIds, primeiroItem) {
-        _setRelStatus("Gerando PDF do grupo (" + occurrenceIds.length + " pontos)...", "");
+        var nomeArquivo = _nomeArquivoRelatorio(primeiroItem, _relMotoristaSelecionado, primeiroItem.veiculo);
+        _setRelStatus("Gerando PDF do grupo (" + occurrenceIds.length + " pontos) e enviando ao Drive...", "");
         var idsParam = occurrenceIds.join(",");
-        return fetch(REPORTS_API_URL + "/reports/occurrences-group/pdf?force=true&ids=" + encodeURIComponent(idsParam))
+
+        return fetch(REPORTS_API_URL + "/reports/occurrences-group/drive?ids=" + encodeURIComponent(idsParam), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: nomeArquivo, force: true }),
+        })
           .then(function (r) {
-            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao gerar PDF do grupo"); });
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao enviar PDF do grupo ao Drive"); });
             return r.json();
           })
           .then(function (json) {
-            var url = json && json.data && json.data.pdf && json.data.pdf.signedUrl;
-            if (!url) throw new Error("PDF gerado, mas sem link de download");
-
-            var nomeArquivo = _nomeArquivoRelatorio(primeiroItem, _relMotoristaSelecionado, primeiroItem.veiculo);
-            _setRelStatus("Baixando PDF...", "");
-
-            return _baixarPdf(url, nomeArquivo).then(function () {
-              return { url: url, nomeArquivo: nomeArquivo };
-            });
+            var drive = json && json.data && json.data.drive;
+            if (!drive || !drive.webViewLink) throw new Error("PDF enviado, mas sem link do Drive");
+            return { url: drive.webViewLink, nomeArquivo: drive.fileName || nomeArquivo };
           });
       }
 
@@ -2603,7 +2584,7 @@
         _criarOcorrenciaEBaixarPdf(item, null)
           .then(function (res) {
             var status = document.getElementById("relStatus");
-            status.innerHTML = _icon("check") + ' Relatório baixado! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir de novo</a>';
+            status.innerHTML = _icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>';
             status.className = "oc-status ok";
             _relGerado = true;
             btn.disabled = false;
@@ -2650,7 +2631,8 @@
             return _gerarEBaixarPdfGrupo(occurrenceIds, itens[0]);
           })
           .then(function (res) {
-            _setRelStatus(_icon("check") + " Relatório gerado e baixado (" + total + " pontos)!", "ok");
+            _setRelStatus(_icon("check") + " Relatório enviado ao Drive (" + total + " pontos)! " +
+              '<a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
             _relGerado = true;
             btn.disabled = false;
             btn.innerHTML = _icon("check") + " Concluído";
