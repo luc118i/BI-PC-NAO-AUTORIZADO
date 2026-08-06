@@ -404,6 +404,7 @@
         </div>
         <div class="header-meta">
           <button class="btn btn-primary" onclick="document.getElementById('tpFileInput').click()">+ Nova análise</button>
+          <button class="btn btn-ghost" onclick="abrirConfigDrive()" title="Escolher a pasta do Drive que recebe os relatórios">⚙ Configurar Drive</button>
           <button class="btn btn-ghost" onclick="voltarDashboard()">← Voltar ao dashboard</button>
         </div>
       </header>
@@ -2484,6 +2485,10 @@
           excedenteMin: Math.round(item.excedenteSeg / 60),
           lat: item.lat != null ? item.lat : null,
           lng: item.lng != null ? item.lng : null,
+          // Ocorrência de Excesso de Permanência não passa por medida
+          // disciplinar (advertência/suspensão) — só fica registrada,
+          // então já cria marcada como "REGISTRO" em vez de sem tratativa.
+          tratativa: "REGISTRO",
         };
 
         return fetch(REPORTS_API_URL + "/occurrences", {
@@ -2531,6 +2536,87 @@
             .withFailureHandler(function (err) { reject(new Error((err && err.message) || "Falha ao obter credenciais do Drive")); })
             .getCredenciaisDriveRelatorios();
         });
+      }
+
+      // ── Configurar Drive (navbar) ───────────────────────────────
+      // Modal dedicado, independente do fluxo de "Gerar Relatório", só
+      // pra ver/trocar a pasta do Drive que recebe os PDFs.
+      function abrirConfigDrive() {
+        document.getElementById("cfgDriveModal").classList.remove("hidden");
+        _atualizarPastaDriveNaConfig();
+      }
+
+      function fecharConfigDrive() {
+        document.getElementById("cfgDriveModal").classList.add("hidden");
+      }
+
+      function _atualizarPastaDriveNaConfig() {
+        var el = document.getElementById("cfgPastaDriveNome");
+        var link = document.getElementById("cfgPastaDriveLink");
+        el.textContent = "carregando...";
+        link.classList.add("hidden");
+        _obterCredenciaisDrive()
+          .then(function (cred) {
+            el.textContent = cred.folderName;
+            link.href = "https://drive.google.com/drive/folders/" + cred.folderId;
+            link.classList.remove("hidden");
+          })
+          .catch(function (err) {
+            el.textContent = "(erro ao consultar: " + ((err && err.message) || err) + ")";
+          });
+      }
+
+      // O Google Picker foi tentado aqui e descartado: a lib dele valida a
+      // origem do iframe pai contra "script.google.com" fixo, mas o Apps
+      // Script serve o web app num subdomínio dinâmico de
+      // *.googleusercontent.com (sandbox do HtmlService) — dá
+      // "Incorrect origin value" e trava sem abrir. Não é algo que dá pra
+      // contornar no nosso código, então a troca de pasta é por link/ID
+      // colado mesmo (mais simples e sem depender de iframe cross-origin).
+
+      // Extrai o folder ID de um link do Drive colado (aceita o link
+      // completo — .../folders/<ID>[?...] — ou o ID puro já sem link).
+      function _extrairFolderIdDeLink(texto) {
+        texto = (texto || "").trim();
+        if (!texto) return null;
+        var m = texto.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+        if (m) return m[1];
+        m = texto.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (m) return m[1];
+        if (/^[a-zA-Z0-9_-]{10,}$/.test(texto)) return texto; // já é o ID puro
+        return null;
+      }
+
+      // Salva a pasta colada no campo do modal "Configurar Drive". A
+      // escolha é salva no backend (Apps Script → PropertiesService, ver
+      // definirPastaDriveRelatorios em BI_PC.js) e passa a valer pra todo
+      // relatório gerado daqui em diante — pra todo mundo que usar o BI.
+      function _salvarPastaDriveColada() {
+        var input = document.getElementById("cfgPastaDriveInput");
+        var status = document.getElementById("cfgDriveStatus");
+        var folderId = _extrairFolderIdDeLink(input.value);
+
+        if (!folderId) {
+          status.textContent = "Não consegui identificar a pasta nesse link/ID. Confira e tente de novo.";
+          status.className = "oc-status err";
+          return;
+        }
+
+        status.textContent = "Salvando...";
+        status.className = "oc-status";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            input.value = "";
+            _atualizarPastaDriveNaConfig();
+            status.textContent = "✓ Pasta atualizada: " + res.folderName;
+            status.className = "oc-status ok";
+          })
+          .withFailureHandler(function (err) {
+            status.textContent = "Erro ao salvar: " + ((err && err.message) || err) + " — confira se essa pasta existe e o script tem acesso a ela.";
+            status.className = "oc-status err";
+          })
+          .definirPastaDriveRelatorios(folderId, null);
       }
 
       function _gerarEBaixarPdfOcorrencia(occurrenceId, item, sufixoArquivo) {
@@ -2758,6 +2844,42 @@
           <span class="oc-status" id="relStatus"></span>
           <button class="btn btn-ghost" onclick="fecharModalRelatorio()">Cancelar</button>
           <button class="btn btn-primary" id="relBtnGerar" onclick="_onClickBtnGerar()">Gerar relatório</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── MODAL CONFIGURAR DRIVE (navbar) ─────────────────────── -->
+    <div class="oc-overlay hidden" id="cfgDriveModal" onclick="if(event.target===this)fecharConfigDrive()">
+      <div class="oc-panel" style="max-width:440px">
+
+        <div class="oc-header">
+          <h3>⚙ Configurar Drive</h3>
+          <button class="oc-close" onclick="fecharConfigDrive()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+          <div class="oc-field">
+            <label>Pasta atual dos relatórios</label>
+            <strong id="cfgPastaDriveNome" style="display:block;font-size:14px;margin-top:2px">—</strong>
+            <a id="cfgPastaDriveLink" href="#" target="_blank" rel="noopener" class="hidden" style="font-size:12px;color:var(--laranja)">Abrir pasta no Drive</a>
+          </div>
+          <p style="font-size:12px;color:var(--texto3);margin:0">
+            Todo relatório gerado em "Gerar Relatório" é enviado pra essa pasta. Vale pra todo mundo que usar o BI a partir de agora.
+          </p>
+          <div class="oc-field">
+            <label>Trocar pasta</label>
+            <input type="text" id="cfgPastaDriveInput" placeholder="Cole o link da pasta do Drive (ou o ID dela)" autocomplete="off" onkeydown="if(event.key==='Enter')_salvarPastaDriveColada()" />
+            <div style="font-size:11px;color:var(--texto3);margin-top:4px">
+              Abra a pasta desejada no <a href="https://drive.google.com" target="_blank" rel="noopener" style="color:var(--laranja)">Google Drive</a>, copie o link da barra de endereço e cole aqui.
+            </div>
+          </div>
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="cfgDriveStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharConfigDrive()">Fechar</button>
+          <button class="btn btn-primary" onclick="_salvarPastaDriveColada()">Salvar pasta</button>
         </div>
 
       </div>

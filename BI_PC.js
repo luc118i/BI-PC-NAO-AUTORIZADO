@@ -45,16 +45,48 @@ function getWebAppUrl() {
 // válido só pra essa chamada. O token dura ~1h, por isso é buscado de
 // novo a cada "Gerar Relatório" em vez de guardado.
 var DRIVE_PASTA_RELATORIOS_NOME = "Relatórios - Excesso de Permanência";
+var PROP_PASTA_DRIVE_RELATORIOS_ID = "PASTA_DRIVE_RELATORIOS_ID";
 
 function getCredenciaisDriveRelatorios() {
-  var pastas = DriveApp.getFoldersByName(DRIVE_PASTA_RELATORIOS_NOME);
-  var pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder(DRIVE_PASTA_RELATORIOS_NOME);
+  var props = PropertiesService.getScriptProperties();
+  var pastaSalvaId = props.getProperty(PROP_PASTA_DRIVE_RELATORIOS_ID);
+  var pasta = null;
+
+  if (pastaSalvaId) {
+    try {
+      pasta = DriveApp.getFolderById(pastaSalvaId);
+    } catch (e) {
+      // Pasta escolhida manualmente foi excluída ou o script perdeu acesso
+      // a ela — cai pro fallback por nome abaixo em vez de quebrar.
+      pasta = null;
+    }
+  }
+
+  if (!pasta) {
+    var pastas = DriveApp.getFoldersByName(DRIVE_PASTA_RELATORIOS_NOME);
+    pasta = pastas.hasNext() ? pastas.next() : DriveApp.createFolder(DRIVE_PASTA_RELATORIOS_NOME);
+  }
 
   return {
     folderId: pasta.getId(),
     folderName: pasta.getName(),
     accessToken: ScriptApp.getOAuthToken(),
   };
+}
+
+// Chamada pelo modal "Configurar Drive" em tempo_permanencia.html quando o
+// usuário cola o link (ou ID) da pasta de destino no Drive — o Google
+// Picker foi tentado e descartado, ver comentário em
+// tempo_permanencia.html perto de _extrairFolderIdDeLink. Fica salva em
+// ScriptProperties (vale pra todo mundo que gerar relatório a partir
+// daqui, até alguém trocar de novo).
+function definirPastaDriveRelatorios(folderId, folderName) {
+  if (!folderId) throw new Error("folderId obrigatório");
+  // Confirma que a pasta existe e o script realmente tem acesso a ela
+  // antes de salvar — evita guardar um ID inválido.
+  var pasta = DriveApp.getFolderById(folderId);
+  PropertiesService.getScriptProperties().setProperty(PROP_PASTA_DRIVE_RELATORIOS_ID, folderId);
+  return { folderId: pasta.getId(), folderName: pasta.getName() };
 }
 
 // ── 2. Estrutura da aba "PC'S NÃO AUTORIZADO" (índices 0-based) ─

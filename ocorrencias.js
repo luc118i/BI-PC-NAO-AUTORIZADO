@@ -271,6 +271,40 @@ function addPontosParadaIrregular(rows) {
 }
 
 /** ==============================
+ *  REMOVER PONTO DE PARADA IRREGULAR
+ *  ============================== */
+function removerPontoParadaIrregular(codigo) {
+  const cod = _normCodigoPonto_(codigo);
+  if (!cod) throw new Error("Código não informado.");
+
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(OCORRENCIA_CFG.LOCAIS_SHEET);
+  if (!sh)
+    throw new Error(`Aba "${OCORRENCIA_CFG.LOCAIS_SHEET}" não encontrada.`);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow <= OCORRENCIA_CFG.HEADER_ROWS)
+    throw new Error("Local não encontrado.");
+
+  const codigos = sh
+    .getRange(OCORRENCIA_CFG.HEADER_ROWS + 1, 1, lastRow - OCORRENCIA_CFG.HEADER_ROWS, 1)
+    .getValues();
+
+  // Remove de baixo para cima para não bagunçar os índices caso haja duplicatas.
+  let removidos = 0;
+  for (let i = codigos.length - 1; i >= 0; i--) {
+    if (_normCodigoPonto_(codigos[i][0]) === cod) {
+      sh.deleteRow(OCORRENCIA_CFG.HEADER_ROWS + 1 + i);
+      removidos++;
+    }
+  }
+
+  if (!removidos) throw new Error("Local não encontrado na base.");
+
+  return { ok: true, removed: removidos };
+}
+
+/** ==============================
  *  WEB APP — recebe POST externo
  *  ============================== */
 function doPost(e) {

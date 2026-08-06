@@ -477,7 +477,7 @@
         <div class="btn-group">
           <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
-          <button class="btn btn-ghost" onclick="abrirModalNovoPonto()">+ Novo Ponto de Parada Irregular</button>
+          <button class="btn btn-ghost" onclick="abrirModalGerenciarLocais()">📍 Locais de Parada Irregular</button>
           <button class="btn btn-ghost" onclick="abrirTempoPermanencia()">⏱ Tempo de Permanência</button>
         </div>
       </div>
@@ -1703,16 +1703,6 @@
       // ─────────────────────────────────────────────────────────
       var _pontoLista = [];
 
-      function abrirModalNovoPonto() {
-        _pontoVoltarUpload();
-        document.getElementById("pontoModal").classList.remove("hidden");
-      }
-
-      function fecharModalNovoPonto() {
-        document.getElementById("pontoModal").classList.add("hidden");
-        _pontoVoltarUpload();
-      }
-
       function _pontoVoltarUpload() {
         _pontoLista = [];
         document.getElementById("pontoFileInput").value = "";
@@ -1946,6 +1936,97 @@
         document.getElementById("pontoDoneStatus").innerHTML = html;
 
         if (typeof aplicarFiltros === "function") aplicarFiltros();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Gerenciar Locais — remover ponto de parada irregular
+      // ─────────────────────────────────────────────────────────
+      function abrirModalGerenciarLocais() {
+        document.getElementById("locaisBusca").value = "";
+        document.getElementById("locaisStatus").textContent = "";
+        document.getElementById("locaisStatus").className = "det-status";
+        document.getElementById("locaisFooterStatus").textContent = "";
+        document.getElementById("locaisFooterStatus").className = "oc-status";
+        _renderListaLocais();
+        document.getElementById("locaisModal").classList.remove("hidden");
+        _locaisSetTab("lista");
+      }
+
+      function fecharModalGerenciarLocais() {
+        document.getElementById("locaisModal").classList.add("hidden");
+        _pontoVoltarUpload();
+      }
+
+      function _locaisSetTab(tab) {
+        var ehLista = tab === "lista";
+
+        document.getElementById("locaisTabLista").classList.toggle("hidden", !ehLista);
+        document.getElementById("locaisTabAdd").classList.toggle("hidden", ehLista);
+        document.getElementById("locaisTabBtnLista").classList.toggle("btn-primary", ehLista);
+        document.getElementById("locaisTabBtnLista").classList.toggle("btn-ghost", !ehLista);
+        document.getElementById("locaisTabBtnAdd").classList.toggle("btn-primary", !ehLista);
+        document.getElementById("locaisTabBtnAdd").classList.toggle("btn-ghost", ehLista);
+
+        // Footer: aba "lista" mostra só o botão Fechar; aba "add" mostra o fluxo de importação.
+        document.getElementById("locaisFooterStatus").classList.toggle("hidden", !ehLista);
+        document.getElementById("locaisBtnFechar").classList.toggle("hidden", !ehLista);
+        document.getElementById("pontoStatus").classList.toggle("hidden", ehLista);
+
+        if (ehLista) {
+          ["pontoBtnCancelar", "pontoBtnVoltar", "pontoBtnConfirmar", "pontoBtnFechar"].forEach(function (id) {
+            document.getElementById(id).classList.add("hidden");
+          });
+          _renderListaLocais();
+        } else {
+          _pontoVoltarUpload();
+        }
+      }
+
+      function _renderListaLocais() {
+        var termo = _normDet(document.getElementById("locaisBusca").value || "");
+        var lista = todosPCs.filter(function (pc) {
+          if (!termo) return true;
+          var alvo = _normDet([pc.codigo, pc.descResumida, pc.descCompleta, pc.regiao, pc.uf].filter(Boolean).join(" "));
+          return alvo.includes(termo);
+        });
+
+        var tbody = document.getElementById("locaisTableBody");
+        if (!lista.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--texto3)">Nenhum local encontrado.</td></tr>';
+        } else {
+          tbody.innerHTML = lista.map(function (pc) {
+            return '<tr data-codigo="' + pc.codigo.replace(/"/g, "&quot;") + '">' +
+              '<td>' + pc.codigo + '</td>' +
+              '<td style="white-space:normal">' + (pc.descCompleta || pc.descResumida || "—") + '</td>' +
+              '<td>' + (pc.tipo || "—") + '</td>' +
+              '<td>' + [pc.regiao, pc.uf].filter(Boolean).join(" · ") + '</td>' +
+              '<td><button class="btn btn-ghost" style="color:var(--vermelho);border-color:var(--vermelho);padding:4px 10px;font-size:11px" onclick="_removerLocal(\'' + pc.codigo.replace(/'/g, "\\'") + '\')">✕ Remover</button></td>' +
+              '</tr>';
+          }).join("");
+        }
+
+        document.getElementById("locaisFooterStatus").textContent = lista.length + " local" + (lista.length !== 1 ? "is" : "") + " listado" + (lista.length !== 1 ? "s" : "");
+      }
+
+      function _removerLocal(codigo) {
+        var pc = todosPCs.find(function (p) { return p.codigo === codigo; });
+        var nome = pc ? (pc.descResumida || pc.descCompleta || codigo) : codigo;
+        if (!window.confirm('Remover o local "' + nome + '" (código ' + codigo + ')? Essa ação não pode ser desfeita.')) return;
+
+        var statusEl = document.getElementById("locaisStatus");
+        statusEl.innerHTML = '<span class="det-spinner"></span> Removendo...';
+
+        google.script.run
+          .withSuccessHandler(function () {
+            todosPCs = todosPCs.filter(function (p) { return p.codigo !== codigo; });
+            statusEl.innerHTML = '<span style="color:var(--verde)">✓ Local removido.</span>';
+            _renderListaLocais();
+            if (typeof aplicarFiltros === "function") aplicarFiltros();
+          })
+          .withFailureHandler(function (err) {
+            statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao remover: ' + (err && err.message ? err.message : err) + '</span>';
+          })
+          .removerPontoParadaIrregular(codigo);
       }
 
       // ── MODAL OCORRÊNCIA ─────────────────────────────────────
@@ -2200,16 +2281,46 @@
       </div>
     </div><!-- /ocModal -->
 
-    <!-- ── MODAL NOVO PONTO DE PARADA IRREGULAR ────────────────── -->
-    <div class="oc-overlay hidden" id="pontoModal" onclick="if(event.target===this)fecharModalNovoPonto()">
+    <!-- ── MODAL GERENCIAR LOCAIS DE PARADA IRREGULAR ──────────── -->
+    <div class="oc-overlay hidden" id="locaisModal" onclick="if(event.target===this)fecharModalGerenciarLocais()">
       <div class="oc-panel" style="max-width:920px">
 
         <div class="oc-header">
-          <h3>📍 Novo Ponto de Parada Irregular</h3>
-          <button class="oc-close" onclick="fecharModalNovoPonto()" title="Fechar">✕</button>
+          <h3>📍 Locais de Parada Irregular</h3>
+          <button class="oc-close" onclick="fecharModalGerenciarLocais()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-tabs" style="display:flex;gap:6px;padding:0 24px;margin-top:-4px">
+          <button class="btn btn-ghost" id="locaisTabBtnLista" onclick="_locaisSetTab('lista')">📋 Locais cadastrados</button>
+          <button class="btn btn-ghost" id="locaisTabBtnAdd" onclick="_locaisSetTab('add')">+ Adicionar via CSV</button>
         </div>
 
         <div class="oc-body">
+
+          <!-- Aba: Locais cadastrados (busca + remoção) -->
+          <div id="locaisTabLista">
+            <div class="table-filters" style="margin-bottom:12px">
+              <input type="text" id="locaisBusca" placeholder="Buscar por código, descrição, região ou UF..." oninput="_renderListaLocais()" />
+            </div>
+            <div class="det-status" id="locaisStatus"></div>
+            <div class="hist-table-wrap">
+              <table class="hist-table" id="locaisTable">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Tipo</th>
+                    <th>Região / UF</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="locaisTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Aba: Adicionar via CSV -->
+          <div id="locaisTabAdd" class="hidden">
 
           <!-- Passo 1: Upload -->
           <div id="pontoStepUpload">
@@ -2255,18 +2366,22 @@
             <div class="det-status" id="pontoDoneStatus"></div>
           </div>
 
+          </div><!-- /locaisTabAdd -->
+
         </div><!-- /oc-body -->
 
         <div class="oc-footer">
+          <span class="oc-status" id="locaisFooterStatus"></span>
           <span class="oc-status" id="pontoStatus"></span>
-          <button class="btn btn-ghost" id="pontoBtnCancelar" onclick="fecharModalNovoPonto()">Cancelar</button>
+          <button class="btn btn-ghost" id="locaisBtnFechar" onclick="fecharModalGerenciarLocais()">Fechar</button>
+          <button class="btn btn-ghost hidden" id="pontoBtnCancelar" onclick="fecharModalGerenciarLocais()">Cancelar</button>
           <button class="btn btn-ghost hidden" id="pontoBtnVoltar" onclick="_pontoVoltarUpload()">← Trocar arquivo</button>
           <button class="btn btn-primary hidden" id="pontoBtnConfirmar" onclick="confirmarImportacaoPontos()">✓ Confirmar importação</button>
-          <button class="btn btn-primary hidden" id="pontoBtnFechar" onclick="fecharModalNovoPonto()">Concluir</button>
+          <button class="btn btn-primary hidden" id="pontoBtnFechar" onclick="_locaisSetTab('lista')">Concluir</button>
         </div>
 
       </div>
-    </div><!-- /pontoModal -->
+    </div><!-- /locaisModal -->
 
   </body>
 </html>
