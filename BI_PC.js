@@ -176,6 +176,18 @@ function getPontosControle() {
       lng: _numOuNull(r[25]),
     }));
 
+  // DEBUG temporário — remover depois de confirmar o vínculo por nome.
+  // Ver em Execuções (ícone de relógio) o total lido, quantos têm
+  // lat/lng válido e uma amostra dos nomes (pra comparar com o "ponto"
+  // que vem do CSV de rastreamento).
+  const comLatLng = pontos.filter((p) => p.lat != null && p.lng != null).length;
+  Logger.log(
+    "[getPontosControle] linhas lidas=%s | com lat/lng=%s | amostra=%s",
+    pontos.length,
+    comLatLng,
+    JSON.stringify(pontos.slice(0, 5)),
+  );
+
   return JSON.stringify(pontos);
 }
 
