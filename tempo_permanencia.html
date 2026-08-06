@@ -1162,7 +1162,12 @@
           cont[k].count++;
         });
 
-        var pontos = Object.values(cont);
+        // O mapa é pra destacar onde o carro mais fica retido, não listar
+        // todo ponto com pelo menos 1 ocorrência — mesmo critério (nº de
+        // ocorrências) e mesmo limite do gráfico "Top pontos" ao lado.
+        var pontos = Object.values(cont)
+          .sort(function (a, b) { return b.count - a.count; })
+          .slice(0, 10);
 
         if (pontos.length) {
           pontos.forEach(function (p) {
