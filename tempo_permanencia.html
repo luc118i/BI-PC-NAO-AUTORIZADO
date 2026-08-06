@@ -1144,6 +1144,10 @@
       var _dashMapMarkers = [];
 
       function _renderDashMapa(lista) {
+        // DEBUG temporário — remover depois de confirmado o vínculo lat/lng.
+        console.log("[mapa] lista.length =", lista.length,
+          "| com lat/lng =", lista.filter(function (r) { return r.lat != null && r.lng != null; }).length,
+          "| amostra =", lista.slice(0, 3).map(function (r) { return { ponto: r.ponto, lat: r.lat, lng: r.lng }; }));
         if (!window.L) return;
         if (!_dashMap) {
           _dashMap = L.map("dashMapa", { scrollWheelZoom: false }).setView([-15.78, -47.93], 4);
