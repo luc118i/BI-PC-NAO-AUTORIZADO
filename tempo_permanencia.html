@@ -653,25 +653,38 @@
       function _initGuiaSessao() {
         var guia = document.getElementById('sessionGuide');
         if (!guia) return;
-        var links = Array.prototype.slice.call(guia.querySelectorAll('a[data-secao]'));
 
-        links.forEach(function (a) {
-          a.addEventListener('click', function (evt) { _irParaSecao(a.getAttribute('data-secao'), evt); });
+        var secoes = Array.prototype.slice.call(guia.querySelectorAll('a[data-secao]'))
+          .map(function (a) {
+            return { id: a.getAttribute('data-secao'), link: a, el: document.getElementById(a.getAttribute('data-secao')) };
+          })
+          .filter(function (s) { return !!s.el; });
+
+        secoes.forEach(function (s) {
+          s.link.addEventListener('click', function (evt) { _irParaSecao(s.id, evt); });
         });
 
-        var headerH = document.getElementById('stickyNav').offsetHeight;
-        var observer = new IntersectionObserver(function (entries) {
-          entries.forEach(function (entry) {
-            var link = guia.querySelector('a[data-secao="' + entry.target.id + '"]');
-            if (!link) return;
-            link.classList.toggle('ativo', entry.isIntersecting);
+        // Marca ativa a seção mais próxima do topo já ultrapassada — só 1
+        // por vez (ao contrário de IntersectionObserver por seção, que
+        // deixava 2-3 acesas juntas quando as seções são curtas/próximas).
+        var ticking = false;
+        function atualizarAtiva() {
+          ticking = false;
+          var cursor = document.getElementById('stickyNav').offsetHeight + 24;
+          var atual = secoes[0];
+          secoes.forEach(function (s) {
+            if (s.el.getBoundingClientRect().top <= cursor) atual = s;
           });
-        }, { rootMargin: '-' + (headerH + 12) + 'px 0px -70% 0px', threshold: 0 });
+          secoes.forEach(function (s) { s.link.classList.toggle('ativo', s === atual); });
+        }
 
-        links.forEach(function (a) {
-          var el = document.getElementById(a.getAttribute('data-secao'));
-          if (el) observer.observe(el);
-        });
+        window.addEventListener('scroll', function () {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(atualizarAtiva);
+        }, { passive: true });
+
+        atualizarAtiva();
       }
 
       function voltarDashboard() {
