@@ -99,6 +99,39 @@
       #stickyNav .header { background: transparent; }
       .header-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+      /* ── GUIA DE SESSÃO (sumário fixo à esquerda) ─────────── */
+      /* Só aparece em telas largas o bastante pra caber sem sobrepor o
+         conteúdo central (.main tem max-width:1200px e fica centralizado —
+         em telas menores que ~1560px não sobra espaço lateral limpo). */
+      .session-guide {
+        position: fixed;
+        top: 96px;
+        left: 18px;
+        width: 172px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        z-index: 900;
+      }
+      @media (max-width: 1560px) { .session-guide { display: none; } }
+      .session-guide-title {
+        font-size: 10px; font-weight: 700; color: var(--texto3);
+        text-transform: uppercase; letter-spacing: 0.09em;
+        padding: 0 10px 8px;
+      }
+      .session-guide a {
+        display: flex; align-items: center; gap: 8px;
+        padding: 7px 10px; border-radius: var(--radius-sm);
+        font-size: 12.5px; color: var(--texto2); text-decoration: none;
+        border-left: 2px solid transparent;
+        transition: all 0.15s;
+      }
+      .session-guide a:hover { color: var(--texto); background: var(--preto3); }
+      .session-guide a.ativo { color: var(--laranja); background: var(--laranja4); border-left-color: var(--laranja); font-weight: 600; }
+      .session-guide a .sg-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cinza2); flex-shrink: 0; }
+      .session-guide a.ativo .sg-dot { background: var(--laranja); }
+      .session-guide-sep { height: 1px; background: var(--borda); margin: 8px 10px; }
+
       /* ── KPIs ────────────────────────────────────────────── */
       .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
       @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
@@ -410,10 +443,27 @@
       </header>
     </div>
 
+    <!-- Sumário fixo com os links das seções da página (só em telas largas
+         — ver media query em .session-guide). Rolagem suave com offset pro
+         header sticky, e o item da seção visível fica marcado (scroll spy),
+         ver _initGuiaSessao() no fim do <body>. -->
+    <nav class="session-guide" id="sessionGuide" aria-label="Navegação da página">
+      <div class="session-guide-title">Nesta página</div>
+      <a href="#secDashboard" data-secao="secDashboard"><span class="sg-dot"></span>Dashboard</a>
+      <a href="#dashGraficos" data-secao="dashGraficos"><span class="sg-dot"></span>Gráficos</a>
+      <a href="#dashCardPontos" data-secao="dashCardPontos"><span class="sg-dot"></span>Top pontos</a>
+      <a href="#dashGraficos2" data-secao="dashGraficos2"><span class="sg-dot"></span>Rankings</a>
+      <a href="#dashCardMapa" data-secao="dashCardMapa"><span class="sg-dot"></span>Mapa</a>
+      <a href="#dashCardCalendario" data-secao="dashCardCalendario"><span class="sg-dot"></span>Calendário</a>
+      <div class="session-guide-sep"></div>
+      <a href="#secNovaAnalise" data-secao="secNovaAnalise"><span class="sg-dot"></span>Nova análise</a>
+      <a href="#tpResultCard" data-secao="tpResultCard"><span class="sg-dot"></span>Resultado</a>
+    </nav>
+
     <div class="main">
 
       <!-- Dashboard histórico — alimentado pela aba HISTORICO_EXCESSO -->
-      <div class="dash-header">
+      <div class="dash-header" id="secDashboard">
         <h2>Dashboard de excedências</h2>
         <div class="dash-periodo">
           <label for="dashDataIni">De</label>
@@ -490,7 +540,7 @@
         <div id="dashCalendario"></div>
       </div>
 
-      <div class="dash-header" style="margin-top:28px;border-top:1px solid var(--borda);padding-top:20px">
+      <div class="dash-header" id="secNovaAnalise" style="margin-top:28px;border-top:1px solid var(--borda);padding-top:20px">
         <h2 style="font-size:14px;color:var(--texto2)">Nova análise (CSV pontual)</h2>
       </div>
 
@@ -580,11 +630,49 @@
         document.getElementById("dashDataIni").value = iso(ha30);
         document.getElementById("dashDataFim").value = iso(hoje);
         _carregarHistoricoExcesso();
+        _initGuiaSessao();
       };
 
       window.addEventListener('scroll', function () {
         document.getElementById('stickyNav').classList.toggle('scrolled', window.scrollY > 10);
       }, { passive: true });
+
+      // ── Guia de sessão (sumário fixo à esquerda) ─────────────────
+      // Clique nos links rola suave com offset pro header sticky (o anchor
+      // nativo do navegador cobriria o topo da seção com o header fixo); o
+      // scroll spy (IntersectionObserver) marca o item da seção visível.
+      function _irParaSecao(id, evt) {
+        if (evt) evt.preventDefault();
+        var el = document.getElementById(id);
+        if (!el) return;
+        var headerH = document.getElementById('stickyNav').offsetHeight;
+        var y = el.getBoundingClientRect().top + window.scrollY - headerH - 12;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+
+      function _initGuiaSessao() {
+        var guia = document.getElementById('sessionGuide');
+        if (!guia) return;
+        var links = Array.prototype.slice.call(guia.querySelectorAll('a[data-secao]'));
+
+        links.forEach(function (a) {
+          a.addEventListener('click', function (evt) { _irParaSecao(a.getAttribute('data-secao'), evt); });
+        });
+
+        var headerH = document.getElementById('stickyNav').offsetHeight;
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            var link = guia.querySelector('a[data-secao="' + entry.target.id + '"]');
+            if (!link) return;
+            link.classList.toggle('ativo', entry.isIntersecting);
+          });
+        }, { rootMargin: '-' + (headerH + 12) + 'px 0px -70% 0px', threshold: 0 });
+
+        links.forEach(function (a) {
+          var el = document.getElementById(a.getAttribute('data-secao'));
+          if (el) observer.observe(el);
+        });
+      }
 
       function voltarDashboard() {
         if (webAppBaseUrl) window.location.href = webAppBaseUrl;
@@ -1132,6 +1220,9 @@
       function processarArquivoTP(file) {
         var statusEl = document.getElementById("tpStatus");
         statusEl.innerHTML = '<span class="det-spinner"></span> Analisando <strong>' + file.name + '</strong>...';
+        // A seção "Nova análise" fica bem abaixo do dashboard — sem rolar até
+        // lá, o upload parece não ter feito nada (nenhum feedback visível).
+        statusEl.scrollIntoView({ behavior: "smooth", block: "center" });
         document.getElementById("tpKpis").classList.add("hidden");
         document.getElementById("tpResultCard").classList.add("hidden");
 
@@ -1251,6 +1342,7 @@
           statusEl.innerHTML = '<span style="color:var(--verde)">' + _icon("check") + '</span> Nenhuma permanência excedeu o tempo máximo permitido.';
           document.getElementById("tpKpis").classList.add("hidden");
           document.getElementById("tpResultCard").classList.add("hidden");
+          statusEl.scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
 
@@ -1263,7 +1355,11 @@
           Array.from(regioes).sort().map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
 
         document.getElementById("tpKpis").classList.remove("hidden");
-        document.getElementById("tpResultCard").classList.remove("hidden");
+        var resultCard = document.getElementById("tpResultCard");
+        resultCard.classList.remove("hidden");
+        // Garante que a tabela de excedências (não só o status lá em cima)
+        // fique visível — é o que o usuário realmente veio ver.
+        setTimeout(function () { resultCard.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
         document.getElementById("tpBusca").value = "";
         regiaoSel.value = "";
         document.getElementById("tpExcedenteMin").value = 10;
