@@ -673,7 +673,12 @@
           var cursor = document.getElementById('stickyNav').offsetHeight + 24;
           var atual = secoes[0];
           secoes.forEach(function (s) {
-            if (s.el.getBoundingClientRect().top <= cursor) atual = s;
+            var rect = s.el.getBoundingClientRect();
+            // Seção escondida (ex.: "Resultado" antes de carregar um CSV)
+            // vem com display:none -> rect toda zerada, e top:0 sempre
+            // passaria no teste abaixo. Ignora essas.
+            if (rect.width === 0 && rect.height === 0) return;
+            if (rect.top <= cursor) atual = s;
           });
           secoes.forEach(function (s) { s.link.classList.toggle('ativo', s === atual); });
         }
