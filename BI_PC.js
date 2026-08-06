@@ -148,6 +148,37 @@ function getPCs() {
   return JSON.stringify(pcs);
 }
 
+// ── 4b. getPontosControle() ──────────────────────────────────
+// Base de referência usada só pelo Tempo de Permanência (excesso de
+// parada) pra vincular o nome do ponto (do CSV de rastreamento) à
+// lat/long e calcular a região no mapa/gráficos. Aba diferente de
+// getPCs() (que é a "PC'S NÃO AUTORIZADO", usada por index.html e
+// apresentacao.html) — não mexer em getPCs() pra não afetar as outras
+// telas.
+// Col D (índice 3)  → nome/descrição do ponto (usado pro match)
+// Col Y (índice 24) → Latitude
+// Col Z (índice 25) → Longitude
+function getPontosControle() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("PONTOS_CONTROLE");
+  if (!aba) throw new Error('Aba "PONTOS_CONTROLE" não encontrada.');
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, 26).getValues();
+
+  const pontos = data
+    .filter((r) => String(r[3] || "").trim() !== "")
+    .map((r) => ({
+      descCompleta: String(r[3] || "").trim(),
+      lat: _numOuNull(r[24]),
+      lng: _numOuNull(r[25]),
+    }));
+
+  return JSON.stringify(pontos);
+}
+
 // ── 5. getDadosBI(dataIni, dataFim) ──────────────────────────
 function getDadosBI(dataIni, dataFim) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();

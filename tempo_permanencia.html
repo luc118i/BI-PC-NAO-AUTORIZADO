@@ -698,10 +698,12 @@
       }
 
       // ─────────────────────────────────────────────────────────
-      //  Região — determinada a partir da lat/long da base de PCs
-      //  (getPCs() já traz lat/long + região curada por coordenada;
-      //   quando o ponto não bate com nenhum PC cadastrado, cai para
-      //   o mapeamento UF → macrorregião, usando a UF da referência)
+      //  Região — determinada a partir da lat/long da aba PONTOS_CONTROLE
+      //  (getPontosControle() traz nome+lat/long pra vincular pelo nome
+      //   do ponto; quando não bate com nenhum ponto cadastrado, cai para
+      //   o mapeamento UF → macrorregião, usando a UF da referência).
+      //  Atenção: NÃO é a mesma base de getPCs() ("PC'S NÃO AUTORIZADO"),
+      //  que é usada por index.html/apresentacao.html — ver BI_PC.js.
       // ─────────────────────────────────────────────────────────
       var _pcsCache = null;
 
@@ -718,7 +720,7 @@
             if (cb) cb();
           })
           .withFailureHandler(function () { _pcsCache = []; if (cb) cb(); })
-          .getPCs();
+          .getPontosControle();
       }
 
       // ─────────────────────────────────────────────────────────
@@ -1158,22 +1160,27 @@
         });
 
         var pontos = Object.values(cont);
-        if (!pontos.length) return;
 
-        pontos.forEach(function (p) {
-          var raio = 6 + Math.min(14, p.count * 2);
-          var marker = L.circleMarker([p.lat, p.lng], {
-            radius: raio, color: "#f47920", fillColor: "#f47920", fillOpacity: 0.6, weight: 2,
-          }).bindPopup(
-            "<strong>" + p.ponto + "</strong><br>" + p.count + " ocorrência" + (p.count !== 1 ? "s" : ""),
-          );
-          marker.addTo(_dashMap);
-          _dashMapMarkers.push(marker);
-        });
+        if (pontos.length) {
+          pontos.forEach(function (p) {
+            var raio = 6 + Math.min(14, p.count * 2);
+            var marker = L.circleMarker([p.lat, p.lng], {
+              radius: raio, color: "#f47920", fillColor: "#f47920", fillOpacity: 0.6, weight: 2,
+            }).bindPopup(
+              "<strong>" + p.ponto + "</strong><br>" + p.count + " ocorrência" + (p.count !== 1 ? "s" : ""),
+            );
+            marker.addTo(_dashMap);
+            _dashMapMarkers.push(marker);
+          });
 
-        var bounds = L.latLngBounds(pontos.map(function (p) { return [p.lat, p.lng]; }));
-        _dashMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+          var bounds = L.latLngBounds(pontos.map(function (p) { return [p.lat, p.lng]; }));
+          _dashMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
+        }
 
+        // Sempre reajusta o tamanho, mesmo sem nenhum ponto com lat/lng —
+        // sem isso o mapa podia ficar preso cinza/mal renderizado (o
+        // container só é revelado/redimensionado depois que o Leaflet já
+        // tinha calculado as tiles com base num tamanho desatualizado).
         setTimeout(function () { if (_dashMap) _dashMap.invalidateSize(); }, 100);
       }
 
