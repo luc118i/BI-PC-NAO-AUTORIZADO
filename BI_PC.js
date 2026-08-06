@@ -141,8 +141,8 @@ function getPCs() {
       uf: String(r[4] || "").trim(),
       regiao: String(r[5] || "").trim(),
       tipo: String(r[7] || "").trim(),
-      lat: _numOuNull(r[30]),
-      lng: _numOuNull(r[31]),
+      lat: _coordOuNull(r[30], 90),
+      lng: _coordOuNull(r[31], 180),
     }));
 
   return JSON.stringify(pcs);
@@ -172,21 +172,9 @@ function getPontosControle() {
     .filter((r) => String(r[3] || "").trim() !== "")
     .map((r) => ({
       descCompleta: String(r[3] || "").trim(),
-      lat: _numOuNull(r[24]),
-      lng: _numOuNull(r[25]),
+      lat: _coordOuNull(r[24], 90),
+      lng: _coordOuNull(r[25], 180),
     }));
-
-  // DEBUG temporário — remover depois de confirmar o vínculo por nome.
-  // Ver em Execuções (ícone de relógio) o total lido, quantos têm
-  // lat/lng válido e uma amostra dos nomes (pra comparar com o "ponto"
-  // que vem do CSV de rastreamento).
-  const comLatLng = pontos.filter((p) => p.lat != null && p.lng != null).length;
-  Logger.log(
-    "[getPontosControle] linhas lidas=%s | com lat/lng=%s | amostra=%s",
-    pontos.length,
-    comLatLng,
-    JSON.stringify(pontos.slice(0, 5)),
-  );
 
   return JSON.stringify(pontos);
 }
@@ -373,8 +361,8 @@ function salvarHistoricoExcesso(payload) {
     payload.permitidoMin || 0,
     payload.excedenteMin || 0,
     payload.occurrenceId || "",
-    _numOuNull(payload.lat) || "",
-    _numOuNull(payload.lng) || "",
+    _coordOuNull(payload.lat, 90) || "",
+    _coordOuNull(payload.lng, 180) || "",
     new Date(),
   ]);
 
@@ -421,8 +409,8 @@ function getHistoricoExcesso(dataIni, dataFim) {
       permitidoMin: Number(r[13]) || 0,
       excedenteMin: Number(r[14]) || 0,
       occurrenceId: String(r[15] || "").trim(),
-      lat: _numOuNull(r[16]),
-      lng: _numOuNull(r[17]),
+      lat: _coordOuNull(r[16], 90),
+      lng: _coordOuNull(r[17], 180),
     });
   });
 
@@ -469,8 +457,8 @@ function _buildPcMap(ss) {
           uf: String(r[4] || "").trim(),
           regiao: String(r[5] || "").trim(),
           tipo: String(r[7] || "").trim(),
-          lat: _numOuNull(r[30]),
-          lng: _numOuNull(r[31]),
+          lat: _coordOuNull(r[30], 90),
+          lng: _coordOuNull(r[31], 180),
         };
       });
   } catch (e) {
@@ -496,10 +484,24 @@ function _normData(val) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function _numOuNull(val) {
+// ── _coordOuNull(val, limite) ─────────────────────────────────
+// Parser de latitude/longitude tolerante a dois problemas encontrados
+// na planilha:
+// 1. Vírgula decimal (formato BR, ex.: "-15,78") — parseFloat() sozinho
+//    para no primeiro caractere não numérico e devolve só "-15".
+// 2. Ponto decimal perdido na importação/colagem (ex.: célula com
+//    "-15835736" em vez de "-15.835736") — o valor bruto sempre vem
+//    MUITO maior que o range geográfico válido (|lat|<=90, |lng|<=180),
+//    então achamos a casa decimal certa dividindo por 10 até caber
+//    dentro de "limite". Pra um valor já correto (ex.: -15.835736) o
+//    loop não roda nenhuma vez.
+function _coordOuNull(val, limite) {
   if (val === null || val === undefined || val === "") return null;
-  const n = parseFloat(val);
-  return isNaN(n) || n === 0 ? null : n;
+  const s = String(val).trim().replace(",", ".");
+  let n = parseFloat(s);
+  if (isNaN(n) || n === 0) return null;
+  while (Math.abs(n) > limite) n = n / 10;
+  return n;
 }
 
 // ── Backfill: preenche coluna "Linha" (col J) no Histórico ────
