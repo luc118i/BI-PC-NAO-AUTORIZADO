@@ -2522,6 +2522,80 @@
           });
       }
 
+      // Cria UMA ÚNICA ocorrência (typeCode=EXCESSO_PERMANENCIA) cobrindo
+      // TODOS os pontos do grupo (motorista excedeu em N paradas na mesma
+      // viagem) — em vez do antigo loop de _criarOcorrencia (1 POST por
+      // ponto), manda os N pontos juntos em "points" num único POST. Isso
+      // elimina as N ocorrências separadas (e os N envios ao RIZER) que
+      // apareciam na listagem pro mesmo motorista/veículo/dia; a API grava
+      // 1 ocorrência com os pontos em occurrence_points e ainda notifica a
+      // planilha HISTORICO_EXCESSO 1x por ponto (mesmo histórico de antes).
+      function _criarOcorrenciaGrupo(itens) {
+        var primeiro = itens[0];
+        var entradaP = _dataHoraPartes(primeiro.entrada);
+
+        var payload = {
+          typeCode: "EXCESSO_PERMANENCIA",
+          eventDate: entradaP.data,
+          tripDate: entradaP.data,
+          startTime: entradaP.hora, // resumo — a API recalcula a partir de "points"
+          endTime: _calcularHoraSaida(primeiro), // idem
+          vehicleNumber: primeiro.veiculo,
+          place: primeiro.ponto, // idem
+          lineLabel: _relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName,
+          tripId: _relLinhaSelecionada.id,
+          tripTime: _relLinhaSelecionada.departureTime || null,
+          sessionTime: (primeiro._esquemaInfo && primeiro._esquemaInfo.horarioSessao) || null,
+          drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+          tratativa: "REGISTRO",
+          points: itens.map(function (item) {
+            var p = _dataHoraPartes(item.entrada);
+            return {
+              place: item.ponto,
+              startTime: p.hora,
+              endTime: _calcularHoraSaida(item),
+              cidade: item.cidade || "",
+              uf: item.uf || "",
+              regiao: item.regiao || "",
+              permanenciaMin: Math.round(item.permanenciaSeg / 60),
+              permitidoMin: Math.round(item.permitidoSeg / 60),
+              excedenteMin: Math.round(item.excedenteSeg / 60),
+              lat: item.lat != null ? item.lat : null,
+              lng: item.lng != null ? item.lng : null,
+            };
+          }),
+        };
+
+        return fetch(REPORTS_API_URL + "/occurrences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao criar ocorrência"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var occurrenceId = json.id;
+            // A API já notificou a planilha (HISTORICO_EXCESSO), 1x por ponto.
+            _carregarHistoricoExcesso();
+            if (!_relEvidencias.length) return occurrenceId;
+
+            _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
+            var form = new FormData();
+            _relEvidencias.forEach(function (ev) { form.append("files", ev.file, ev.file.name || "evidencia.jpg"); });
+            form.append("metadata", JSON.stringify(_relEvidencias.map(function () { return {}; })));
+
+            return fetch(REPORTS_API_URL + "/occurrences/" + occurrenceId + "/evidences", {
+              method: "POST",
+              body: form,
+            }).then(function (r) {
+              if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error) || "Falha ao enviar evidências"); });
+              return occurrenceId;
+            });
+          });
+      }
+
       // Gera o PDF de UMA ocorrência já criada e envia direto pro Drive
       // (modo individual) — em vez de baixar localmente.
 
@@ -2714,12 +2788,11 @@
           });
       }
 
-      // Gera um relatório (ocorrência + PDF) pra CADA ocorrência do grupo,
-      // em sequência (não em paralelo, pra não disparar vários downloads/
-      // requisições simultâneas e pra a mensagem de status ficar clara).
-      // Cria uma ocorrência por ponto do grupo (preserva o histórico/planilha
-      // por parada), mas gera só UM PDF no final cobrindo todas elas —
-      // ver /reports/occurrences-group/pdf na API do Gerador de Relatórios.
+      // Gera 1 ÚNICA ocorrência cobrindo todos os pontos do grupo (motorista
+      // excedeu em N paradas na mesma viagem) e 1 PDF cobrindo todas elas —
+      // antes disso criava N ocorrências (1 POST por ponto) e gerava o PDF
+      // combinado via /reports/occurrences-group/pdf; agora só existe 1
+      // ocorrência, então usa o mesmo caminho do modo individual pro PDF.
       function _gerarRelatorioGrupo() {
         if (!_relGrupoIdxs.length) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
@@ -2731,20 +2804,12 @@
 
         var itens = _relGrupoIdxs.map(function (idx) { return _relatorioItens[idx]; }).filter(Boolean);
         var total = itens.length;
-        var occurrenceIds = [];
 
-        itens.reduce(function (promessa, item, i) {
-          return promessa.then(function () {
-            _setRelStatus("Criando ocorrência " + (i + 1) + " de " + total + " — " + item.ponto + "...", "");
-            return _criarOcorrencia(item).then(function (occurrenceId) {
-              occurrenceIds.push(occurrenceId);
-            }).catch(function (err) {
-              throw new Error(item.ponto + ": " + (err.message || "erro ao criar ocorrência"));
-            });
-          });
-        }, Promise.resolve())
-          .then(function () {
-            return _gerarEBaixarPdfGrupo(occurrenceIds, itens[0]);
+        _setRelStatus("Criando ocorrência (" + total + " pontos)...", "");
+
+        _criarOcorrenciaGrupo(itens)
+          .then(function (occurrenceId) {
+            return _gerarEBaixarPdfOcorrencia(occurrenceId, itens[0], itens[0].veiculo);
           })
           .then(function (res) {
             _setRelStatus(_icon("check") + " Relatório enviado ao Drive (" + total + " pontos)! " +
@@ -2755,8 +2820,7 @@
             _mostrarPreviewGrupo(itens, res.nomeArquivo, _relLinhaSelecionada);
           })
           .catch(function (err) {
-            _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório") +
-              (occurrenceIds.length ? " (" + occurrenceIds.length + " de " + total + " ocorrências já criadas)" : ""), "err");
+            _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
           });
