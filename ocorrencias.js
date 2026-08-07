@@ -250,11 +250,19 @@ function addPontosParadaIrregular(rows) {
       return;
     }
 
+    var ufRegiao = ufRegiaoPorCoordenada_(lat, lng);
+
     sh.getRange(nextRow, 1, 1, 4).setValues([[
       payload.codigo,
       payload.codEmb || "",
       payload.descResumida || "",
       descricao,
+    ]]);
+    // Col E (5) = UF, Col F (6) = Região — calculadas a partir da lat/lng,
+    // não digitadas à mão (era a causa de registros com região errada).
+    sh.getRange(nextRow, 5, 1, 2).setValues([[
+      ufRegiao.uf,
+      ufRegiao.regiao,
     ]]);
     sh.getRange(nextRow, 7, 1, 2).setValues([[
       payload.unidadeEmpresarial || "",
@@ -268,6 +276,68 @@ function addPontosParadaIrregular(rows) {
   });
 
   return { ok: true, added: added.length, skipped: skipped };
+}
+
+/** ==============================
+ *  CORRIGIR UF/REGIÃO DE TODOS OS PONTOS (planilha inteira)
+ *  ==============================
+ *  Recalcula UF (col E) e Região (col F) de cada linha da aba
+ *  "PC'S NÃO AUTORIZADO" a partir da lat/lng cadastrada (col AE/AF),
+ *  usando ufRegiaoPorCoordenada_() em br_uf_regioes.js. Sobrescreve o
+ *  que tiver digitado à mão hoje.
+ *
+ *  Rodar uma vez manualmente pelo editor do Apps Script (selecionar
+ *  esta função e clicar em Executar) pra corrigir o histórico. Linhas
+ *  sem lat/lng válida ou fora dos limites do Brasil (ufPorCoordenada_
+ *  retorna "") são puladas e reportadas em "naoResolvidos".
+ */
+function corrigirUfRegiaoTodosPontos() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(OCORRENCIA_CFG.LOCAIS_SHEET);
+  if (!sh)
+    throw new Error(`Aba "${OCORRENCIA_CFG.LOCAIS_SHEET}" não encontrada.`);
+
+  const lastRow = sh.getLastRow();
+  const primeiraLinha = OCORRENCIA_CFG.HEADER_ROWS + 1;
+  if (lastRow < primeiraLinha) return { ok: true, corrigidos: 0, naoResolvidos: [] };
+
+  const numRows = lastRow - primeiraLinha + 1;
+  const codigos = sh.getRange(primeiraLinha, 1, numRows, 1).getValues();
+  const coords = sh.getRange(primeiraLinha, 31, numRows, 2).getValues(); // AE, AF
+  const ufRegiaoAtual = sh.getRange(primeiraLinha, 5, numRows, 2).getValues(); // E, F
+
+  const novaUfRegiao = [];
+  const naoResolvidos = [];
+  let corrigidos = 0;
+
+  for (let i = 0; i < numRows; i++) {
+    const codigo = String(codigos[i][0] || "").trim();
+    if (!codigo) { novaUfRegiao.push(ufRegiaoAtual[i]); continue; }
+
+    const lat = Number(coords[i][0]);
+    const lng = Number(coords[i][1]);
+    if (!isFinite(lat) || !isFinite(lng)) {
+      naoResolvidos.push({ codigo: codigo, motivo: "Sem lat/lng cadastrada." });
+      novaUfRegiao.push(ufRegiaoAtual[i]);
+      continue;
+    }
+
+    const r = ufRegiaoPorCoordenada_(lat, lng);
+    if (!r.uf) {
+      naoResolvidos.push({ codigo: codigo, motivo: "Coordenada fora dos limites de qualquer UF." });
+      novaUfRegiao.push(ufRegiaoAtual[i]);
+      continue;
+    }
+
+    if (r.uf !== String(ufRegiaoAtual[i][0] || "").trim() || r.regiao !== String(ufRegiaoAtual[i][1] || "").trim()) {
+      corrigidos++;
+    }
+    novaUfRegiao.push([r.uf, r.regiao]);
+  }
+
+  sh.getRange(primeiraLinha, 5, numRows, 2).setValues(novaUfRegiao);
+
+  return { ok: true, corrigidos: corrigidos, naoResolvidos: naoResolvidos };
 }
 
 /** ==============================

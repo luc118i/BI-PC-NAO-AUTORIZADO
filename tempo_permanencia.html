@@ -440,6 +440,7 @@
         </div>
         <div class="header-meta">
           <button class="btn btn-primary" onclick="document.getElementById('tpFileInput').click()">+ Nova análise</button>
+          <button class="btn btn-ghost" id="btnUsuarioAtual" onclick="abrirModalUsuario()" title="Conta usada como 'Analisado por' nos relatórios gerados por aqui">👤 <span id="btnUsuarioAtualNome">Entrar</span></button>
           <button class="btn btn-ghost" onclick="abrirConfigDrive()" title="Escolher a pasta do Drive que recebe os relatórios">⚙ Configurar Drive</button>
           <button class="btn btn-ghost" onclick="voltarDashboard()">← Voltar ao dashboard</button>
         </div>
@@ -634,6 +635,8 @@
         document.getElementById("dashDataFim").value = iso(hoje);
         _carregarHistoricoExcesso();
         _initGuiaSessao();
+        _authCarregarSessao();
+        _atualizarBotaoUsuarioAtual();
       };
 
       window.addEventListener('scroll', function () {
@@ -2037,6 +2040,131 @@
       // ─────────────────────────────────────────────────────────
       var REPORTS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app";
 
+      // ── Autenticação — mesma conta do Gerador de Relatórios Operacionais ──
+      // Este BI não tem backend de auth próprio. Em vez de um nome
+      // autodeclarado, login aqui é feito direto contra o Supabase Auth
+      // (GoTrue) do projeto usado pelo Gerador de Relatórios — mesma URL
+      // e "anon key" que já vão embutidas no bundle daquele app (a anon
+      // key é pública por design, só a senha de cada conta autentica de
+      // verdade). Assim o nome que vai como "analisadoPor" é o mesmo
+      // perfil (tabela "profiles") daquele app, não um texto livre.
+      var SUPABASE_URL = "https://rolcprjrwxmdibzajvri.supabase.co";
+      var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvbGNwcmpyd3htZGliemFqdnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODY0ODIsImV4cCI6MjA4NTg2MjQ4Mn0.VSoKSDQOQHXR6bWHzxetfRwF50KG4I22K1hdcBpDP68";
+      var AUTH_STORAGE_KEY = "tp_auth_sessao"; // { access_token, refresh_token, expires_at, email, nome }
+
+      var _authSession = null;
+
+      function _authCarregarSessao() {
+        try {
+          var raw = localStorage.getItem(AUTH_STORAGE_KEY);
+          _authSession = raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          _authSession = null;
+        }
+        return _authSession;
+      }
+
+      function _authSalvarSessao(sessao) {
+        _authSession = sessao;
+        try {
+          if (sessao) localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessao));
+          else localStorage.removeItem(AUTH_STORAGE_KEY);
+        } catch (e) {
+          // localStorage indisponível (modo privado, etc.) — segue sem persistir
+        }
+        _atualizarBotaoUsuarioAtual();
+      }
+
+      function _authLogado() {
+        return !!(_authSession && _authSession.access_token);
+      }
+
+      // Nome usado em "analisadoPor" ao criar a ocorrência — null se
+      // ninguém autenticado ainda (bloqueia a geração, ver _gerarRelatorio).
+      function _obterUsuarioAtual() {
+        return (_authSession && (_authSession.nome || _authSession.email)) || null;
+      }
+
+      // Busca o nome de exibição na tabela "profiles" — mesma regra do
+      // AuthContext.tsx do Gerador de Relatórios: profiles.nome, com
+      // fallback pro display_name/metadata ou pro que vier antes do @
+      // no e-mail.
+      function _authBuscarNomePerfil(userId, accessToken) {
+        return fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + userId + "&select=nome", {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + accessToken },
+        })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (rows) { return (rows && rows[0] && String(rows[0].nome || "").trim()) || ""; })
+          .catch(function () { return ""; });
+      }
+
+      function _authMontarSessaoDoToken(tokenJson) {
+        var user = tokenJson.user || {};
+        var meta = user.user_metadata || {};
+        var fallback = meta.nome || meta.display_name || meta.full_name || meta.name ||
+          (user.email || "").split("@")[0] || "Analista";
+
+        return _authBuscarNomePerfil(user.id, tokenJson.access_token).then(function (nomePerfil) {
+          return {
+            access_token: tokenJson.access_token,
+            refresh_token: tokenJson.refresh_token,
+            expires_at: tokenJson.expires_at, // epoch em segundos, já vem pronto da API
+            email: user.email || "",
+            nome: nomePerfil || fallback,
+          };
+        });
+      }
+
+      function _authLogin(email, senha) {
+        return fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+          body: JSON.stringify({ email: email.trim(), password: senha }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+          .then(function (res) {
+            if (!res.ok) {
+              throw new Error((res.json && (res.json.error_description || res.json.msg)) || "E-mail ou senha inválidos.");
+            }
+            return _authMontarSessaoDoToken(res.json);
+          })
+          .then(function (sessao) {
+            _authSalvarSessao(sessao);
+            return sessao;
+          });
+      }
+
+      function _authLogout() {
+        _authSalvarSessao(null);
+      }
+
+      // Renova o access_token com o refresh_token quando ele estiver perto
+      // de expirar (ou já venceu) — evita pedir senha de novo a cada ~1h
+      // só pra gerar um relatório. Se o refresh falhar (token revogado,
+      // sem internet, etc.), desloga e deixa o guard em _gerarRelatorio
+      // pedir login de novo.
+      function _authGarantirTokenValido() {
+        if (!_authSession) return Promise.resolve(null);
+        var expiraEmMs = (_authSession.expires_at || 0) * 1000;
+        var folgaMs = 60 * 1000;
+        if (expiraEmMs - Date.now() > folgaMs) return Promise.resolve(_authSession);
+
+        return fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+          body: JSON.stringify({ refresh_token: _authSession.refresh_token }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+          .then(function (res) {
+            if (!res.ok) { _authSalvarSessao(null); return null; }
+            return _authMontarSessaoDoToken(res.json).then(function (sessao) {
+              _authSalvarSessao(sessao);
+              return sessao;
+            });
+          })
+          .catch(function () { return _authSession; });
+      }
+
       var _relItemAtual = null;
       var _relItemAtualIdx = null;
       var _relLinhaSelecionada = null;   // { id, lineCode, lineName, departureTime, direction }
@@ -2591,6 +2719,11 @@
       function _criarOcorrencia(item) {
         var entradaP = _dataHoraPartes(item.entrada);
 
+        // Garante um access_token fresco (renova via refresh_token se tiver
+        // vencido) antes de montar o payload, pra "analisadoPor" sair
+        // sempre com o nome de quem está de fato logado — ver
+        // _authGarantirTokenValido()/_obterUsuarioAtual().
+        return _authGarantirTokenValido().then(function () {
         var payload = {
           typeCode: "EXCESSO_PERMANENCIA",
           eventDate: entradaP.data,
@@ -2618,12 +2751,17 @@
           // disciplinar (advertência/suspensão) — só fica registrada,
           // então já cria marcada como "REGISTRO" em vez de sem tratativa.
           tratativa: "REGISTRO",
+          // Quem gerou o relatório por este app, autenticado via Supabase
+          // com a mesma conta do Gerador de Relatórios — ver
+          // _obterUsuarioAtual()/_authLogin().
+          analisadoPor: _obterUsuarioAtual(),
         };
 
         return fetch(REPORTS_API_URL + "/occurrences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+        });
         })
           .then(function (r) {
             if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao criar ocorrência"); });
@@ -2665,6 +2803,87 @@
             .withFailureHandler(function (err) { reject(new Error((err && err.message) || "Falha ao obter credenciais do Drive")); })
             .getCredenciaisDriveRelatorios();
         });
+      }
+
+      // ── Modal "Sua conta" — login/logout (navbar) ───────────────────
+      // Autenticação em si (_authLogin, _authGarantirTokenValido etc.)
+      // fica lá em cima, perto de REPORTS_API_URL — aqui é só a UI do
+      // modal, que alterna entre o formulário de login e o estado
+      // "logado como X" conforme _authLogado().
+      function _atualizarBotaoUsuarioAtual() {
+        var el = document.getElementById("btnUsuarioAtualNome");
+        if (!el) return;
+        el.textContent = _authLogado() ? (_authSession.nome || _authSession.email) : "Entrar";
+      }
+
+      function _renderModalUsuario() {
+        var logado = _authLogado();
+        document.getElementById("usuarioLogadoBox").classList.toggle("hidden", !logado);
+        document.getElementById("usuarioLoginBox").classList.toggle("hidden", logado);
+
+        var btnPrimario = document.getElementById("usuarioBtnPrimario");
+        var btnSecundario = document.getElementById("usuarioBtnSecundario");
+
+        if (logado) {
+          document.getElementById("usuarioLogadoNome").textContent = _authSession.nome || "—";
+          document.getElementById("usuarioLogadoEmail").textContent = _authSession.email || "—";
+          btnPrimario.textContent = "Sair";
+          btnPrimario.onclick = _authFazerLogout;
+          btnSecundario.textContent = "Fechar";
+        } else {
+          btnPrimario.textContent = "Entrar";
+          btnPrimario.onclick = _authFazerLogin;
+          btnSecundario.textContent = "Cancelar";
+        }
+      }
+
+      function abrirModalUsuario() {
+        document.getElementById("usuarioStatus").textContent = "";
+        _renderModalUsuario();
+        document.getElementById("usuarioModal").classList.remove("hidden");
+        if (!_authLogado()) {
+          var emailEl = document.getElementById("usuarioLoginEmail");
+          if (emailEl) emailEl.focus();
+        }
+      }
+
+      function fecharModalUsuario() {
+        document.getElementById("usuarioModal").classList.add("hidden");
+      }
+
+      function _authFazerLogin() {
+        var email = document.getElementById("usuarioLoginEmail").value.trim();
+        var senha = document.getElementById("usuarioLoginSenha").value;
+        var status = document.getElementById("usuarioStatus");
+        var btn = document.getElementById("usuarioBtnPrimario");
+
+        if (!email || !senha) {
+          status.textContent = "Informe e-mail e senha.";
+          status.className = "oc-status err";
+          return;
+        }
+
+        btn.disabled = true;
+        status.textContent = "Entrando...";
+        status.className = "oc-status";
+
+        _authLogin(email, senha)
+          .then(function () {
+            status.textContent = "";
+            document.getElementById("usuarioLoginSenha").value = "";
+            _renderModalUsuario();
+            btn.disabled = false;
+          })
+          .catch(function (err) {
+            status.textContent = err.message || "Erro ao entrar.";
+            status.className = "oc-status err";
+            btn.disabled = false;
+          });
+      }
+
+      function _authFazerLogout() {
+        _authLogout();
+        _renderModalUsuario();
       }
 
       // ── Configurar Drive (navbar) ───────────────────────────────
@@ -2818,6 +3037,7 @@
         if (!_relItemAtual) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
         if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão 👤 na barra) antes de gerar o relatório.", "err"); return; }
 
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
@@ -2853,6 +3073,7 @@
         if (!_relGrupoIdxs.length) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
         if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão 👤 na barra) antes de gerar o relatório.", "err"); return; }
 
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
@@ -3009,6 +3230,63 @@
           <span class="oc-status" id="cfgDriveStatus"></span>
           <button class="btn btn-ghost" onclick="fecharConfigDrive()">Fechar</button>
           <button class="btn btn-primary" onclick="_salvarPastaDriveColada()">Salvar pasta</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── MODAL SUA CONTA (navbar) ─────────────────────────────── -->
+    <!-- Este BI não tem auth própria (web app é ANYONE_ANONYMOUS — ver
+         appsscript.json), então não dá pra confiar em
+         Session.getActiveUser() do Apps Script pra saber quem está
+         gerando o relatório. Em vez disso, login aqui é feito direto
+         contra o Supabase Auth do Gerador de Relatórios Operacionais
+         (mesma conta daquele app) e o nome do perfil vai como
+         "analisadoPor" ao criar a ocorrência — ver _authLogin() /
+         _obterUsuarioAtual() / _criarOcorrencia(). -->
+    <div class="oc-overlay hidden" id="usuarioModal" onclick="if(event.target===this)fecharModalUsuario()">
+      <div class="oc-panel" style="max-width:380px">
+
+        <div class="oc-header">
+          <h3>👤 Sua conta</h3>
+          <button class="oc-close" onclick="fecharModalUsuario()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <!-- Estado: logado -->
+          <div id="usuarioLogadoBox" class="hidden">
+            <div class="oc-field">
+              <label>Logado como</label>
+              <strong id="usuarioLogadoNome" style="display:block;font-size:14px;margin-top:2px">—</strong>
+              <span id="usuarioLogadoEmail" style="font-size:12px;color:var(--texto3)">—</span>
+            </div>
+            <p style="font-size:12px;color:var(--texto3);margin:0">
+              Esse é o nome usado como "Analisado por" nos relatórios de Excesso de Permanência gerados por aqui.
+            </p>
+          </div>
+
+          <!-- Estado: deslogado -->
+          <div id="usuarioLoginBox">
+            <div class="oc-field">
+              <label>E-mail</label>
+              <input type="email" id="usuarioLoginEmail" placeholder="voce@viacaocatedral.com.br" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('usuarioLoginSenha').focus()" />
+            </div>
+            <div class="oc-field">
+              <label>Senha</label>
+              <input type="password" id="usuarioLoginSenha" placeholder="Sua senha do Gerador de Relatórios" autocomplete="current-password" onkeydown="if(event.key==='Enter')_authFazerLogin()" />
+            </div>
+            <p style="font-size:12px;color:var(--texto3);margin:0">
+              Use a mesma conta do Gerador de Relatórios Operacionais.
+            </p>
+          </div>
+
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="usuarioStatus"></span>
+          <button class="btn btn-ghost" id="usuarioBtnSecundario" onclick="fecharModalUsuario()">Cancelar</button>
+          <button class="btn btn-primary" id="usuarioBtnPrimario" onclick="_authFazerLogin()">Entrar</button>
         </div>
 
       </div>
