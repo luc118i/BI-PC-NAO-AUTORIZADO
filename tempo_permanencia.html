@@ -2085,6 +2085,13 @@
         return (_authSession && (_authSession.nome || _authSession.email)) || null;
       }
 
+      // ID estável (auth.users.id) de quem está logado — ver analisadoPorUserId
+      // em _criarOcorrencia(). null se a sessão foi carregada de um login
+      // antigo (antes desse campo existir) — nesse caso basta relogar.
+      function _obterUsuarioIdAtual() {
+        return (_authSession && _authSession.id) || null;
+      }
+
       // Busca o nome de exibição na tabela "profiles" — mesma regra do
       // AuthContext.tsx do Gerador de Relatórios: profiles.nome, com
       // fallback pro display_name/metadata ou pro que vier antes do @
@@ -2111,6 +2118,13 @@
             expires_at: tokenJson.expires_at, // epoch em segundos, já vem pronto da API
             email: user.email || "",
             nome: nomePerfil || fallback,
+            // ID estável (auth.users.id) de quem está logado — mandado como
+            // `analisadoPorUserId` ao criar a ocorrência (ver _criarOcorrencia).
+            // Sem isso, o Gerador de Relatórios só recebia o nome em texto
+            // livre e não conseguia vincular a ocorrência à conta de forma
+            // estável, fazendo o mesmo analista aparecer duplicado no Pódio
+            // de Apuração (um bucket por ID, outro por nome-texto).
+            id: user.id || null,
           };
         });
       }
@@ -2753,8 +2767,12 @@
           tratativa: "REGISTRO",
           // Quem gerou o relatório por este app, autenticado via Supabase
           // com a mesma conta do Gerador de Relatórios — ver
-          // _obterUsuarioAtual()/_authLogin().
+          // _obterUsuarioAtual()/_authLogin(). O ID (analisadoPorUserId) é o
+          // vínculo estável que o Pódio de Apuração/home.tsx priorizam sobre
+          // o nome-texto — sem ele, a ocorrência ficava "solta" e podia
+          // duplicar o analista no pódio.
           analisadoPor: _obterUsuarioAtual(),
+          analisadoPorUserId: _obterUsuarioIdAtual(),
         };
 
         return fetch(REPORTS_API_URL + "/occurrences", {
