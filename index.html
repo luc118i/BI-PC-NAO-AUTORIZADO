@@ -1359,6 +1359,7 @@
 
         const rotaRaw = (parts[1] || "").trim();
         const horaRaw = (parts[2] || "").trim().replace(/^(\d{2}:\d{2}):00$/, "$1");
+        const sentido = (parts[3] || "").trim().toUpperCase();
 
         // Cadastro de linha não é 100% padronizado: a maioria usa
         // "CIDADE (UF) - CIDADE (UF)", mas tem gente que cadastra com "X"
@@ -1375,8 +1376,12 @@
             const uf = (ufMap && ufMap[_normCidade(cidade)]) || "";
             return { cidade: cidade, uf: uf };
           };
-          const a = parseLado(sep[1]);
-          const b = parseLado(sep[2]);
+          // O nome da linha ("A - B") é fixo, mas o sentido real da viagem
+          // depende do campo "sentido": VOLTA percorre de B pra A, não de
+          // A pra B como o nome sugere — inverte a seta nesse caso.
+          let a = parseLado(sep[1]);
+          let b = parseLado(sep[2]);
+          if (sentido === "VOLTA") { const t = a; a = b; b = t; }
           // .rota-linha é grid de 6 colunas fixas (cidade/UF/seta/cidade/UF/hora)
           // — sempre precisa dos 6 <span>, senão o grid desalinha as colunas
           // seguintes quando um lado não tem UF (o span de UF fica vazio,

@@ -2669,7 +2669,7 @@
       // lugar do "-" e/ou sem o (UF) em algum lado (ex.: "SÃO PAULO X
       // BRASÍLIA"). Aceita qualquer combinação disso em vez de exigir o
       // formato inteiro, senão a linha cai crua e corta feio no card.
-      function _fmtRotaTV(rota, ufMap) {
+      function _fmtRotaTV(rota, ufMap, sentido) {
         const sep = rota.match(/^(.*?)\s+(?:-|[Xx])\s+(.*)$/);
         if (!sep) return '<span>' + rota + '</span>';
         const parseLado = (lado) => {
@@ -2679,8 +2679,12 @@
           const uf = (ufMap && ufMap[_normCidadeTV(cidade)]) || "";
           return { cidade, uf };
         };
-        const a = parseLado(sep[1]);
-        const b = parseLado(sep[2]);
+        // O nome da linha ("A - B") é fixo, mas o sentido real da viagem
+        // depende do campo "sentido": VOLTA percorre de B pra A, não de A
+        // pra B como o nome sugere — inverte a seta nesse caso.
+        let a = parseLado(sep[1]);
+        let b = parseLado(sep[2]);
+        if ((sentido || "").toUpperCase() === "VOLTA") { const t = a; a = b; b = t; }
         return (
           '<span>' + _capCidadeTV(a.cidade) + '</span>' +
           (a.uf ? '<span class="linha-rota-uf">' + a.uf + '</span>' : '') +
@@ -2740,7 +2744,7 @@
                     (p.dir && dirCls ? '<span class="' + dirCls + '">' + p.dir + '</span>' : '') +
                     (p.hora ? '<span class="linha-horario">' + p.hora + '</span>' : '') +
                   '</div>' +
-                  '<div class="linha-rota">' + (p.rota ? _fmtRotaTV(p.rota, ufMap) : (p.codigo || linha)) + '</div>' +
+                  '<div class="linha-rota">' + (p.rota ? _fmtRotaTV(p.rota, ufMap, p.dir) : (p.codigo || linha)) + '</div>' +
                 '</div>' +
                 '<div class="linha-metricas">' +
                   '<div class="linha-count">' + d.ocorrencias + '</div>' +

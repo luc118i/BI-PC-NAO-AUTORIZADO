@@ -504,11 +504,15 @@ function _coordOuNull(val, limite) {
   return n;
 }
 
-// ── Backfill: preenche coluna "Linha" (col J) no Histórico ────
+// ── Backfill: preenche/corrige coluna "Linha" (col J) no Histórico ────
 // Roda manualmente (menu Executar > backfillLinhas), quantas vezes
-// precisar — só toca linhas do Histórico ainda sem "Linha" preenchida.
+// precisar. Preenche linhas ainda vazias E corrige linhas que já tinham
+// "Linha" gravada só com o sentido em branco (bug antigo da API que
+// escrevia "codigo|rota|hora|" sem o sentido quando lineLabel vinha
+// preenchido — ver occurrences.service.ts, corrigido, mas o que já tinha
+// sido gravado no Histórico ficou incompleto pra sempre até rodar isso).
 // Busca as ocorrências no Supabase e monta o mesmo formato usado pela
-// API ao vivo (occurrences.service.ts): "codigo|rota|hora|sentido".
+// API ao vivo: "codigo|rota|hora|sentido".
 // Chave de cruzamento: data + número do carro (mesma limitação de sempre:
 // se o mesmo carro tiver 2 paradas fora no mesmo dia, a última ocorrência
 // buscada é quem preenche — o Histórico não guarda qual parada é qual).
@@ -607,10 +611,18 @@ function backfillLinhas() {
   var valores = range.getValues();
 
   var atualizados = 0;
+  var corrigidos = 0;
 
   valores.forEach(function (r, i) {
-    // Só preenche linhas que ainda não têm trip_id (col J = índice 9)
-    if (String(r[9] || "").trim() !== "") return;
+    var atual = String(r[9] || "").trim();
+
+    // Preenche linhas ainda vazias, e também corrige linhas já preenchidas
+    // mas que ficaram com o sentido em branco (bug antigo da API: escrevia
+    // "codigo|rota|hora|" sem o 4º campo) — desde que já tenhamos, agora,
+    // um valor completo pra mesma data+carro.
+    var partesAtual = atual.split("|");
+    var faltaSentido = atual !== "" && partesAtual.length >= 4 && !partesAtual[3];
+    if (atual !== "" && !faltaSentido) return;
 
     var dataVal = _normData(r[5]);
     if (!dataVal) return;
@@ -623,15 +635,18 @@ function backfillLinhas() {
 
     var chave = dataStr + "|" + carro;
     var trip = mapaTrip[chave];
+    if (!trip) return;
 
-    if (trip) {
-      hist.getRange(i + 2, 10).setValue(trip); // col J
-      atualizados++;
-    }
+    var partesNovo = trip.split("|");
+    var novoTemSentido = partesNovo.length >= 4 && !!partesNovo[3];
+    if (faltaSentido && !novoTemSentido) return; // não tem nada melhor pra oferecer
+
+    hist.getRange(i + 2, 10).setValue(trip); // col J
+    if (faltaSentido) corrigidos++; else atualizados++;
   });
 
-  Logger.log("Linhas atualizadas: " + atualizados + " de " + (lastRow - 1));
+  Logger.log("Linhas preenchidas (vazias): " + atualizados + " | corrigidas (sentido que faltava): " + corrigidos + " de " + (lastRow - 1));
   SpreadsheetApp.getUi().alert(
-    "Backfill concluído: " + atualizados + " linha(s) preenchida(s).",
+    "Backfill concluído: " + atualizados + " preenchida(s) + " + corrigidos + " corrigida(s) (sentido).",
   );
 }
