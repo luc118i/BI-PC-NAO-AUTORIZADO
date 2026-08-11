@@ -505,62 +505,94 @@ function _coordOuNull(val, limite) {
 }
 
 // ── Backfill: preenche coluna "Linha" (col J) no Histórico ────
-// Roda UMA vez manualmente. Busca trip_id do Supabase e cruza
-// com as linhas do Histórico que ainda estão sem linha preenchida.
-// Chave de cruzamento: data + número do carro.
+// Roda manualmente (menu Executar > backfillLinhas), quantas vezes
+// precisar — só toca linhas do Histórico ainda sem "Linha" preenchida.
+// Busca as ocorrências no Supabase e monta o mesmo formato usado pela
+// API ao vivo (occurrences.service.ts): "codigo|rota|hora|sentido".
+// Chave de cruzamento: data + número do carro (mesma limitação de sempre:
+// se o mesmo carro tiver 2 paradas fora no mesmo dia, a última ocorrência
+// buscada é quem preenche — o Histórico não guarda qual parada é qual).
 function backfillLinhas() {
   var SUPABASE_URL = "https://rolcprjrwxmdibzajvri.supabase.co";
   var SUPABASE_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvbGNwcmpyd3htZGliemFqdnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODY0ODIsImV4cCI6MjA4NTg2MjQ4Mn0.VSoKSDQOQHXR6bWHzxetfRwF50KG4I22K1hdcBpDP68";
   var TYPE_CODE = "DESCUMP_OP_PARADA_FORA";
+  // A tabela "trips" no Supabase é bloqueada por RLS pra chave anon (só a
+  // API, com service-role, lê) — por isso as viagens vêm de cá em vez de
+  // direto do Supabase. Mesma URL que o tempo_permanencia.html usa
+  // (REPORTS_API_URL). Rota pública, sem auth.
+  var TRIPS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app/trips";
+
+  function supaGet(path) {
+    var res = UrlFetchApp.fetch(SUPABASE_URL + "/rest/v1/" + path, {
+      headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY },
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() >= 300) {
+      throw new Error("Supabase " + res.getResponseCode() + ": " + res.getContentText());
+    }
+    return JSON.parse(res.getContentText());
+  }
 
   // 1. Busca o type_id do tipo no Supabase
-  var typeRes = UrlFetchApp.fetch(
-    SUPABASE_URL + "/rest/v1/occurrence_types?select=id&code=eq." + TYPE_CODE,
-    {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: "Bearer " + SUPABASE_KEY,
-      },
-    },
-  );
-  var types = JSON.parse(typeRes.getContentText());
+  var types = supaGet("occurrence_types?select=id&code=eq." + TYPE_CODE);
   if (!types.length) throw new Error("Tipo " + TYPE_CODE + " não encontrado.");
   var typeId = types[0].id;
 
-  // 2. Busca todas as ocorrências desse tipo com trip_id preenchido
-  var occRes = UrlFetchApp.fetch(
-    SUPABASE_URL +
-      "/rest/v1/occurrences" +
-      "?select=event_date,vehicle_number,trip_id" +
-      "&type_id=eq." +
-      typeId +
+  // 2. Busca todas as ocorrências desse tipo com trip_id preenchido.
+  // trip_id aqui costuma ser o UUID da viagem canônica (tabela "trips") —
+  // resolvido à parte no passo 3, via API (ver TRIPS_API_URL acima).
+  var occs = supaGet(
+    "occurrences?select=event_date,vehicle_number,trip_id" +
+      "&type_id=eq." + typeId +
       "&trip_id=not.is.null" +
       "&limit=5000",
-    {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: "Bearer " + SUPABASE_KEY,
-      },
-    },
   );
-  var occs = JSON.parse(occRes.getContentText());
 
-  // 3. Monta mapa: "YYYY-MM-DD|CARRO" → trip_id
+  // 3. trip_id vem misturado: ocorrências antigas guardam o texto já
+  // pronto direto em trip_id ("codigo|rota|hora|sentido" — modelo
+  // anterior ao join com "trips"); as mais novas guardam o UUID da
+  // viagem canônica, que resolvemos aqui via API (não dá pra ler "trips"
+  // direto do Supabase com a chave anon — RLS bloqueia).
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  var tripsRes = UrlFetchApp.fetch(TRIPS_API_URL, { muteHttpExceptions: true });
+  if (tripsRes.getResponseCode() >= 300) {
+    throw new Error("API de viagens " + tripsRes.getResponseCode() + ": " + tripsRes.getContentText());
+  }
+  var tripMap = {};
+  (JSON.parse(tripsRes.getContentText()).data || []).forEach(function (t) {
+    tripMap[t.id] = t;
+  });
+
+  // 4. Monta mapa: "YYYY-MM-DD|CARRO" → "codigo|rota|hora|sentido"
+  // (mesmo formato montado ao vivo em occurrences.service.ts)
   var mapaTrip = {};
   occs.forEach(function (o) {
     var data = String(o.event_date || "").substring(0, 10); // YYYY-MM-DD
     var carro = String(o.vehicle_number || "").trim();
-    var trip = String(o.trip_id || "").trim();
-    if (data && carro && trip) {
-      mapaTrip[data + "|" + carro] = trip;
+    if (!data || !carro || !o.trip_id) return;
+
+    var linhaStr;
+    if (UUID_RE.test(o.trip_id)) {
+      var trip = tripMap[o.trip_id];
+      if (!trip) return;
+      linhaStr = [
+        trip.lineCode || "",
+        trip.lineName || "",
+        (trip.departureTime || "").slice(0, 5),
+        String(trip.direction || "").toUpperCase(),
+      ].join("|");
+    } else {
+      // trip_id já é o texto pronto (ocorrência antiga)
+      linhaStr = String(o.trip_id).trim();
     }
+    mapaTrip[data + "|" + carro] = linhaStr;
   });
 
   Logger.log("Ocorrências Supabase carregadas: " + occs.length);
   Logger.log("Chaves no mapa: " + Object.keys(mapaTrip).length);
 
-  // 4. Lê o Histórico
+  // 5. Lê o Histórico
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hist = ss.getSheetByName("Histórico");
   if (!hist) throw new Error('Aba "Histórico" não encontrada.');

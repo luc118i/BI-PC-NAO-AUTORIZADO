@@ -371,8 +371,12 @@
       }
       .tv-rank-list {
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(244, 121, 32, 0.4) transparent;
       }
+      .tv-rank-list::-webkit-scrollbar { width: 5px; }
+      .tv-rank-list::-webkit-scrollbar-thumb { background: rgba(244, 121, 32, 0.4); border-radius: 3px; }
 
       .tv-rank-item {
         display: flex;
@@ -763,20 +767,20 @@
         display: flex;
         align-items: center;
         gap: 16px;
-        padding: 11px 0;
+        padding: 10px 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       }
       .linha-card:last-child { border-bottom: none; }
 
       .linha-medal {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-family: "Barlow Condensed", sans-serif;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 900;
         flex-shrink: 0;
       }
@@ -804,20 +808,20 @@
       .linha-topo {
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 8px;
         margin-bottom: 4px;
         flex-wrap: nowrap;
       }
       .linha-codigo {
         font-family: "Barlow Condensed", sans-serif;
-        font-size: 12px;
+        font-size: 15px;
         font-weight: 700;
         color: var(--laranja);
         background: rgba(244, 121, 32, 0.1);
         border: 1px solid rgba(244, 121, 32, 0.28);
         border-radius: 5px;
-        padding: 1px 7px;
-        letter-spacing: 0.06em;
+        padding: 1px 8px;
+        letter-spacing: 0.05em;
         flex-shrink: 0;
       }
       .linha-sentido-ida {
@@ -844,50 +848,57 @@
       }
       .linha-horario {
         font-family: "Barlow Condensed", sans-serif;
-        font-size: 12px;
-        color: var(--texto3);
-        letter-spacing: 0.04em;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--texto2);
+        letter-spacing: 0.03em;
         flex-shrink: 0;
       }
 
       .linha-rota {
-        font-size: 16px;
+        font-size: 17px;
         font-weight: 700;
         color: #fff;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.25;
-        margin-bottom: 5px;
+        line-height: 1.2;
+        margin-bottom: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
       }
-      .linha-barra-wrap {
-        height: 3px;
-        background: rgba(255, 255, 255, 0.07);
-        border-radius: 2px;
-        overflow: hidden;
+      .linha-rota-uf {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--texto3);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+        padding: 1px 5px;
+        letter-spacing: 0.03em;
       }
-      .linha-barra {
-        height: 100%;
-        border-radius: 2px;
-        background: linear-gradient(90deg, var(--laranja2), var(--laranja));
+      .linha-rota-seta {
+        color: var(--laranja);
+        font-size: 13px;
+        flex-shrink: 0;
       }
-
       .linha-metricas { text-align: center; flex-shrink: 0; }
       .linha-count {
         font-family: "Barlow Condensed", sans-serif;
-        font-size: 30px;
+        font-size: 22px;
         font-weight: 900;
         color: var(--laranja);
         background: rgba(244, 121, 32, 0.1);
         border: 1px solid rgba(244, 121, 32, 0.2);
-        border-radius: 8px;
-        padding: 3px 14px;
+        border-radius: 7px;
+        padding: 2px 11px;
         line-height: 1;
       }
       .linha-locais {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--texto3);
-        margin-top: 4px;
+        margin-top: 3px;
       }
 
       /* ── BARRA PROGRESSO ────────────────────────────────── */
@@ -1490,6 +1501,14 @@
       </div>
     </div>
 
+    <!-- ══ SLIDE 7: Linhas afetadas ═══════════════════════════ -->
+    <div class="slide" id="slide7">
+      <div class="slide-titulo">Linhas afetadas — top 10 com mais paradas irregulares</div>
+      <div class="tv-rank-col" style="flex:1">
+        <div class="tv-rank-list" id="tvLinhas1"></div>
+      </div>
+    </div>
+
     <!-- Barra progresso -->
     <div class="progress-bar" id="progressBar" style="width: 0%"></div>
 
@@ -1623,7 +1642,7 @@
       let registros = [];
       let todosPCs = [];
       let slideAtual = 0;
-      const TOTAL_SLIDES = 7;
+      const TOTAL_SLIDES = 8;
 
       let DURACAO_SLIDE = 60000;
       const REFRESH_MS = 15 * 60 * 1000;
@@ -2003,6 +2022,7 @@
         renderFrequenciaTV();
         renderBasesRegiaoTV();
         renderVisitasPorDia();
+        renderRankingLinhasTV();
       }
 
       // ─── KPIs (Slide 0) ───────────────────────────────────
@@ -2596,15 +2616,78 @@
         }
       }
 
-      // ─── Ranking de Linhas (DESATIVADO por hora) ──────────
+      // ─── Ranking de Linhas ─────────────────────────────────
       function _parseLinha(raw) {
         const p = raw.split("|");
         return {
           codigo: p[0] || "",
           rota:   p[1] || (p.length < 2 ? raw : ""),
-          hora:   p[2] || "",
+          hora:   (p[2] || "").replace(/^(\d{2}:\d{2}):00$/, "$1"),
           dir:    p[3] || "",
         };
+      }
+
+      function _capCidadeTV(s) {
+        return s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+      }
+
+      function _normCidadeTV(s) {
+        return s.trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      }
+
+      // Último recurso quando a cidade não tem (UF) no cadastro e também
+      // não aparece com UF em nenhuma outra linha do período (ver
+      // _buildUfPorCidadeTV) — cobre as capitais, que são a maioria dos
+      // pontos de linha.
+      const UF_CAPITAIS_FALLBACK_TV = {
+        "RIO BRANCO": "AC", "MACEIO": "AL", "MACAPA": "AP", "MANAUS": "AM",
+        "SALVADOR": "BA", "FORTALEZA": "CE", "BRASILIA": "DF", "VITORIA": "ES",
+        "GOIANIA": "GO", "SAO LUIS": "MA", "CUIABA": "MT", "CAMPO GRANDE": "MS",
+        "BELO HORIZONTE": "MG", "BELEM": "PA", "JOAO PESSOA": "PB", "CURITIBA": "PR",
+        "RECIFE": "PE", "TERESINA": "PI", "RIO DE JANEIRO": "RJ", "NATAL": "RN",
+        "PORTO ALEGRE": "RS", "PORTO VELHO": "RO", "BOA VISTA": "RR",
+        "FLORIANOPOLIS": "SC", "SAO PAULO": "SP", "ARACAJU": "SE", "PALMAS": "TO",
+      };
+
+      // Varre todas as linhas do período coletando "cidade → UF" de quem já
+      // vem com (UF) no cadastro, pra preencher quem não vem.
+      function _buildUfPorCidadeTV(rotasRaw) {
+        const map = Object.assign({}, UF_CAPITAIS_FALLBACK_TV);
+        rotasRaw.forEach((rotaRaw) => {
+          const sep = rotaRaw.match(/^(.*?)\s+(?:-|[Xx])\s+(.*)$/);
+          if (!sep) return;
+          [sep[1], sep[2]].forEach((lado) => {
+            const m = lado.trim().match(/^(.*?)\s*\(([A-Za-zÀ-ÿ]{2})\)\s*$/);
+            if (m) map[_normCidadeTV(m[1])] = m[2].toUpperCase();
+          });
+        });
+        return map;
+      }
+
+      // Cadastro de linha não é 100% padronizado: a maioria usa
+      // "CIDADE (UF) - CIDADE (UF)", mas tem gente que cadastra com "X" no
+      // lugar do "-" e/ou sem o (UF) em algum lado (ex.: "SÃO PAULO X
+      // BRASÍLIA"). Aceita qualquer combinação disso em vez de exigir o
+      // formato inteiro, senão a linha cai crua e corta feio no card.
+      function _fmtRotaTV(rota, ufMap) {
+        const sep = rota.match(/^(.*?)\s+(?:-|[Xx])\s+(.*)$/);
+        if (!sep) return '<span>' + rota + '</span>';
+        const parseLado = (lado) => {
+          const m2 = lado.trim().match(/^(.*?)\s*\(([A-Za-zÀ-ÿ]{2})\)\s*$/);
+          if (m2) return { cidade: m2[1].trim(), uf: m2[2].toUpperCase() };
+          const cidade = lado.trim();
+          const uf = (ufMap && ufMap[_normCidadeTV(cidade)]) || "";
+          return { cidade, uf };
+        };
+        const a = parseLado(sep[1]);
+        const b = parseLado(sep[2]);
+        return (
+          '<span>' + _capCidadeTV(a.cidade) + '</span>' +
+          (a.uf ? '<span class="linha-rota-uf">' + a.uf + '</span>' : '') +
+          '<span class="linha-rota-seta">&#8594;</span>' +
+          '<span>' + _capCidadeTV(b.cidade) + '</span>' +
+          (b.uf ? '<span class="linha-rota-uf">' + b.uf + '</span>' : '')
+        );
       }
 
       function renderRankingLinhasTV() {
@@ -2620,7 +2703,9 @@
         const sorted = Object.entries(cont)
           .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias);
 
-        const maxOcc = sorted.length ? sorted[0][1].ocorrencias : 1;
+        const ufMap = _buildUfPorCidadeTV(
+          Object.keys(cont).map((linha) => _parseLinha(linha).rota).filter(Boolean),
+        );
 
         function medalClass(i) {
           if (i === 0) return "pos1";
@@ -2638,7 +2723,6 @@
           }
           el.innerHTML = fatia.map(([linha, d], i) => {
             const p    = _parseLinha(linha);
-            const pct  = Math.round((d.ocorrencias / maxOcc) * 100);
             const ri   = offset + i;
             const dirCls = p.dir === "IDA" ? "linha-sentido-ida"
                          : p.dir === "VOLTA" ? "linha-sentido-volta"
@@ -2656,10 +2740,7 @@
                     (p.dir && dirCls ? '<span class="' + dirCls + '">' + p.dir + '</span>' : '') +
                     (p.hora ? '<span class="linha-horario">' + p.hora + '</span>' : '') +
                   '</div>' +
-                  '<div class="linha-rota">' + (p.rota || p.codigo || linha) + '</div>' +
-                  '<div class="linha-barra-wrap">' +
-                    '<div class="linha-barra" style="width:' + pct + '%"></div>' +
-                  '</div>' +
+                  '<div class="linha-rota">' + (p.rota ? _fmtRotaTV(p.rota, ufMap) : (p.codigo || linha)) + '</div>' +
                 '</div>' +
                 '<div class="linha-metricas">' +
                   '<div class="linha-count">' + d.ocorrencias + '</div>' +
@@ -2671,9 +2752,6 @@
         }
 
         renderCol("tvLinhas1", sorted.slice(0, 10), 0);
-        renderCol("tvLinhas2", sorted.slice(10, 20), 10);
-        const col2 = document.getElementById("tvLinhas2");
-        if (col2) col2.closest(".tv-rank-col").style.display = sorted.length > 10 ? "" : "none";
       }
 
       // ═══════════════════════════════════════════════════════

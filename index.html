@@ -172,6 +172,24 @@
       .hist-table tr:last-child td { border-bottom: none; }
       .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--laranja3); color: var(--laranja); letter-spacing: 0.03em; }
 
+      /* Linha (rota) formatada: cidade + UF + seta + horário, em colunas alinhadas */
+      .rota-linha {
+        display: grid;
+        grid-template-columns: 96px 30px 18px 96px 30px 62px;
+        align-items: center;
+        column-gap: 8px;
+        white-space: normal;
+      }
+      .rota-cidade { color: #fff; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rota-uf { justify-self: start; font-size: 9px; font-weight: 700; color: var(--texto3); background: rgba(255,255,255,0.06); border-radius: 3px; padding: 1px 4px; letter-spacing: 0.02em; }
+      .rota-seta { justify-self: center; color: var(--laranja); font-size: 12px; }
+      .rota-hora { justify-self: start; font-family: "Consolas", "Courier New", monospace; font-size: 11px; font-weight: 600; color: var(--texto2); background: var(--preto3); border: 1px solid var(--borda); border-radius: 4px; padding: 2px 6px; text-align: center; }
+
+      /* Destaque das 3 primeiras linhas do ranking */
+      #linhasTable tbody tr.linha-destaque td { background: var(--laranja4); }
+      #linhasTable tbody tr.linha-destaque td:first-child { box-shadow: inset 3px 0 0 var(--laranja); }
+      #linhasTable tbody tr.linha-destaque:hover td { background: var(--laranja3); }
+
       /* Paginação */
       .paginacao { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; flex-wrap: wrap; gap: 8px; }
       .pag-info { font-size: 11px; color: var(--texto3); }
@@ -616,8 +634,8 @@
         </div>
 
         <!-- Ranking de linhas -->
-        <div class="card" style="margin-bottom:0;margin-top:12px">
-          <div class="card-title" id="linhasTitulo">Ranking de linhas com mais paradas irregulares</div>
+        <div class="card" style="margin-bottom:0;margin-top:12px;grid-column:1 / -1">
+          <div class="card-title" id="linhasTitulo">Linhas afetadas</div>
           <table class="hist-table" id="linhasTable">
             <thead><tr><th>#</th><th>Linha</th><th>Ocorrências</th><th>Locais distintos</th></tr></thead>
             <tbody id="linhasBody"><tr><td colspan="4" class="estado-vazio">Carregando...</td></tr></tbody>
@@ -1294,11 +1312,88 @@
       // ─────────────────────────────────────────────────────────
       //  Ranking de linhas
       // ─────────────────────────────────────────────────────────
-      function _fmtLinha(raw) {
+      function _capCidade(s) {
+        return s.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); });
+      }
+
+      function _normCidade(s) {
+        return s.trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      }
+
+      // Último recurso quando a cidade não tem (UF) no cadastro e também
+      // não aparece com UF em nenhuma outra linha do período (ver
+      // _buildUfPorCidade) — cobre as capitais, que são a maioria dos
+      // pontos de linha.
+      var UF_CAPITAIS_FALLBACK = {
+        "RIO BRANCO": "AC", "MACEIO": "AL", "MACAPA": "AP", "MANAUS": "AM",
+        "SALVADOR": "BA", "FORTALEZA": "CE", "BRASILIA": "DF", "VITORIA": "ES",
+        "GOIANIA": "GO", "SAO LUIS": "MA", "CUIABA": "MT", "CAMPO GRANDE": "MS",
+        "BELO HORIZONTE": "MG", "BELEM": "PA", "JOAO PESSOA": "PB", "CURITIBA": "PR",
+        "RECIFE": "PE", "TERESINA": "PI", "RIO DE JANEIRO": "RJ", "NATAL": "RN",
+        "PORTO ALEGRE": "RS", "PORTO VELHO": "RO", "BOA VISTA": "RR",
+        "FLORIANOPOLIS": "SC", "SAO PAULO": "SP", "ARACAJU": "SE", "PALMAS": "TO",
+      };
+
+      // Varre todas as linhas do período coletando "cidade → UF" de quem
+      // já vem com (UF) no cadastro, pra preencher quem não vem (ex.: uma
+      // linha cadastrada "SÃO PAULO X BRASÍLIA" sem UF em nenhum lado usa
+      // o que outra linha do mesmo período já ensinou sobre essas cidades).
+      function _buildUfPorCidade(linhasRaw) {
+        var map = Object.assign({}, UF_CAPITAIS_FALLBACK);
+        linhasRaw.forEach(function (raw) {
+          var rotaRaw = (raw.split("|")[1] || "").trim();
+          var sep = rotaRaw.match(/^(.*?)\s+(?:-|[Xx])\s+(.*)$/);
+          if (!sep) return;
+          [sep[1], sep[2]].forEach(function (lado) {
+            var m = lado.trim().match(/^(.*?)\s*\(([A-Za-zÀ-ÿ]{2})\)\s*$/);
+            if (m) map[_normCidade(m[1])] = m[2].toUpperCase();
+          });
+        });
+        return map;
+      }
+
+      function _fmtLinha(raw, ufMap) {
         if (!raw) return raw;
         const parts = raw.split("|");
         if (parts.length < 2) return raw;
-        return parts.slice(1).join(" — ");
+
+        const rotaRaw = (parts[1] || "").trim();
+        const horaRaw = (parts[2] || "").trim().replace(/^(\d{2}:\d{2}):00$/, "$1");
+
+        // Cadastro de linha não é 100% padronizado: a maioria usa
+        // "CIDADE (UF) - CIDADE (UF)", mas tem gente que cadastra com "X"
+        // no lugar do "-" e/ou sem o (UF) em algum lado (ex.: "SÃO PAULO X
+        // BRASÍLIA"). Aceita qualquer combinação disso em vez de exigir o
+        // formato inteiro, senão a linha cai crua e corta feio no grid.
+        const sep = rotaRaw.match(/^(.*?)\s+(?:-|[Xx])\s+(.*)$/);
+        let rotaHtml;
+        if (sep) {
+          const parseLado = function (lado) {
+            const m2 = lado.trim().match(/^(.*?)\s*\(([A-Za-zÀ-ÿ]{2})\)\s*$/);
+            if (m2) return { cidade: m2[1].trim(), uf: m2[2].toUpperCase() };
+            const cidade = lado.trim();
+            const uf = (ufMap && ufMap[_normCidade(cidade)]) || "";
+            return { cidade: cidade, uf: uf };
+          };
+          const a = parseLado(sep[1]);
+          const b = parseLado(sep[2]);
+          // .rota-linha é grid de 6 colunas fixas (cidade/UF/seta/cidade/UF/hora)
+          // — sempre precisa dos 6 <span>, senão o grid desalinha as colunas
+          // seguintes quando um lado não tem UF (o span de UF fica vazio,
+          // mas continua ocupando a coluna).
+          rotaHtml =
+            '<span class="rota-cidade">' + _capCidade(a.cidade) + '</span>' +
+            '<span class="rota-uf">' + a.uf + '</span>' +
+            '<span class="rota-seta">&#8594;</span>' +
+            '<span class="rota-cidade">' + _capCidade(b.cidade) + '</span>' +
+            '<span class="rota-uf">' + b.uf + '</span>';
+        } else {
+          rotaHtml = '<span class="rota-cidade">' + rotaRaw + '</span>';
+        }
+
+        const horaHtml = horaRaw ? '<span class="rota-hora">' + horaRaw + '</span>' : '';
+
+        return '<span class="rota-linha">' + rotaHtml + horaHtml + '</span>';
       }
 
       function renderRankingLinhas(regs) {
@@ -1326,12 +1421,18 @@
         }
         if (card) card.style.display = "";
 
-        if (titulo) titulo.textContent = "Ranking de linhas — top " + sorted.length + " com mais paradas irregulares";
+        if (titulo) titulo.textContent = "Linhas afetadas — top " + sorted.length + " com mais paradas irregulares";
+
+        const ufMap = _buildUfPorCidade(Object.keys(cont));
 
         tbody.innerHTML = sorted.map(function ([linha, d], i) {
-          return '<tr>' +
-            '<td><strong style="color:var(--laranja)">' + (i + 1) + '</strong></td>' +
-            '<td><strong>' + _fmtLinha(linha) + '</strong></td>' +
+          const destaque = i < 3 ? ' class="linha-destaque"' : '';
+          const posHtml = i < 3
+            ? '<span class="tag">' + (i + 1) + '</span>'
+            : '<strong style="color:var(--laranja)">' + (i + 1) + '</strong>';
+          return '<tr' + destaque + '>' +
+            '<td>' + posHtml + '</td>' +
+            '<td><strong>' + _fmtLinha(linha, ufMap) + '</strong></td>' +
             '<td>' + d.ocorrencias + '</td>' +
             '<td>' + d.locais.size + '</td>' +
           '</tr>';
