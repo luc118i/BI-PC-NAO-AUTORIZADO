@@ -3202,28 +3202,46 @@
         btnEl.disabled = true;
         btnEl.innerHTML = "Gerando...";
 
-        google.script.run
-          .withSuccessHandler(function (res) {
-            btnEl.disabled = false;
-            btnEl.innerHTML = textoOrig;
+        function restaurarBtn() { btnEl.disabled = false; btnEl.innerHTML = textoOrig; }
+
+        // Gerado pela mesma API (Node/Puppeteer) dos outros relatórios —
+        // não pelo Apps Script — porque só o Chrome headless do
+        // Puppeteer sabe repetir o rodapé (razão social/CNPJ) com
+        // numeração de página real em cada página do PDF; o conversor
+        // HTML→PDF do Apps Script não tem esse recurso. Ver
+        // resumo-analise.route.ts no Gerador de Relatórios Operacionais.
+        _obterCredenciaisDrive()
+          .then(function (cred) {
+            return fetch(REPORTS_API_URL + "/reports/resumo-analise/drive", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                regiao: regiaoNome,
+                dataLabel: dataLabel,
+                analisadoPor: _authLogado() ? _obterUsuarioAtual() : "",
+                itens: itensAnalisados,
+                accessToken: cred.accessToken,
+                folderId: cred.folderId,
+              }),
+            });
+          })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao gerar o resumo"); });
+            return r.json();
+          })
+          .then(function (json) {
+            restaurarBtn();
+            var url = json && json.data && json.data.webViewLink;
             _alertarAcao(
               'Resumo de <b>' + itensAnalisados.length + '</b> excedência' + (itensAnalisados.length !== 1 ? "s" : "") +
               ' analisada' + (itensAnalisados.length !== 1 ? "s" : "") + ' salvo no Drive.<br><br>' +
-              '<a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline">Abrir no Drive</a>',
+              (url ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline">Abrir no Drive</a>' : ""),
               { titulo: "✅ Resumo do dia — " + regiaoNome, mensagemHtml: true },
             );
           })
-          .withFailureHandler(function (err) {
-            btnEl.disabled = false;
-            btnEl.innerHTML = textoOrig;
+          .catch(function (err) {
+            restaurarBtn();
             _alertarAcao("Erro ao gerar o resumo: " + ((err && err.message) || err), { titulo: "❌ Erro" });
-          })
-          .gerarResumoAnaliseRegiaoPdf({
-            regiao: regiaoNome,
-            dataLabel: dataLabel,
-            analisadoPor: _authLogado() ? _obterUsuarioAtual() : "",
-            totalItens: todosIdxs.length,
-            itens: itensAnalisados,
           });
       }
 
