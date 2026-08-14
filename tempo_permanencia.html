@@ -928,9 +928,19 @@
         btnOk.textContent = opts.textoOk || "Confirmar";
         btnOk.style.background = opts.corOk || "";
         btnOk.style.borderColor = opts.corOk || "";
+        document.getElementById("confirmBtnCancelar").classList.toggle("hidden", !!opts.ocultarCancelar);
         document.getElementById("confirmBtnCancelar").textContent = opts.textoCancelar || "Cancelar";
         document.getElementById("confirmModal").classList.remove("hidden");
         return new Promise(function (resolve) { _confirmResolve = resolve; });
+      }
+
+      // Variante "só aviso" — 1 botão só (OK), sem opção de cancelar.
+      // Substitui window.alert() nativo pelo mesmo motivo do _confirmarAcao.
+      function _alertarAcao(mensagem, opts) {
+        opts = opts || {};
+        opts.ocultarCancelar = true;
+        opts.textoOk = opts.textoOk || "OK";
+        return _confirmarAcao(mensagem, opts);
       }
 
       function _confirmResponder(valor) {
@@ -1266,6 +1276,7 @@
         edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>',
         alertTriangle: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
         alertOctagon: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>',
+        layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -1988,6 +1999,7 @@
       var _relatorioItens = [];
       var _grupoEsquemaCounter = 0;
       var _grupoEsquemaIdxs = {}; // gidx → [idx, ...] dos itens daquele grupo (prefixo)
+      var _regiaoGidxs = {};      // ri (índice da região renderizada) → [gidx, ...] dos veículos dentro dela
 
       function _renderItemHtml(r) {
         var cor = _corExcedente(r.excedenteSeg);
@@ -2540,6 +2552,7 @@
       function _renderTPFiltrado() {
         _relatorioItens = [];
         _grupoEsquemaIdxs = {};
+        _regiaoGidxs = {};
         var busca = _normTP(document.getElementById("tpBusca").value);
         var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
         var motivoFiltro = document.getElementById("tpMotivoSel").value;
@@ -2583,6 +2596,7 @@
             grupos[r.veiculo].push(r);
           });
           ordemGrupos.sort(function (a, b) { return _grupoMaiorExcedente(grupos[b]) - _grupoMaiorExcedente(grupos[a]); });
+          _regiaoGidxs[ri] = [];
 
           html += '<details class="acc-group acc-regiao"' + (ri === 0 ? ' open' : '') + '>' +
             '<summary class="acc-summary">' +
@@ -2591,7 +2605,11 @@
                 '<span class="acc-prefixo">' + regiao + '</span>' +
                 '<span class="acc-sub">' + veiculosRegiao.size + ' veículo' + (veiculosRegiao.size !== 1 ? 's' : '') + '</span>' +
               '</div>' +
-              '<div class="acc-right"><span class="acc-count" data-total="' + itensRegiao.length + '">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span></div>' +
+              '<div class="acc-right">' +
+                '<span class="acc-count" data-total="' + itensRegiao.length + '">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span>' +
+                '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência pendente desta região, veículo por veículo" ' +
+                  'onclick="event.preventDefault();event.stopPropagation();abrirRelatorioMassaRegiao(' + ri + ')">' + _icon("layers") + ' Relatório em massa</button>' +
+              '</div>' +
             '</summary>' +
             '<div class="acc-body">';
 
@@ -2601,6 +2619,7 @@
             var veiculoEsc = veiculo.replace(/'/g, "");
             var gidx = _grupoEsquemaCounter++;
             var startIdx = _relatorioItens.length;
+            _regiaoGidxs[ri].push(gidx);
 
             html += '<details class="acc-group acc-prefixo-group"' + (ri === 0 && gi === 0 ? ' open' : '') + '>' +
               '<summary class="acc-summary">' +
@@ -2799,6 +2818,17 @@
       var _relGrupoIdxs = [];    // idxs de _relatorioItens incluídos no modo grupo
       var _relModalToken = 0;    // invalidação de callback assíncrono (trips) se o modal reabrir antes de carregar
 
+      // ── Relatório em massa (região inteira) ────────────────────
+      // Fila de gidx (veículos) com ocorrência pendente na região — a
+      // modal de grupo abre um veículo por vez, avançando sozinha pro
+      // próximo assim que o relatório daquele veículo é concluído (2º
+      // clique, "Concluído"). Linha/motorista continuam manuais por
+      // veículo (a API não tem como resolver motorista sozinha), mas o
+      // usuário não precisa reabrir "Gerar Relatório" veículo por veículo.
+      var _massaAtiva = false;
+      var _massaFila = [];  // [gidx, ...]
+      var _massaIndex = 0;
+
       // Reseta os campos comuns do modal (linha/motorista/evidências/status),
       // usado tanto no modo individual quanto no modo grupo.
       function _resetModalRelatorioComum() {
@@ -2857,11 +2887,22 @@
       }
 
       // Abre o modal já preparado pra gerar um relatório pra CADA ocorrência
-      // do grupo (mesmo veículo) de uma vez só — reaproveita a mesma linha,
-      // motorista e evidências escolhidas, evitando repetir o modal N vezes.
+      // PENDENTE do grupo (mesmo veículo) de uma vez só — reaproveita a
+      // mesma linha, motorista e evidências escolhidas, evitando repetir
+      // o modal N vezes. Ocorrências já analisadas (riscadas) ficam de
+      // fora automaticamente, pra não gerar relatório duplicado pra quem
+      // já foi resolvido (justificado ou reportado antes).
       function abrirModalRelatorioGrupo(gidx) {
-        var idxs = (_grupoEsquemaIdxs[gidx] || []).filter(function (idx) { return !!_relatorioItens[idx]; });
-        if (!idxs.length) return;
+        var idxs = (_grupoEsquemaIdxs[gidx] || []).filter(function (idx) {
+          if (!_relatorioItens[idx]) return false;
+          var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+          return !el || !el.classList.contains("riscado");
+        });
+        if (!idxs.length) {
+          if (_massaAtiva) { _avancarMassaRegiao(); return; }
+          _alertarAcao("Todas as ocorrências deste veículo já foram analisadas.");
+          return;
+        }
 
         _relModoGrupo = true;
         _relGrupoIdxs = idxs;
@@ -2885,8 +2926,9 @@
         var itens = _relGrupoIdxs.map(function (idx) { return { idx: idx, item: _relatorioItens[idx] }; })
           .filter(function (x) { return !!x.item; });
 
+        var sufixoMassa = _massaAtiva ? " · veículo " + (_massaIndex + 1) + " de " + _massaFila.length : "";
         document.getElementById("relModalTitulo").lastChild.textContent =
-          " Gerar Relatório — Excesso de Permanência (" + itens.length + " ocorrência" + (itens.length !== 1 ? "s" : "") + ")";
+          " Gerar Relatório — Excesso de Permanência (" + itens.length + " ocorrência" + (itens.length !== 1 ? "s" : "") + ")" + sufixoMassa;
         document.getElementById("relPonto").textContent = itens.length + " ponto" + (itens.length !== 1 ? "s" : "");
 
         var maiorExcedente = itens.reduce(function (m, x) { return Math.max(m, x.item.excedenteSeg); }, 0);
@@ -2935,6 +2977,71 @@
       function fecharModalRelatorio() {
         document.getElementById("relatorioModal").classList.add("hidden");
         document.removeEventListener("paste", _handlePasteEvidencia);
+        // Fechar (Cancelar/X/clique fora) sempre interrompe a fila de
+        // massa — reabrir "Relatório em massa" depois recalcula do zero
+        // quem ainda está pendente. A própria fila NÃO passa por aqui ao
+        // avançar de um veículo pro próximo (ver _onClickBtnGerar).
+        _massaAtiva = false;
+        _massaFila = [];
+        _massaIndex = 0;
+      }
+
+      // ── Relatório em massa (região inteira) ─────────────────────
+      function abrirRelatorioMassaRegiao(ri) {
+        var gidxs = _regiaoGidxs[ri] || [];
+        var pendentes = gidxs.filter(function (gidx) {
+          return (_grupoEsquemaIdxs[gidx] || []).some(function (idx) {
+            var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+            return el && !el.classList.contains("riscado");
+          });
+        });
+
+        if (!pendentes.length) {
+          _alertarAcao("Não há ocorrências pendentes nesta região — todas já foram analisadas.", { titulo: "🗂 Relatório em massa" });
+          return;
+        }
+
+        _confirmarAcao(
+          "Vai abrir a modal de Gerar Relatório pra cada um dos " + pendentes.length + " veículo" + (pendentes.length !== 1 ? "s" : "") +
+          " com ocorrência pendente nesta região, um de cada vez — avançando sozinha assim que você concluir o relatório do veículo atual.\n\n" +
+          "Linha e motorista continuam manuais por veículo (a linha pode vir pré-preenchida se já tiver esquema vinculado).",
+          { titulo: "🗂 Gerar Relatório em massa", textoOk: "Começar" },
+        ).then(function (ok) {
+          if (!ok) return;
+          _massaAtiva = true;
+          _massaFila = pendentes;
+          _massaIndex = 0;
+          _processarProximaMassaRegiao();
+        });
+      }
+
+      // Pula veículos que já ficaram totalmente resolvidos nesse meio
+      // tempo (ex.: usuário reverteu/gerou por fora da fila) e abre a
+      // modal de grupo pro próximo veículo pendente da fila.
+      function _processarProximaMassaRegiao() {
+        while (_massaIndex < _massaFila.length) {
+          var gidx = _massaFila[_massaIndex];
+          var temPendente = (_grupoEsquemaIdxs[gidx] || []).some(function (idx) {
+            var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+            return el && !el.classList.contains("riscado");
+          });
+          if (temPendente) break;
+          _massaIndex++;
+        }
+
+        if (_massaIndex >= _massaFila.length) {
+          var total = _massaFila.length;
+          fecharModalRelatorio(); // já zera _massaAtiva/_massaFila/_massaIndex
+          _alertarAcao("Relatório em massa concluído — " + total + " veículo" + (total !== 1 ? "s" : "") + " processado" + (total !== 1 ? "s" : "") + ".", { titulo: "✅ Concluído" });
+          return;
+        }
+
+        abrirModalRelatorioGrupo(_massaFila[_massaIndex]);
+      }
+
+      function _avancarMassaRegiao() {
+        _massaIndex++;
+        _processarProximaMassaRegiao();
       }
 
       // ── Catálogo de viagens (carrega 1x, filtra tudo localmente) ──
@@ -3327,6 +3434,11 @@
             var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
             if (el) _aplicarAnalisado(el, true, justRelatorio);
           }
+          // No relatório em massa, NÃO fecha o modal — avança direto pro
+          // próximo veículo da fila (abrirModalRelatorioGrupo reaproveita
+          // a modal já aberta). fecharModalRelatorio() zeraria o estado
+          // da massa, então só é chamado fora desse fluxo.
+          if (_massaAtiva) { _avancarMassaRegiao(); return; }
           fecharModalRelatorio();
           return;
         }
