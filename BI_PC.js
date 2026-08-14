@@ -108,6 +108,15 @@ function definirPastaDriveRelatorios(folderId, folderName) {
 var CATEDRAL_LOGO_B64 =
   "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";
 
+// Razão social/CNPJ pro rodapé do PDF — mesmo texto usado pelo Gerador
+// de Relatórios Operacionais (a Viação Catedral é a marca; o CNPJ é
+// registrado sob essa razão social). Sem numeração "Página X de Y"
+// aqui: esse recurso, no sistema de referência, vem do Puppeteer
+// (page.pdf com footerTemplate) — o conversor HTML→PDF do Apps Script
+// não tem equivalente pra rodapé repetido/numeração por página.
+var EMPRESA_RAZAO_SOCIAL = "KANDANGO TRANSPORTE E TURISMO LTDA";
+var EMPRESA_CNPJ = "03.233.439/0001-52";
+
 var MOTIVO_CORES_PADRAO = {
   ANTECIPADO: "#f0c040",
   INICIO_VIAGEM: "#3b82c4",
@@ -223,7 +232,11 @@ function _montarHtmlResumoAnaliseRegiao(payload) {
     ".col-nowrap { white-space:nowrap; } .col-center { text-align:center; }" +
     ".row-even td { background:#fff; } .row-odd td { background:#f9fafb; }" +
     ".motivo-badge { display:inline-block; border-radius:3px; font-size:7pt; font-weight:700; padding:2px 6px; color:#fff; white-space:nowrap; }" +
-    ".report-footer { margin-top:14px; font-size:7.5pt; color:#9ca3af; text-align:right; }" +
+    ".report-footer-table { width:100%; border-collapse:collapse; margin-top:18px; }" +
+    ".report-footer-table td { border-top:1px solid #e5e7eb; padding-top:8px; font-size:7.5pt; color:#9ca3af; vertical-align:top; }" +
+    ".footer-left { text-align:left; width:33%; }" +
+    ".footer-center { text-align:center; width:34%; line-height:1.4; color:#6b7280; }" +
+    ".footer-right { text-align:right; width:33%; }" +
     "</style></head><body>" +
     '<table class="report-header"><tr>' +
     '<td class="report-header-logo"><img src="data:image/jpeg;base64,' + CATEDRAL_LOGO_B64 + '" alt="Viação Catedral" /></td>' +
@@ -250,7 +263,11 @@ function _montarHtmlResumoAnaliseRegiao(payload) {
     '<th class="occ-th" style="width:112px;">Motivo</th>' +
     '<th class="occ-th">Detalhe</th>' +
     "</tr></thead><tbody>" + linhasTabela + "</tbody></table>" +
-    '<div class="report-footer">Gerado em ' + geradoEm + (payload.analisadoPor ? " · Por " + _escHtml(payload.analisadoPor) : "") + "</div>" +
+    '<table class="report-footer-table"><tr>' +
+    '<td class="footer-left">' + (payload.analisadoPor ? "Por " + _escHtml(payload.analisadoPor) : "") + "</td>" +
+    '<td class="footer-center">' + _escHtml(EMPRESA_RAZAO_SOCIAL) + "<br/>CNPJ: " + _escHtml(EMPRESA_CNPJ) + "</td>" +
+    '<td class="footer-right">Gerado em ' + geradoEm + "</td>" +
+    "</tr></table>" +
     "</body></html>"
   );
 }
