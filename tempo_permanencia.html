@@ -865,6 +865,8 @@
             linhaCod: r.linhaCod || "",
             linhaNome: r.linhaNome || "",
             linhaTripId: r.linhaTripId || "",
+            horarioSessao: r.horarioSessao || "",
+            pontoSessao: r.pontoSessao || "",
           });
         });
         return { chaves: chaves, justs: justs };
@@ -917,6 +919,8 @@
             linhaCod: justificativa.linhaCod || "",
             linhaNome: justificativa.linhaNome || "",
             linhaTripId: justificativa.linhaTripId || "",
+            horarioSessao: justificativa.horarioSessao || "",
+            pontoSessao: justificativa.pontoSessao || "",
           });
       }
 
@@ -1086,10 +1090,12 @@
           el.setAttribute("data-motivo", motivo || "");
           _setMotivoTag(el.querySelector('[data-role="motivo-tag"]'), motivo);
 
-          // Restaura a linha vinculada (se essa excedência já teve
-          // relatório gerado com uma linha selecionada) — reaproveitada
-          // pelo auto-preenchimento do modal de Gerar Relatório
-          // (_tentarAutoSelecionarLinhaAtual) sem precisar buscar de novo.
+          // Restaura a linha + horário de sessão vinculados (se essa
+          // excedência já teve relatório gerado com uma linha
+          // selecionada) — reaproveitados pelo auto-preenchimento do
+          // modal de Gerar Relatório (_tentarAutoSelecionarLinhaAtual) e
+          // pelo campo "sessionTime" da ocorrência (_criarOcorrencia),
+          // sem precisar reabrir "Ver esquema" pra buscar de novo.
           if (just && just.linhaCod) {
             var idx = el.getAttribute("data-idx");
             var item = idx != null ? _relatorioItens[idx] : null;
@@ -1099,8 +1105,8 @@
                 nomeLinha: just.linhaNome || "",
                 horario: "",
                 sentido: "",
-                horarioSessao: null,
-                pontoSessao: null,
+                horarioSessao: just.horarioSessao || null,
+                pontoSessao: just.pontoSessao || null,
                 tripId: just.linhaTripId || "",
               };
             }
@@ -3494,6 +3500,22 @@
         });
       }
 
+      // Completa a justificativa base (linha, comum a todo o grupo) com o
+      // horário/ponto de sessão ESPECÍFICO daquele item — cada ponto do
+      // roteiro tem seu próprio horário previsto de saída, então não dá
+      // pra usar um valor só compartilhado entre todos os pontos do
+      // grupo/massa como a linha. Vem do esquema vinculado (live, "Ver
+      // esquema") ou já restaurado de um reload anterior (_esquemaInfo,
+      // ver _aplicarStatusPersistido).
+      function _justRelatorioParaItem(base, item) {
+        var esq = item && item._esquemaInfo;
+        var out = {};
+        for (var k in base) out[k] = base[k];
+        out.horarioSessao = (esq && esq.horarioSessao) || "";
+        out.pontoSessao = (esq && esq.pontoSessao) || "";
+        return out;
+      }
+
       // O botão do rodapé serve pra duas ações: gerar o relatório (1ª vez)
       // e, depois de gerado, fechar o modal + marcar a ocorrência como
       // analisada (2º clique, quando o texto já virou "Concluído").
@@ -3502,12 +3524,15 @@
           // Já passou pela justificativa "de verdade": o relatório gerado
           // cria uma ocorrência real (erro do motorista confirmado), então
           // marca direto como analisado sem passar pela modal de motivo.
-          var justRelatorio = {
+          var justRelatorioBase = {
             motivo: "RELATORIO_GERADO",
             observacao: "Ocorrência de excesso de permanência registrada via Gerar Relatório.",
             // Guarda a linha junto da análise assim que ela é carregada/
             // selecionada — sobrevive no TEMPO_PERMANENCIA_STATUS mesmo
-            // sem precisar reabrir o modal pra reselecionar depois.
+            // sem precisar reabrir o modal pra reselecionar depois. A
+            // linha é a mesma pra todo o grupo (mesmo veículo/viagem),
+            // mas o horário de sessão é POR PONTO — ver
+            // _justRelatorioParaItem(), que completa isso item a item.
             linhaCod: _relLinhaSelecionada ? _relLinhaSelecionada.lineCode : "",
             linhaNome: _relLinhaSelecionada ? _relLinhaSelecionada.lineName : "",
             linhaTripId: _relLinhaSelecionada ? _relLinhaSelecionada.id : "",
@@ -3515,11 +3540,11 @@
           if (_relModoGrupo) {
             _relGrupoIdxs.forEach(function (idx) {
               var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
-              if (el) _aplicarAnalisado(el, true, justRelatorio);
+              if (el) _aplicarAnalisado(el, true, _justRelatorioParaItem(justRelatorioBase, _relatorioItens[idx]));
             });
           } else {
             var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
-            if (el) _aplicarAnalisado(el, true, justRelatorio);
+            if (el) _aplicarAnalisado(el, true, _justRelatorioParaItem(justRelatorioBase, _relItemAtual));
           }
           // No relatório em massa, NÃO fecha o modal — avança direto pro
           // próximo veículo da fila (abrirModalRelatorioGrupo reaproveita

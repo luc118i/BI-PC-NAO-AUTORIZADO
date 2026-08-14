@@ -243,7 +243,7 @@ function getDadosBI(dataIni, dataFim) {
 var TEMPO_PERMANENCIA_STATUS_HEADER = [
   "CHAVE", "VEICULO", "PONTO", "ENTRADA", "STATUS", "ATUALIZADO_EM",
   "MOTIVO", "QTD_EMBARQUE", "QTD_DESEMBARQUE", "APOIO_RODOVIARIA", "OBSERVACAO",
-  "LINHA_COD", "LINHA_NOME", "LINHA_TRIP_ID",
+  "LINHA_COD", "LINHA_NOME", "LINHA_TRIP_ID", "HORARIO_SESSAO", "PONTO_SESSAO",
 ];
 
 // Antes disto, marcarStatusPermanencia() lançava erro se a aba não
@@ -260,6 +260,12 @@ var TEMPO_PERMANENCIA_STATUS_HEADER = [
 // carregada/selecionada (esquema vinculado ou busca manual no modal de
 // Gerar Relatório) — fica salva junto da análise, sem precisar
 // reselecionar a linha depois (ver justRelatorio em _onClickBtnGerar()).
+// HORARIO_SESSAO/PONTO_SESSAO (O-P) guardam o horário previsto de saída
+// (sessão) e o nome do ponto do roteiro casado pelo esquema, específicos
+// DAQUELE ponto de parada (cada ponto do roteiro tem seu próprio horário
+// de sessão) — sem isso, o campo "sessionTime" mandado pra API ao criar a
+// ocorrência (_criarOcorrencia) ficava null depois de um reload, mesmo
+// pra pontos que já tinham esquema vinculado antes.
 // Migra sozinha o cabeçalho de abas criadas antes disso, sem mexer nas
 // linhas de dados já gravadas.
 function _abaStatusPermanencia(ss) {
@@ -302,6 +308,8 @@ function getStatusPermanencia() {
       linhaCod: String(r[11] || "").trim(),
       linhaNome: String(r[12] || "").trim(),
       linhaTripId: String(r[13] || "").trim(),
+      horarioSessao: String(r[14] || "").trim(),
+      pontoSessao: String(r[15] || "").trim(),
     }));
 
   return JSON.stringify(registros);
@@ -309,7 +317,7 @@ function getStatusPermanencia() {
 
 // payload: { chave, veiculo, ponto, entrada, analisado, motivo,
 //            qtdEmbarque, qtdDesembarque, apoioRodoviaria, observacao,
-//            linhaCod, linhaNome, linhaTripId }
+//            linhaCod, linhaNome, linhaTripId, horarioSessao, pontoSessao }
 function marcarStatusPermanencia(payload) {
   const chave = String((payload && payload.chave) || "").trim();
   if (!chave) throw new Error("chave é obrigatória.");
@@ -319,8 +327,8 @@ function marcarStatusPermanencia(payload) {
 
   const status = payload.analisado ? "ANALISADO" : "";
   const agora = new Date();
-  // Reverter (analisado=false) limpa a justificativa (e a linha) junto —
-  // não faz sentido guardar o motivo/linha de uma análise desfeita.
+  // Reverter (analisado=false) limpa a justificativa (e a linha/sessão)
+  // junto — não faz sentido guardar dado de uma análise desfeita.
   const valoresLinha = [
     status,
     agora,
@@ -332,6 +340,8 @@ function marcarStatusPermanencia(payload) {
     payload.analisado ? payload.linhaCod || "" : "",
     payload.analisado ? payload.linhaNome || "" : "",
     payload.analisado ? payload.linhaTripId || "" : "",
+    payload.analisado ? payload.horarioSessao || "" : "",
+    payload.analisado ? payload.pontoSessao || "" : "",
   ];
 
   const lastRow = aba.getLastRow();
