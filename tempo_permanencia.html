@@ -459,8 +459,14 @@
       .just-tabela-veiculo { font-weight: 700; color: var(--texto); min-width: 56px; }
       .just-tabela-ponto { flex: 1; min-width: 120px; color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .just-tabela-data { color: var(--texto3); font-size: 11px; flex-shrink: 0; }
-      .just-tabela-motivo { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
       .just-tabela-detalhe { margin-top: 3px; font-size: 11px; color: var(--texto3); }
+
+      /* Tag de motivo — usada na tabela do dashboard, no cabeçalho do
+         grupo (acc-summary) e em cada .perm-item, sempre com a mesma
+         cor por motivo (ver MOTIVO_CORES/_setMotivoTag no script). */
+      .motivo-tag, .just-tabela-motivo { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; display: inline-block; text-decoration: none; }
+      .perm-local-nome .motivo-tag { font-size: 9px; vertical-align: middle; margin-left: 2px; }
+      .acc-right .motivo-tag { flex-shrink: 0; }
 
       /* Média de embarque/desembarque por ponto */
       .just-media-row { display: flex; align-items: center; gap: 14px; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
@@ -898,14 +904,62 @@
           });
       }
 
-      // Aplica de fato o estado "analisado" num .perm-item — classe,
-      // contadores e persistência. NÃO abre a modal de justificativa: é
-      // usada tanto pelo confirmar da modal quanto pelo fluxo de "Gerar
-      // Relatório" (que já tem sua própria justificativa: a ocorrência
-      // criada) e pelo reverter (que não precisa de motivo pra desmarcar).
+      // Pinta (ou esconde) a tag de motivo — mesmo rótulo/cor em
+      // MOTIVO_LABELS/MOTIVO_CORES, usados também no dashboard.
+      function _setMotivoTag(tagEl, motivo) {
+        if (!tagEl) return;
+        if (!motivo || !MOTIVO_LABELS[motivo]) { tagEl.classList.add("hidden"); tagEl.textContent = ""; return; }
+        var cor = MOTIVO_CORES[motivo] || "#888";
+        tagEl.textContent = MOTIVO_LABELS[motivo];
+        tagEl.style.color = cor;
+        tagEl.style.background = cor + "22";
+        tagEl.classList.remove("hidden");
+      }
+
+      // Recalcula a tag de motivo do cabeçalho do grupo (prefixo/veículo):
+      // só aparece quando TODOS os pontos do grupo já foram analisados —
+      // mostra o motivo se for o mesmo em todos, ou "Vários motivos" se
+      // cada ponto foi descartado por um motivo diferente.
+      function _atualizarMotivoTagGrupoPorDetails(detailsEl) {
+        var tagEl = detailsEl.querySelector(':scope > summary [data-role="motivo-tag-grupo"]');
+        if (!tagEl) return;
+        var itens = Array.prototype.slice.call(detailsEl.querySelectorAll(":scope > .acc-body > .perm-item"));
+        if (!itens.length || !itens.every(function (i) { return i.classList.contains("riscado"); })) {
+          tagEl.classList.add("hidden");
+          return;
+        }
+        var motivos = Array.from(new Set(itens.map(function (i) { return i.getAttribute("data-motivo") || ""; }).filter(Boolean)));
+        if (motivos.length === 1) {
+          _setMotivoTag(tagEl, motivos[0]);
+        } else if (motivos.length > 1) {
+          tagEl.textContent = "Vários motivos";
+          tagEl.style.color = "#ccc";
+          tagEl.style.background = "rgba(255,255,255,0.08)";
+          tagEl.classList.remove("hidden");
+        } else {
+          tagEl.classList.add("hidden");
+        }
+      }
+
+      function _atualizarMotivoTagGrupo(el) {
+        var grupoDetails = el.closest(".acc-prefixo-group");
+        if (grupoDetails) _atualizarMotivoTagGrupoPorDetails(grupoDetails);
+      }
+
+      // Aplica de fato o estado "analisado" num .perm-item — classe, tag
+      // de motivo, contadores e persistência. NÃO abre a modal de
+      // justificativa: é usada tanto pelo confirmar da modal quanto pelo
+      // fluxo de "Gerar Relatório" (que já tem sua própria justificativa:
+      // a ocorrência criada, motivo "RELATORIO_GERADO" = culpa do
+      // motorista) e pelo reverter (que não precisa de motivo pra
+      // desmarcar).
       function _aplicarAnalisado(el, analisado, justificativa) {
         el.classList.toggle("riscado", analisado);
+        var motivo = analisado ? (justificativa && justificativa.motivo) : "";
+        el.setAttribute("data-motivo", motivo || "");
+        _setMotivoTag(el.querySelector('[data-role="motivo-tag"]'), motivo);
         _atualizarContadoresA_partir(el);
+        _atualizarMotivoTagGrupo(el);
         var idx = el.getAttribute("data-idx");
         var item = idx != null ? _relatorioItens[idx] : null;
         if (item) _persistirStatus(item, analisado, justificativa);
@@ -923,12 +977,19 @@
         abrirModalJustificativa([item], [el]);
       }
 
-      // Aplica no DOM o que já está marcado como analisado na planilha
+      // Aplica no DOM o que já está marcado como analisado na planilha —
+      // classe "riscado" + tag de motivo (individual por ponto) + estado
+      // dos cabeçalhos de grupo.
       function _aplicarStatusPersistido() {
         if (!_statusAnalisadoCache || !_statusAnalisadoCache.size) return;
         document.querySelectorAll("#tpAccordions .perm-item").forEach(function (el) {
           var chave = el.getAttribute("data-chave");
-          if (chave && _statusAnalisadoCache.has(chave)) el.classList.add("riscado");
+          if (!chave || !_statusAnalisadoCache.has(chave)) return;
+          el.classList.add("riscado");
+          var just = _justificativaCache ? _justificativaCache.get(chave) : null;
+          var motivo = just ? just.motivo : "";
+          el.setAttribute("data-motivo", motivo || "");
+          _setMotivoTag(el.querySelector('[data-role="motivo-tag"]'), motivo);
         });
         document.querySelectorAll("#tpAccordions details.acc-group").forEach(function (d) { _atualizarContador(d); });
         document.querySelectorAll("#tpAccordions details.acc-prefixo-group").forEach(function (d) {
@@ -939,6 +1000,7 @@
             var btn = d.querySelector(":scope > summary .acc-mini-btn");
             if (btn) { btn.innerHTML = _icon("rotate") + " Reverter"; btn.classList.add("ativo"); }
           }
+          _atualizarMotivoTagGrupoPorDetails(d);
         });
       }
 
@@ -1293,22 +1355,29 @@
       }
 
       // ─────────────────────────────────────────────────────────
-      //  Card "Motivos de análise" — excedências marcadas como
-      //  analisadas SEM virar ocorrência (ver abrirModalJustificativa()),
-      //  alimentado por getJustificativasPermanencia() (aba
-      //  TEMPO_PERMANENCIA_STATUS). Mesmo período do resto do dashboard.
+      //  Motivos de análise — rótulo + cor de cada motivo, usados na
+      //  tag exibida no cabeçalho do grupo/em cada .perm-item (ver
+      //  _setMotivoTag), na tabela e no gráfico do card "Motivos de
+      //  análise" do dashboard (alimentado por
+      //  getJustificativasPermanencia(), aba TEMPO_PERMANENCIA_STATUS).
+      //  RELATORIO_GERADO é o único que representa erro confirmado do
+      //  motorista (criado uma ocorrência de verdade) — os outros 4 são
+      //  descartes; ver MOTIVOS_DESCARTE logo abaixo.
       // ─────────────────────────────────────────────────────────
       var MOTIVO_LABELS = {
         ANTECIPADO: "Chegou antecipadamente",
         INICIO_VIAGEM: "Início de viagem",
         EMBARQUE: "Muito embarque/desembarque",
         OCORRENCIA: "Teve ocorrência",
+        RELATORIO_GERADO: "Culpa do motorista",
       };
+      var MOTIVOS_DESCARTE = ["ANTECIPADO", "INICIO_VIAGEM", "EMBARQUE", "OCORRENCIA"];
       var MOTIVO_CORES = {
         ANTECIPADO: "#f0c040",
         INICIO_VIAGEM: "#3b82c4",
         EMBARQUE: "#22c97a",
-        OCORRENCIA: "#e05050",
+        OCORRENCIA: "#8b5cf6",
+        RELATORIO_GERADO: "#e05050",
       };
 
       function _carregarJustificativasPermanencia() {
@@ -1329,7 +1398,7 @@
         // "RELATORIO_GERADO" (marcado automaticamente ao gerar relatório)
         // já aparece nos KPIs/gráficos de cima — aqui é só o que foi
         // descartado (não virou ocorrência).
-        var lista = (listaBruta || []).filter(function (r) { return MOTIVO_LABELS[r.motivo]; });
+        var lista = (listaBruta || []).filter(function (r) { return MOTIVOS_DESCARTE.indexOf(r.motivo) !== -1; });
 
         document.getElementById("dashCardJustificativas").classList.toggle("hidden", !lista.length);
         if (!lista.length) { _destruirDashChart("justMotivo"); document.getElementById("justMediaPontosWrap").classList.add("hidden"); return; }
@@ -1856,7 +1925,7 @@
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
         return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para justificar e marcar como analisado (ou reverter, se já analisado)">' +
           '<div class="perm-local">' +
-            '<div class="perm-local-nome">' + r.ponto + '</div>' +
+            '<div class="perm-local-nome">' + r.ponto + ' <span class="motivo-tag hidden" data-role="motivo-tag"></span></div>' +
             '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
           '</div>' +
           '<div class="perm-meta">' +
@@ -2450,6 +2519,7 @@
                 '</div>' +
                 '<div class="acc-right">' +
                   '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
+                  '<span class="motivo-tag hidden" data-role="motivo-tag-grupo"></span>' +
                   '<button type="button" class="acc-mini-btn" id="esquema-grupo-btn-' + gidx + '" title="Vincular um esquema a todas as ocorrências deste veículo de uma vez" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
                   '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +
