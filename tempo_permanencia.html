@@ -1071,8 +1071,10 @@
       }
 
       // Aplica no DOM o que já está marcado como analisado na planilha —
-      // classe "riscado" + tag de motivo (individual por ponto) + estado
-      // dos cabeçalhos de grupo.
+      // classe "riscado" + tag de motivo (individual por ponto) + linha
+      // vinculada (quando o relatório foi gerado com uma linha
+      // selecionada, ver justRelatorio em _onClickBtnGerar) + estado dos
+      // cabeçalhos de grupo.
       function _aplicarStatusPersistido() {
         if (!_statusAnalisadoCache || !_statusAnalisadoCache.size) return;
         document.querySelectorAll("#tpAccordions .perm-item").forEach(function (el) {
@@ -1083,11 +1085,55 @@
           var motivo = just ? just.motivo : "";
           el.setAttribute("data-motivo", motivo || "");
           _setMotivoTag(el.querySelector('[data-role="motivo-tag"]'), motivo);
+
+          // Restaura a linha vinculada (se essa excedência já teve
+          // relatório gerado com uma linha selecionada) — reaproveitada
+          // pelo auto-preenchimento do modal de Gerar Relatório
+          // (_tentarAutoSelecionarLinhaAtual) sem precisar buscar de novo.
+          if (just && just.linhaCod) {
+            var idx = el.getAttribute("data-idx");
+            var item = idx != null ? _relatorioItens[idx] : null;
+            if (item && !item._esquemaInfo) {
+              item._esquemaInfo = {
+                codLinha: just.linhaCod,
+                nomeLinha: just.linhaNome || "",
+                horario: "",
+                sentido: "",
+                horarioSessao: null,
+                pontoSessao: null,
+                tripId: just.linhaTripId || "",
+              };
+            }
+          }
         });
         document.querySelectorAll("#tpAccordions details.acc-group").forEach(function (d) { _atualizarContador(d); });
         document.querySelectorAll("#tpAccordions details.acc-prefixo-group").forEach(function (d) {
           _atualizarEstadoGrupoPorDetails(d);
+          _restaurarEsquemaVinculadoGrupo(d);
         });
+      }
+
+      // Marca o botão "Ver esquema" do grupo como "✓ Esquema vinculado"
+      // quando TODOS os pontos do veículo já têm a mesma linha
+      // conhecida (restaurada em _aplicarStatusPersistido, a partir do
+      // que foi salvo ao gerar relatório) — não abre o painel de
+      // detalhe (isso ainda exige buscar de novo, já que horário de
+      // sessão/ponto do roteiro não ficam salvos), só evita o botão
+      // parecer "não vinculado" quando na verdade já está.
+      function _restaurarEsquemaVinculadoGrupo(detailsEl) {
+        var itens = Array.prototype.slice.call(detailsEl.querySelectorAll(":scope > .acc-body > .perm-item"));
+        if (!itens.length) return;
+        var infos = itens.map(function (i) {
+          var idx = i.getAttribute("data-idx");
+          var item = idx != null ? _relatorioItens[idx] : null;
+          return item && item._esquemaInfo;
+        });
+        if (!infos.every(Boolean)) return; // nem todo ponto do grupo tem linha conhecida
+        var codigos = Array.from(new Set(infos.map(function (e) { return e.codLinha; }).filter(Boolean)));
+        if (codigos.length !== 1) return; // sem código, ou pontos com linhas diferentes
+
+        var btn = detailsEl.querySelector(':scope > summary .acc-mini-btn[id^="esquema-grupo-btn-"]');
+        if (btn) { btn.classList.add("ativo"); btn.innerHTML = _icon("check") + " Esquema vinculado"; }
       }
 
       // ─────────────────────────────────────────────────────────
@@ -3159,14 +3205,22 @@
         var esq = itemBase && itemBase._esquemaInfo;
         if (!esq || !esq.codLinha) return;
 
-        var codNorm = _normTP(esq.codLinha);
-        var horAlvo = (esq.horario || "").slice(0, 5);
+        // Linha restaurada do que já foi salvo ao gerar relatório antes
+        // (ver _aplicarStatusPersistido) traz o tripId exato — usa direto,
+        // sem precisar casar por código+horário de novo.
+        var match = esq.tripId
+          ? _relTripsCache.find(function (t) { return t.id === esq.tripId; })
+          : null;
 
-        var match = _relTripsCache.find(function (t) {
-          if (_normTP(t.lineCode || "") !== codNorm) return false;
-          if (horAlvo && String(t.departureTime || "").slice(0, 5) !== horAlvo) return false;
-          return true;
-        });
+        if (!match) {
+          var codNorm = _normTP(esq.codLinha);
+          var horAlvo = (esq.horario || "").slice(0, 5);
+          match = _relTripsCache.find(function (t) {
+            if (_normTP(t.lineCode || "") !== codNorm) return false;
+            if (horAlvo && String(t.departureTime || "").slice(0, 5) !== horAlvo) return false;
+            return true;
+          });
+        }
         if (match) _aplicarLinhaSelecionada(match);
       }
 
