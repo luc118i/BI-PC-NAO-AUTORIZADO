@@ -232,7 +232,7 @@ function _montarHtmlResumoAnaliseRegiao(payload) {
     ".col-nowrap { white-space:nowrap; } .col-center { text-align:center; }" +
     ".row-even td { background:#fff; } .row-odd td { background:#f9fafb; }" +
     ".motivo-badge { display:inline-block; border-radius:3px; font-size:7pt; font-weight:700; padding:2px 6px; color:#fff; white-space:nowrap; }" +
-    ".report-footer-table { width:100%; border-collapse:collapse; margin-top:18px; }" +
+    ".report-footer-table { position:fixed; bottom:0; left:0; right:0; width:100%; border-collapse:collapse; background:#fff; }" +
     ".report-footer-table td { border-top:1px solid #e5e7eb; padding-top:8px; font-size:7.5pt; color:#9ca3af; vertical-align:top; }" +
     ".footer-left { text-align:left; width:33%; }" +
     ".footer-center { text-align:center; width:34%; line-height:1.4; color:#6b7280; }" +
