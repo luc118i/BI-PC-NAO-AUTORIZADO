@@ -3226,6 +3226,14 @@
             });
           })
           .then(function (r) {
+            // Erro sem JSON (ex.: rota 404/502 devolvendo a página HTML padrão
+            // do Express) — acontece se o endpoint ainda não foi implantado.
+            // Sem esse if, o .json() abaixo estourava com "Unexpected token '<'"
+            // em vez de uma mensagem que dá pra entender.
+            var ct = r.headers.get("content-type") || "";
+            if (ct.indexOf("json") === -1) {
+              throw new Error("A API não respondeu em JSON (status " + r.status + ") — o endpoint /reports/resumo-analise/drive provavelmente ainda não foi implantado no servidor.");
+            }
             if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao gerar o resumo"); });
             return r.json();
           })
