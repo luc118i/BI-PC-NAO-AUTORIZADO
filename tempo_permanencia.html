@@ -461,6 +461,15 @@
       .just-tabela-data { color: var(--texto3); font-size: 11px; flex-shrink: 0; }
       .just-tabela-motivo { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
       .just-tabela-detalhe { margin-top: 3px; font-size: 11px; color: var(--texto3); }
+
+      /* Média de embarque/desembarque por ponto */
+      .just-media-row { display: flex; align-items: center; gap: 14px; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+      .just-media-row:last-child { border-bottom: none; }
+      .just-media-ponto { flex: 1; min-width: 140px; color: var(--texto); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .just-media-nums { display: flex; gap: 16px; flex-shrink: 0; }
+      .just-media-num { font-size: 11px; color: var(--texto2); text-align: right; white-space: nowrap; }
+      .just-media-num b { color: var(--texto); font-size: 13px; }
+      .just-media-count { font-size: 10px; color: var(--texto3); flex-shrink: 0; min-width: 70px; text-align: right; }
       .just-campos-extra .oc-field-row { display: flex; gap: 10px; }
       .just-campos-extra .oc-field-row .oc-field { flex: 1; }
     </style>
@@ -621,6 +630,13 @@
         <div class="dash-graficos" style="grid-template-columns:1fr 1.4fr">
           <div class="chart-wrap" style="height:220px"><canvas id="justChartMotivo"></canvas></div>
           <div class="just-tabela-wrap" id="justTabela"></div>
+        </div>
+
+        <!-- Só aparece quando há pelo menos 1 descarte por "muito
+             embarque/desembarque" no período — ver _renderDashMediaPontos(). -->
+        <div class="hidden" id="justMediaPontosWrap" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--borda)">
+          <div class="card-title">Média de embarque/desembarque por ponto</div>
+          <div id="justMediaPontos"></div>
         </div>
       </div>
 
@@ -1316,7 +1332,7 @@
         var lista = (listaBruta || []).filter(function (r) { return MOTIVO_LABELS[r.motivo]; });
 
         document.getElementById("dashCardJustificativas").classList.toggle("hidden", !lista.length);
-        if (!lista.length) { _destruirDashChart("justMotivo"); return; }
+        if (!lista.length) { _destruirDashChart("justMotivo"); document.getElementById("justMediaPontosWrap").classList.add("hidden"); return; }
 
         document.getElementById("justKTotal").textContent = lista.length;
 
@@ -1371,6 +1387,46 @@
               '<span class="just-tabela-motivo" style="color:' + cor + ';background:' + cor + '22">' + (MOTIVO_LABELS[r.motivo] || r.motivo) + '</span>' +
             '</div>' +
             (detalhe ? '<div class="just-tabela-detalhe">' + detalhe + '</div>' : '') +
+          '</div>';
+        }).join("");
+
+        _renderDashMediaPontos(embarqueItens);
+      }
+
+      // Média de embarque/desembarque por ponto — só usa os descartes com
+      // motivo "muito embarque/desembarque", já que é o único que guarda
+      // essa quantidade. Ordenado pelo ponto com mais registros primeiro.
+      function _renderDashMediaPontos(embarqueItens) {
+        var wrap = document.getElementById("justMediaPontosWrap");
+        if (!embarqueItens.length) { wrap.classList.add("hidden"); return; }
+        wrap.classList.remove("hidden");
+
+        var porPonto = {}; // ponto -> { count, somaEmb, somaDesemb }
+        embarqueItens.forEach(function (r) {
+          var k = r.ponto || "—";
+          if (!porPonto[k]) porPonto[k] = { count: 0, somaEmb: 0, somaDesemb: 0 };
+          porPonto[k].count++;
+          porPonto[k].somaEmb += Number(r.qtdEmbarque) || 0;
+          porPonto[k].somaDesemb += Number(r.qtdDesembarque) || 0;
+        });
+
+        var sorted = Object.keys(porPonto)
+          .map(function (ponto) { return { ponto: ponto, dados: porPonto[ponto] }; })
+          .sort(function (a, b) { return b.dados.count - a.dados.count; })
+          .slice(0, 15);
+
+        var fmt1 = function (n) { return (Math.round(n * 10) / 10).toString().replace(".", ","); };
+
+        document.getElementById("justMediaPontos").innerHTML = sorted.map(function (e) {
+          var mediaEmb = fmt1(e.dados.somaEmb / e.dados.count);
+          var mediaDesemb = fmt1(e.dados.somaDesemb / e.dados.count);
+          return '<div class="just-media-row">' +
+            '<span class="just-media-ponto" title="' + e.ponto.replace(/"/g, "&quot;") + '">' + e.ponto + '</span>' +
+            '<span class="just-media-nums">' +
+              '<span class="just-media-num">Embarque<br><b>' + mediaEmb + '</b></span>' +
+              '<span class="just-media-num">Desembarque<br><b>' + mediaDesemb + '</b></span>' +
+            '</span>' +
+            '<span class="just-media-count">' + e.dados.count + ' registro' + (e.dados.count !== 1 ? "s" : "") + '</span>' +
           '</div>';
         }).join("");
       }
