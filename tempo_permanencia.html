@@ -862,6 +862,9 @@
             qtdDesembarque: r.qtdDesembarque || "",
             apoioRodoviaria: r.apoioRodoviaria || "",
             observacao: r.observacao || "",
+            linhaCod: r.linhaCod || "",
+            linhaNome: r.linhaNome || "",
+            linhaTripId: r.linhaTripId || "",
           });
         });
         return { chaves: chaves, justs: justs };
@@ -887,7 +890,11 @@
       }
 
       // justificativa: null ao reverter; { motivo, qtdEmbarque, qtdDesembarque,
-      // apoioRodoviaria, observacao } ao marcar como analisado.
+      // apoioRodoviaria, observacao, linhaCod, linhaNome, linhaTripId } ao
+      // marcar como analisado. linhaCod/linhaNome/linhaTripId vêm preenchidos
+      // quando o motivo é "RELATORIO_GERADO" — a linha (itinerário) usada
+      // pra gerar o relatório fica salva junto da análise (ver justRelatorio
+      // em _onClickBtnGerar), sem precisar reselecionar depois.
       function _persistirStatus(item, analisado, justificativa) {
         if (!item || !item.chave) return;
         justificativa = justificativa || {};
@@ -907,6 +914,9 @@
             qtdDesembarque: justificativa.qtdDesembarque || "",
             apoioRodoviaria: justificativa.apoioRodoviaria || "",
             observacao: justificativa.observacao || "",
+            linhaCod: justificativa.linhaCod || "",
+            linhaNome: justificativa.linhaNome || "",
+            linhaTripId: justificativa.linhaTripId || "",
           });
       }
 
@@ -2854,6 +2864,9 @@
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        // Mostra por padrão — abrirModalRelatorioGrupo esconde de novo
+        // logo em seguida quando é relatório em massa (sem motorista).
+        document.getElementById("relMotoristaField").classList.remove("hidden");
         document.getElementById("relEvidGrid").innerHTML = "";
         document.getElementById("relStatus").textContent = "";
         document.getElementById("relStatus").className = "oc-status";
@@ -2923,6 +2936,9 @@
         _renderResumoListaGrupo();
 
         var token = _resetModalRelatorioComum();
+        // Relatório em massa não pede motorista — só linha + prefixo +
+        // pontos de atraso (ver _gerarRelatorioGrupo/_criarOcorrencia).
+        document.getElementById("relMotoristaField").classList.toggle("hidden", _massaAtiva);
         _carregarTrips(function () { _tentarAutoSelecionarLinhaAtual(token); });
       }
 
@@ -3013,7 +3029,7 @@
         _confirmarAcao(
           "Vai abrir a modal de Gerar Relatório pra cada um dos " + pendentes.length + " veículo" + (pendentes.length !== 1 ? "s" : "") +
           " com ocorrência pendente nesta região, um de cada vez — avançando sozinha assim que você concluir o relatório do veículo atual.\n\n" +
-          "Linha e motorista continuam manuais por veículo (a linha pode vir pré-preenchida se já tiver esquema vinculado).",
+          "Não pede motorista, só a linha (itinerário) — vem pré-preenchida se já tiver esquema vinculado, senão é só buscar e confirmar por veículo.",
           { titulo: "🗂 Gerar Relatório em massa", textoOk: "Começar" },
         ).then(function (ok) {
           if (!ok) return;
@@ -3300,15 +3316,14 @@
 
       // Nome de arquivo: "MATRICULA - MOTORISTA - BASE - EXCES_PERMA - DD.MM.AA"
       // (+ o ponto, no modo grupo, pra não colidir entre as várias ocorrências
-      // do mesmo veículo/motorista/data)
+      // do mesmo veículo/motorista/data). Sem motorista (relatório em
+      // massa, ver _gerarRelatorioGrupo), usa o prefixo do veículo no lugar:
+      // "PREFIXO - EXCES_PERMA - DD.MM.AA".
       function _nomeArquivoRelatorio(item, motorista, sufixo) {
-        var partes = [
-          motorista.code || "SEMCOD",
-          (motorista.name || "MOTORISTA").trim(),
-          (motorista.base || "").trim(),
-          "EXCES_PERMA",
-          _fmtDataCurta(item.entrada),
-        ].filter(Boolean);
+        var partes = motorista
+          ? [motorista.code || "SEMCOD", (motorista.name || "MOTORISTA").trim(), (motorista.base || "").trim()]
+          : [item.veiculo || "SEMPREFIXO"];
+        partes = partes.concat(["EXCES_PERMA", _fmtDataCurta(item.entrada)]).filter(Boolean);
         if (sufixo) partes.push(String(sufixo).replace(/[\\/:*?"<>|]/g, "").trim());
         return partes.join(" - ") + ".pdf";
       }
@@ -3403,7 +3418,7 @@
 
         _colapsarModalPosGeracao(
           "Veículo <b>" + itens[0].veiculo + "</b>" +
-          '<span class="sep">·</span>Motorista <b>' + _relMotoristaSelecionado.name + "</b>" +
+          (_relMotoristaSelecionado ? '<span class="sep">·</span>Motorista <b>' + _relMotoristaSelecionado.name + "</b>" : "") +
           (linhaSel ? '<span class="sep">·</span>Linha <b>' + linhaSel.lineCode + "</b>" : "") +
           '<span class="sep">·</span>' + itens.length + " ponto" + (itens.length !== 1 ? "s" : "")
         );
@@ -3433,7 +3448,16 @@
           // Já passou pela justificativa "de verdade": o relatório gerado
           // cria uma ocorrência real (erro do motorista confirmado), então
           // marca direto como analisado sem passar pela modal de motivo.
-          var justRelatorio = { motivo: "RELATORIO_GERADO", observacao: "Ocorrência de excesso de permanência registrada via Gerar Relatório." };
+          var justRelatorio = {
+            motivo: "RELATORIO_GERADO",
+            observacao: "Ocorrência de excesso de permanência registrada via Gerar Relatório.",
+            // Guarda a linha junto da análise assim que ela é carregada/
+            // selecionada — sobrevive no TEMPO_PERMANENCIA_STATUS mesmo
+            // sem precisar reabrir o modal pra reselecionar depois.
+            linhaCod: _relLinhaSelecionada ? _relLinhaSelecionada.lineCode : "",
+            linhaNome: _relLinhaSelecionada ? _relLinhaSelecionada.lineName : "",
+            linhaTripId: _relLinhaSelecionada ? _relLinhaSelecionada.id : "",
+          };
           if (_relModoGrupo) {
             _relGrupoIdxs.forEach(function (idx) {
               var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
@@ -3483,7 +3507,10 @@
           tripId: _relLinhaSelecionada.id,
           tripTime: _relLinhaSelecionada.departureTime || null,
           sessionTime: (item._esquemaInfo && item._esquemaInfo.horarioSessao) || null,
-          drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+          // No relatório em massa não exigimos motorista (só linha +
+          // prefixo + pontos) — ver _gerarRelatorioGrupo(). Sem
+          // _relMotoristaSelecionado, a ocorrência vai sem condutor.
+          drivers: _relMotoristaSelecionado ? [{ position: 1, driverId: _relMotoristaSelecionado.id }] : [],
           // Repassados à planilha (aba HISTORICO_EXCESSO) via notifyAppsScriptExcesso
           // na API — ver occurrences.service.ts. Alimenta o dashboard desta tela.
           cidade: item.cidade || "",
@@ -3823,7 +3850,9 @@
       function _gerarRelatorioGrupo() {
         if (!_relGrupoIdxs.length) return;
         if (!_relLinhaSelecionada) { _setRelStatus("Selecione a linha (itinerário).", "err"); return; }
-        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+        // No relatório em massa não exigimos motorista — só linha, prefixo
+        // e os pontos de atraso (ver abrirRelatorioMassaRegiao()).
+        if (!_massaAtiva && !_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
         if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão 👤 na barra) antes de gerar o relatório.", "err"); return; }
 
         var btn = document.getElementById("relBtnGerar");
@@ -3891,7 +3920,7 @@
               <div class="oc-selecionado hidden" id="relLinhaSelecionada"></div>
             </div>
 
-            <div class="oc-field">
+            <div class="oc-field" id="relMotoristaField">
               <label>Motorista responsável *</label>
               <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
               <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>

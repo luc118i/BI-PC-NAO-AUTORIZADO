@@ -243,6 +243,7 @@ function getDadosBI(dataIni, dataFim) {
 var TEMPO_PERMANENCIA_STATUS_HEADER = [
   "CHAVE", "VEICULO", "PONTO", "ENTRADA", "STATUS", "ATUALIZADO_EM",
   "MOTIVO", "QTD_EMBARQUE", "QTD_DESEMBARQUE", "APOIO_RODOVIARIA", "OBSERVACAO",
+  "LINHA_COD", "LINHA_NOME", "LINHA_TRIP_ID",
 ];
 
 // Antes disto, marcarStatusPermanencia() lançava erro se a aba não
@@ -254,6 +255,11 @@ var TEMPO_PERMANENCIA_STATUS_HEADER = [
 // As colunas MOTIVO..OBSERVACAO (G-K) foram adicionadas depois — guardam
 // a justificativa exigida pra marcar uma excedência como analisada sem
 // gerar relatório (ver abrirModalJustificativa() em tempo_permanencia.html).
+// LINHA_COD..LINHA_TRIP_ID (L-N), adicionadas depois ainda, guardam a
+// linha (itinerário) vinculada àquela excedência assim que ela é
+// carregada/selecionada (esquema vinculado ou busca manual no modal de
+// Gerar Relatório) — fica salva junto da análise, sem precisar
+// reselecionar a linha depois (ver justRelatorio em _onClickBtnGerar()).
 // Migra sozinha o cabeçalho de abas criadas antes disso, sem mexer nas
 // linhas de dados já gravadas.
 function _abaStatusPermanencia(ss) {
@@ -293,13 +299,17 @@ function getStatusPermanencia() {
       qtdDesembarque: String(r[8] || "").trim(),
       apoioRodoviaria: String(r[9] || "").trim(),
       observacao: String(r[10] || "").trim(),
+      linhaCod: String(r[11] || "").trim(),
+      linhaNome: String(r[12] || "").trim(),
+      linhaTripId: String(r[13] || "").trim(),
     }));
 
   return JSON.stringify(registros);
 }
 
 // payload: { chave, veiculo, ponto, entrada, analisado, motivo,
-//            qtdEmbarque, qtdDesembarque, apoioRodoviaria, observacao }
+//            qtdEmbarque, qtdDesembarque, apoioRodoviaria, observacao,
+//            linhaCod, linhaNome, linhaTripId }
 function marcarStatusPermanencia(payload) {
   const chave = String((payload && payload.chave) || "").trim();
   if (!chave) throw new Error("chave é obrigatória.");
@@ -309,9 +319,9 @@ function marcarStatusPermanencia(payload) {
 
   const status = payload.analisado ? "ANALISADO" : "";
   const agora = new Date();
-  // Reverter (analisado=false) limpa a justificativa junto — não faz
-  // sentido guardar um motivo de uma análise que foi desfeita.
-  const linha = [
+  // Reverter (analisado=false) limpa a justificativa (e a linha) junto —
+  // não faz sentido guardar o motivo/linha de uma análise desfeita.
+  const valoresLinha = [
     status,
     agora,
     payload.analisado ? payload.motivo || "" : "",
@@ -319,6 +329,9 @@ function marcarStatusPermanencia(payload) {
     payload.analisado ? payload.qtdDesembarque || "" : "",
     payload.analisado ? payload.apoioRodoviaria || "" : "",
     payload.analisado ? payload.observacao || "" : "",
+    payload.analisado ? payload.linhaCod || "" : "",
+    payload.analisado ? payload.linhaNome || "" : "",
+    payload.analisado ? payload.linhaTripId || "" : "",
   ];
 
   const lastRow = aba.getLastRow();
@@ -334,14 +347,14 @@ function marcarStatusPermanencia(payload) {
   }
 
   if (linhaExistente > 0) {
-    aba.getRange(linhaExistente, 5, 1, linha.length).setValues([linha]);
+    aba.getRange(linhaExistente, 5, 1, valoresLinha.length).setValues([valoresLinha]);
   } else {
     aba.appendRow([
       chave,
       payload.veiculo || "",
       payload.ponto || "",
       payload.entrada || "",
-    ].concat(linha));
+    ].concat(valoresLinha));
   }
 
   return { ok: true };
