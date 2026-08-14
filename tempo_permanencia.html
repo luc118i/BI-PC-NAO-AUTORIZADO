@@ -3183,7 +3183,9 @@
             entrada: _fmtHM(item.entrada),
             saida: _fmtHM(item.saida),
             excedenteMin: Math.round(item.excedenteSeg / 60),
+            motivo: just.motivo || "",
             motivoLabel: motivoLabel,
+            motivoCor: MOTIVO_CORES[just.motivo] || "",
             detalhe: detalhe,
           };
         }).filter(Boolean);

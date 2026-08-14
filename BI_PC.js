@@ -95,11 +95,166 @@ function definirPastaDriveRelatorios(folderId, folderName) {
 // ocorrência nenhuma na API externa, diferente do "Relatório em
 // massa" (esse sim cria ocorrências reais, só pros pontos PENDENTES).
 // Usa a mesma pasta do Drive configurada em "Configurar Drive" (ver
-// getCredenciaisDriveRelatorios acima).
-//
+// getCredenciaisDriveRelatorios acima). Layout inspirado no relatório
+// diário do Gerador de Relatórios Operacionais (mesma identidade
+// visual: cabeçalho laranja + logo, cards de resumo, barras de
+// distribuição por motivo, tabela listando tudo) — HTML/CSS convertido
+// pra PDF via Utilities/Blob, sem precisar do DocumentApp (evita pedir
+// escopo novo de permissão pro Google Docs).
+
+// Logo Viação Catedral em base64 (mesmo arquivo do Gerador de
+// Relatórios Operacionais, src/assets/catedral.png — na verdade um
+// JPEG apesar da extensão .png, daí o mime type usado abaixo).
+var CATEDRAL_LOGO_B64 =
+  "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";
+
+var MOTIVO_CORES_PADRAO = {
+  ANTECIPADO: "#f0c040",
+  INICIO_VIAGEM: "#3b82c4",
+  EMBARQUE: "#22c97a",
+  OCORRENCIA: "#8b5cf6",
+  RELATORIO_GERADO: "#e05050",
+};
+
+function _escHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // payload: { regiao, dataLabel, analisadoPor, totalItens,
 //            itens: [{ veiculo, ponto, cidade, uf, entrada, saida,
-//                       excedenteMin, motivoLabel, detalhe }] }
+//                       excedenteMin, motivo, motivoLabel, motivoCor,
+//                       detalhe }] }
+function _montarHtmlResumoAnaliseRegiao(payload) {
+  var itens = payload.itens || [];
+  var regiao = payload.regiao || "Região";
+  var dataLabel = payload.dataLabel || "";
+
+  var veiculos = {};
+  var porMotivo = {}; // motivo -> { label, cor, count }
+  var maiorExcedente = 0;
+  itens.forEach(function (it) {
+    veiculos[it.veiculo] = true;
+    maiorExcedente = Math.max(maiorExcedente, Number(it.excedenteMin) || 0);
+    var m = it.motivo || "—";
+    if (!porMotivo[m]) {
+      porMotivo[m] = { label: it.motivoLabel || m, cor: it.motivoCor || MOTIVO_CORES_PADRAO[m] || "#9ca3af", count: 0 };
+    }
+    porMotivo[m].count++;
+  });
+  var qtdVeiculos = Object.keys(veiculos).length;
+  var culpaCount = (porMotivo.RELATORIO_GERADO || { count: 0 }).count;
+  var descarteCount = itens.length - culpaCount;
+
+  var motivosOrdenados = Object.keys(porMotivo)
+    .map(function (k) { return porMotivo[k]; })
+    .sort(function (a, b) { return b.count - a.count; });
+  var maxMotivoCount = motivosOrdenados.length ? motivosOrdenados[0].count : 1;
+
+  var distRows = motivosOrdenados.map(function (m) {
+    var pct = Math.round((m.count / maxMotivoCount) * 100);
+    return (
+      "<tr>" +
+      '<td class="dist-name">' + _escHtml(m.label) + "</td>" +
+      '<td class="dist-bar-cell"><div class="dist-bar-bg"><div class="dist-bar-fill" style="width:' + pct + "%;background:" + m.cor + ';"></div></div></td>' +
+      '<td class="dist-count">' + m.count + "</td>" +
+      "</tr>"
+    );
+  }).join("");
+
+  var ordenados = itens.slice().sort(function (a, b) {
+    return String(a.veiculo).localeCompare(String(b.veiculo)) || String(a.entrada).localeCompare(String(b.entrada));
+  });
+
+  var linhasTabela = ordenados.map(function (it, idx) {
+    var num = String(idx + 1).padStart(2, "0");
+    var local = _escHtml(it.ponto) + (it.cidade ? ' <span class="occ-sub">(' + _escHtml(it.cidade) + (it.uf ? " - " + _escHtml(it.uf) : "") + ")</span>" : "");
+    var cor = it.motivoCor || MOTIVO_CORES_PADRAO[it.motivo] || "#9ca3af";
+    return (
+      '<tr class="' + (idx % 2 === 0 ? "row-even" : "row-odd") + '">' +
+      '<td class="occ-num occ-td">' + num + "</td>" +
+      '<td class="occ-td col-nowrap" style="font-family:monospace;font-weight:700;">' + _escHtml(it.veiculo) + "</td>" +
+      '<td class="occ-td">' + local + "</td>" +
+      '<td class="occ-td col-nowrap col-center">' + _escHtml(it.entrada) + "</td>" +
+      '<td class="occ-td col-nowrap col-center">' + _escHtml(it.saida) + "</td>" +
+      '<td class="occ-td col-nowrap col-center" style="font-weight:700;color:#f47920;">+' + (it.excedenteMin != null ? it.excedenteMin : "—") + " min</td>" +
+      '<td class="occ-td col-nowrap col-center"><span class="motivo-badge" style="background:' + cor + ';">' + _escHtml(it.motivoLabel) + "</span></td>" +
+      '<td class="occ-td" style="font-size:7.5pt;color:#6b7280;">' + _escHtml(it.detalhe || "—") + "</td>" +
+      "</tr>"
+    );
+  }).join("");
+
+  var geradoEm = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy 'às' HH:mm");
+
+  return (
+    '<!doctype html><html><head><meta charset="utf-8" /><title>Resumo de Análise — ' + _escHtml(regiao) + "</title><style>" +
+    "@page { margin-top: 18mm; margin-right: 14mm; margin-left: 14mm; margin-bottom: 18mm; }" +
+    'body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; margin: 0; }' +
+    ".report-header { width:100%; border-collapse:collapse; border:1.5px solid #e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:16px; }" +
+    ".report-header td { vertical-align: middle; }" +
+    ".report-header-logo { background:#fff; padding:10px 18px; width:110px; border-right:1.5px solid #e2e8f0; text-align:center; }" +
+    ".report-header-logo img { height:42px; }" +
+    ".report-header-body { padding:14px 20px; background:#f47920; }" +
+    ".report-header-title { font-size:14.5pt; font-weight:800; color:#fff; letter-spacing:.5px; text-transform:uppercase; }" +
+    ".report-header-sub { font-size:9pt; color:rgba(255,255,255,.9); margin-top:3px; }" +
+    ".summary-table { width:100%; border-collapse:separate; border-spacing:6px 0; margin:0 0 16px -6px; }" +
+    ".summary-cell { text-align:center; padding:10px 6px; border:1px solid #e5e7eb; border-radius:4px; background:#fafafa; }" +
+    ".summary-number { font-size:19pt; font-weight:700; color:#1e293b; line-height:1; }" +
+    ".summary-label { font-size:7.5pt; color:#6b7280; margin-top:4px; text-transform:uppercase; letter-spacing:.4px; }" +
+    ".culpa-cell { background:#fef2f2; border-color:#fca5a5; } .culpa-cell .summary-number { color:#e05050; }" +
+    ".descarte-cell { background:#f0fdf4; border-color:#86efac; } .descarte-cell .summary-number { color:#22c97a; }" +
+    ".section-header { font-size:9.5pt; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:#f47920; border-bottom:2px solid #f47920; padding-bottom:3px; margin-bottom:8px; }" +
+    ".dist-table { width:100%; border-collapse:collapse; margin-bottom:18px; }" +
+    ".dist-name { font-size:9pt; padding:3px 6px 3px 0; width:32%; }" +
+    ".dist-bar-cell { padding:4px 8px; }" +
+    ".dist-bar-bg { background:#f3f4f6; border-radius:3px; height:9px; }" +
+    ".dist-bar-fill { height:9px; border-radius:3px; }" +
+    ".dist-count { font-size:9pt; font-weight:700; text-align:right; width:26px; padding:3px 0; }" +
+    ".occ-table { width:100%; border-collapse:collapse; font-size:8pt; border:1px solid #d1d5db; }" +
+    ".occ-th { background:#f47920; color:#fff; font-weight:700; padding:6px 7px; text-align:left; font-size:7.5pt; white-space:nowrap; letter-spacing:.3px; border-right:1px solid rgba(255,255,255,.25); }" +
+    ".occ-th:last-child { border-right:none; }" +
+    ".occ-num { padding:5px 6px; color:#9ca3af; font-weight:700; text-align:center; border-right:1px solid #e5e7eb; }" +
+    ".occ-td { padding:5px 7px; vertical-align:middle; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; }" +
+    ".occ-td:last-child { border-right:none; }" +
+    ".occ-sub { color:#9ca3af; font-size:7.5pt; }" +
+    ".col-nowrap { white-space:nowrap; } .col-center { text-align:center; }" +
+    ".row-even td { background:#fff; } .row-odd td { background:#f9fafb; }" +
+    ".motivo-badge { display:inline-block; border-radius:3px; font-size:7pt; font-weight:700; padding:2px 6px; color:#fff; white-space:nowrap; }" +
+    ".report-footer { margin-top:14px; font-size:7.5pt; color:#9ca3af; text-align:right; }" +
+    "</style></head><body>" +
+    '<table class="report-header"><tr>' +
+    '<td class="report-header-logo"><img src="data:image/jpeg;base64,' + CATEDRAL_LOGO_B64 + '" alt="Viação Catedral" /></td>' +
+    '<td class="report-header-body">' +
+    '<div class="report-header-title">Resumo de Análise — Tempo de Permanência</div>' +
+    '<div class="report-header-sub">' + _escHtml(regiao) + " &nbsp;·&nbsp; " + _escHtml(dataLabel) + " &nbsp;·&nbsp; " + itens.length + " excedência" + (itens.length !== 1 ? "s" : "") + " analisada" + (itens.length !== 1 ? "s" : "") + "</div>" +
+    "</td></tr></table>" +
+    '<table class="summary-table"><tr>' +
+    '<td class="summary-cell"><div class="summary-number">' + itens.length + '</div><div class="summary-label">Analisadas</div></td>' +
+    '<td class="summary-cell"><div class="summary-number">' + qtdVeiculos + '</div><div class="summary-label">Veículos</div></td>' +
+    '<td class="summary-cell"><div class="summary-number">+' + maiorExcedente + '</div><div class="summary-label">Maior excedente (min)</div></td>' +
+    '<td class="summary-cell culpa-cell"><div class="summary-number">' + culpaCount + '</div><div class="summary-label">Culpa do motorista</div></td>' +
+    '<td class="summary-cell descarte-cell"><div class="summary-number">' + descarteCount + '</div><div class="summary-label">Descartadas</div></td>' +
+    "</tr></table>" +
+    (motivosOrdenados.length ? '<div class="section-header">Distribuição por motivo</div><table class="dist-table">' + distRows + "</table>" : "") +
+    '<div class="section-header">Listagem completa</div>' +
+    '<table class="occ-table"><thead><tr>' +
+    '<th class="occ-th" style="width:22px;text-align:center;">#</th>' +
+    '<th class="occ-th" style="width:56px;">Veículo</th>' +
+    '<th class="occ-th">Ponto</th>' +
+    '<th class="occ-th" style="width:52px;">Chegada</th>' +
+    '<th class="occ-th" style="width:48px;">Saída</th>' +
+    '<th class="occ-th" style="width:64px;">Excedente</th>' +
+    '<th class="occ-th" style="width:112px;">Motivo</th>' +
+    '<th class="occ-th">Detalhe</th>' +
+    "</tr></thead><tbody>" + linhasTabela + "</tbody></table>" +
+    '<div class="report-footer">Gerado em ' + geradoEm + (payload.analisadoPor ? " · Por " + _escHtml(payload.analisadoPor) : "") + "</div>" +
+    "</body></html>"
+  );
+}
+
 function gerarResumoAnaliseRegiaoPdf(payload) {
   payload = payload || {};
   var itens = payload.itens || [];
@@ -111,55 +266,12 @@ function gerarResumoAnaliseRegiaoPdf(payload) {
   var pastaInfo = getCredenciaisDriveRelatorios();
   var pasta = DriveApp.getFolderById(pastaInfo.folderId);
 
-  var doc = DocumentApp.create("Resumo de Análise - " + regiao + " - " + dataLabel);
-  var body = doc.getBody();
-  body.setMarginTop(36).setMarginBottom(36).setMarginLeft(48).setMarginRight(48);
-
-  body.appendParagraph("Resumo de Análise — Tempo de Permanência").setHeading(DocumentApp.ParagraphHeading.TITLE);
-  body.appendParagraph("Região: " + regiao + " · " + dataLabel).setHeading(DocumentApp.ParagraphHeading.SUBTITLE);
-
-  var infoPar = body.appendParagraph(
-    "Analisadas: " + itens.length +
-    (payload.totalItens ? " de " + payload.totalItens + " excedências no total" : "") +
-    (payload.analisadoPor ? " · Por: " + payload.analisadoPor : ""),
-  );
-  infoPar.editAsText().setFontSize(10).setForegroundColor("#666666");
-  body.appendParagraph("");
-
-  var linhas = [["Veículo", "Ponto", "Chegada", "Saída", "Excedente", "Motivo", "Detalhe"]].concat(
-    itens.map(function (it) {
-      return [
-        it.veiculo || "",
-        (it.ponto || "") + (it.cidade ? " (" + it.cidade + (it.uf ? " - " + it.uf : "") + ")" : ""),
-        it.entrada || "",
-        it.saida || "",
-        it.excedenteMin != null ? "+" + it.excedenteMin + " min" : "",
-        it.motivoLabel || "",
-        it.detalhe || "",
-      ];
-    }),
-  );
-  var tabela = body.appendTable(linhas);
-  var header = tabela.getRow(0);
-  for (var c = 0; c < header.getNumCells(); c++) {
-    header.getCell(c).setBackgroundColor("#f47920");
-    header.getCell(c).editAsText().setBold(true).setForegroundColor("#ffffff").setFontSize(9);
-  }
-  for (var r = 1; r < tabela.getNumRows(); r++) {
-    for (var c2 = 0; c2 < tabela.getRow(r).getNumCells(); c2++) {
-      tabela.getRow(r).getCell(c2).editAsText().setFontSize(9);
-    }
-  }
-
-  doc.saveAndClose();
-
-  var pdfBlob = DriveApp.getFileById(doc.getId()).getAs(MimeType.PDF);
+  var html = _montarHtmlResumoAnaliseRegiao(payload);
+  var htmlBlob = Utilities.newBlob(html, "text/html", "resumo.html");
+  var pdfBlob = htmlBlob.getAs(MimeType.PDF);
   var nomeArquivo = ("Resumo Analise - " + regiao + " - " + dataLabel).replace(/\//g, ".") + ".pdf";
   pdfBlob.setName(nomeArquivo);
   var pdfFile = pasta.createFile(pdfBlob);
-
-  // Só o PDF interessa — o Google Doc usado pra montar a tabela é descartável.
-  DriveApp.getFileById(doc.getId()).setTrashed(true);
 
   return { url: pdfFile.getUrl(), fileName: pdfFile.getName() };
 }
