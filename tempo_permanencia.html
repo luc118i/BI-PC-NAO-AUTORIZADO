@@ -694,6 +694,10 @@
           <select id="tpRegiaoSel" onchange="_renderTPFiltrado()">
             <option value="">Todas as regiões</option>
           </select>
+          <select id="tpMotivoSel" onchange="_renderTPFiltrado()" title="Filtra pelo motivo da justificativa de análise">
+            <option value="">Todos os motivos</option>
+            <option value="PENDENTE">Ainda não analisado</option>
+          </select>
           <div class="filtro-excedente">
             <label for="tpExcedenteMin">Excedente mín. (min)</label>
             <input type="number" id="tpExcedenteMin" min="0" step="5" value="10" oninput="_renderTPFiltrado()" />
@@ -739,6 +743,7 @@
         _initGuiaSessao();
         _authCarregarSessao();
         _atualizarBotaoUsuarioAtual();
+        _popularFiltroMotivo();
       };
 
       window.addEventListener('scroll', function () {
@@ -1380,6 +1385,20 @@
         RELATORIO_GERADO: "#e05050",
       };
 
+      // Preenche o filtro "Tipo de justificativa" (#tpMotivoSel) com um
+      // <option> por motivo de MOTIVO_LABELS — a opção "Ainda não
+      // analisado" já vem fixa no HTML. Chamado 1x no window.onload.
+      function _popularFiltroMotivo() {
+        var sel = document.getElementById("tpMotivoSel");
+        if (!sel) return;
+        Object.keys(MOTIVO_LABELS).forEach(function (m) {
+          var opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = MOTIVO_LABELS[m];
+          sel.appendChild(opt);
+        });
+      }
+
       function _carregarJustificativasPermanencia() {
         var ini = document.getElementById("dashDataIni").value;
         var fim = document.getElementById("dashDataFim").value;
@@ -1886,6 +1905,7 @@
         setTimeout(function () { resultCard.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
         document.getElementById("tpBusca").value = "";
         regiaoSel.value = "";
+        document.getElementById("tpMotivoSel").value = "";
         document.getElementById("tpExcedenteMin").value = 10;
         _renderTPFiltrado();
       }
@@ -2445,17 +2465,31 @@
         if (regiaoDetails) _atualizarContador(regiaoDetails);
       }
 
+      // Filtro "Tipo de justificativa" (#tpMotivoSel) — usa os mesmos
+      // caches que pintam a tag de motivo/riscado (_statusAnalisadoCache/
+      // _justificativaCache, ver _carregarStatusAnalisado). "PENDENTE" =
+      // ainda não analisado; qualquer outro valor = motivo exato.
+      function _passaFiltroMotivo(r, motivoFiltro) {
+        var analisado = !!(_statusAnalisadoCache && _statusAnalisadoCache.has(r.chave));
+        if (motivoFiltro === "PENDENTE") return !analisado;
+        if (!analisado) return false;
+        var just = _justificativaCache ? _justificativaCache.get(r.chave) : null;
+        return !!just && just.motivo === motivoFiltro;
+      }
+
       function _renderTPFiltrado() {
         _relatorioItens = [];
         _grupoEsquemaIdxs = {};
         var busca = _normTP(document.getElementById("tpBusca").value);
         var regiaoFiltro = document.getElementById("tpRegiaoSel").value;
+        var motivoFiltro = document.getElementById("tpMotivoSel").value;
         var excedenteMinInput = parseInt(document.getElementById("tpExcedenteMin").value, 10);
         var excedenteMinSeg = (isFinite(excedenteMinInput) && excedenteMinInput > 0) ? excedenteMinInput * 60 : 0;
 
         var filtrada = _tpLista.filter(function (r) {
           if (r.excedenteSeg < excedenteMinSeg) return false;
           if (regiaoFiltro && r.regiao !== regiaoFiltro) return false;
+          if (motivoFiltro && !_passaFiltroMotivo(r, motivoFiltro)) return false;
           if (!busca) return true;
           return _normTP(r.veiculo).includes(busca) || _normTP(r.linha).includes(busca) || _normTP(r.ponto).includes(busca);
         });
