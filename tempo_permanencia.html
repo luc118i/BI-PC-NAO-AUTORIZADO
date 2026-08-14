@@ -981,9 +981,16 @@
 
       // Entrada usada pelo clique direto num .perm-item (e pelos botões de
       // grupo). Marcar como analisado SEMPRE passa pela modal de
-      // justificativa — só reverter (desmarcar) é direto.
+      // justificativa. Reverter pede confirmação — a linha inteira é
+      // clicável, então um clique sem querer (ex.: tentando ler o texto)
+      // num item já analisado apagava a justificativa na hora, sem chance
+      // de desfazer.
       function _setItemAnalisado(el, analisado) {
-        if (!analisado) { _aplicarAnalisado(el, false, null); return; }
+        if (!analisado) {
+          if (!confirm("Reverter esta análise? A justificativa registrada será perdida.")) return;
+          _aplicarAnalisado(el, false, null);
+          return;
+        }
         if (el.classList.contains("riscado")) return; // já analisado, nada a fazer
         var idx = el.getAttribute("data-idx");
         var item = idx != null ? _relatorioItens[idx] : null;
@@ -2421,7 +2428,10 @@
         var novoEstado = !allRiscado;
 
         if (!novoEstado) {
-          // Reverter o grupo inteiro: não precisa de justificativa.
+          // Reverter o grupo inteiro apaga a justificativa de TODOS os
+          // pontos de uma vez — pede confirmação antes.
+          var qtdRiscados = todosItens.filter(function (i) { return i.classList.contains("riscado"); }).length;
+          if (!confirm("Reverter a análise de " + qtdRiscados + " ponto(s) deste veículo? As justificativas registradas serão perdidas.")) return;
           todosItens.forEach(function (i) { _aplicarAnalisado(i, false, null); });
           _finalizarRiscarGrupo(details, btnEl);
           return;
