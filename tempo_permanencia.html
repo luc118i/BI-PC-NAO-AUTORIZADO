@@ -316,9 +316,10 @@
       .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
       .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 
-      /* Chegada real vs. horário de sessão do esquema — amarelo quando chegou
-         antes do horário (esperou por causa da sessão), vermelho quando
-         chegou depois (não é o horário que explica o excesso). */
+      /* Saída real vs. horário de sessão do esquema (sessão = horário
+         previsto de SAÍDA do veículo, não de chegada) — amarelo quando
+         saiu antes do horário (não atrasou a partida), vermelho quando
+         saiu depois (atraso real na partida, mesmo se chegou cedo). */
       .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; }
       .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); }
       .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); }
@@ -1235,14 +1236,18 @@
         return h * 60 + m;
       }
 
-      // Compara a chegada real com o horário de sessão do esquema —
-      // "cedo" = chegou antes (amarelo/alerta), "atraso" = chegou depois
-      // (vermelho/urgente), null = no horário exato ou algo não parseável
-      // (não destaca, pra não sugerir uma leitura errada).
-      function _compararChegadaSessao(horaChegada, horaSessao) {
-        var c = _parseHMtoMin(horaChegada), s = _parseHMtoMin(horaSessao);
-        if (c == null || s == null || c === s) return null;
-        return c < s ? "cedo" : "atraso";
+      // Compara a SAÍDA real (não a chegada) com o horário de sessão do
+      // esquema — o horário de sessão é o horário previsto de SAÍDA do
+      // veículo da rodoviária, não de chegada. Um veículo pode ter
+      // chegado bem antes e mesmo assim ter saído atrasado (ficou parado
+      // além da conta) — comparar com a chegada mascarava esse atraso.
+      // "cedo" = saiu antes (amarelo/alerta), "atraso" = saiu depois
+      // (vermelho/urgente), null = no horário exato ou algo não
+      // parseável (não destaca, pra não sugerir uma leitura errada).
+      function _compararSaidaSessao(horaSaida, horaSessao) {
+        var sa = _parseHMtoMin(horaSaida), s = _parseHMtoMin(horaSessao);
+        if (sa == null || s == null || sa === s) return null;
+        return sa < s ? "cedo" : "atraso";
       }
 
       function _htmlLinhaSessao(textoHtml, comparacao, estiloExtra) {
@@ -1967,8 +1972,9 @@
       //    alimenta o "Modo Apresentação dos Esquemas": getLinhas
       //    busca por código/nome/horário/local, getRoteiro traz o
       //    horário previsto em cada ponto do roteiro) — permite
-      //    comparar o horário previsto no ponto com a chegada real
-      //    e entender se o excesso é espera pelo horário de sessão.
+      //    comparar o horário previsto (horário de sessão = saída) com a
+      //    saída real e entender se o excesso é atraso de verdade ou só
+      //    espera pelo horário de sessão (ver _compararSaidaSessao).
       var ESQUEMAS_API_URL = "https://script.google.com/macros/s/AKfycbxnnytktE4P5Ss2AlEY1cw1xUNVSGGxpKFl9I-yqLBTP9oR3KmhYAx1OkyZ7an32eCD/exec";
       var _esquemasCache = null;
 
@@ -2186,9 +2192,9 @@
         if (pontoMatch) {
           var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
             (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '');
-          var cmp = pontoMatch.horarioComercial ? _compararChegadaSessao(_fmtHM(item.entrada), pontoMatch.horarioComercial) : null;
-          if (cmp === "cedo") textoSessao += ' — chegou <b>antes</b> do horário de sessão';
-          if (cmp === "atraso") textoSessao += ' — chegou <b>depois</b> do horário de sessão';
+          var cmp = pontoMatch.horarioComercial ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial) : null;
+          if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão';
+          if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão';
           html += _htmlLinhaSessao(textoSessao, cmp);
         } else {
           html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
@@ -2360,10 +2366,10 @@
                     (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : ''))
                   : 'local não encontrado no roteiro deste esquema');
               var cmpLinha = pontoMatch && pontoMatch.horarioComercial
-                ? _compararChegadaSessao(_fmtHM(item.entrada), pontoMatch.horarioComercial)
+                ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial)
                 : null;
-              if (cmpLinha === "cedo") textoLinha += ' — chegou <b>antes</b> do horário';
-              if (cmpLinha === "atraso") textoLinha += ' — chegou <b>depois</b> do horário';
+              if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
+              if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
 
               return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)");
             }).join("");
@@ -2839,7 +2845,7 @@
               var it = x.item;
               var cor = _corExcedente(it.excedenteSeg);
               var cmp = (it._esquemaInfo && it._esquemaInfo.horarioSessao)
-                ? _compararChegadaSessao(_fmtHM(it.entrada), it._esquemaInfo.horarioSessao)
+                ? _compararSaidaSessao(_fmtHM(it.saida), it._esquemaInfo.horarioSessao)
                 : null;
               var icone = cmp
                 ? '<span class="esquema-sessao-icone">' + _icon(cmp === "cedo" ? "alertTriangle" : "alertOctagon", 13) + '</span>'
