@@ -910,6 +910,36 @@
           });
       }
 
+      // ─────────────────────────────────────────────────────────
+      //  Modal "Confirmar ação" — substitui window.confirm() nativo do
+      //  navegador (que aparece com a URL do script por cima, feio e
+      //  fora da cara do sistema, já que a página roda incorporada num
+      //  iframe do Apps Script). _confirmarAcao(mensagem, opts) devolve
+      //  uma Promise<boolean> — usa .then(function (ok) {...}) no lugar
+      //  do "if (!confirm(...)) return;" de antes.
+      // ─────────────────────────────────────────────────────────
+      var _confirmResolve = null;
+
+      function _confirmarAcao(mensagem, opts) {
+        opts = opts || {};
+        document.getElementById("confirmTitulo").textContent = opts.titulo || "⚠️ Confirmar ação";
+        document.getElementById("confirmMensagem").textContent = mensagem;
+        var btnOk = document.getElementById("confirmBtnOk");
+        btnOk.textContent = opts.textoOk || "Confirmar";
+        btnOk.style.background = opts.corOk || "";
+        btnOk.style.borderColor = opts.corOk || "";
+        document.getElementById("confirmBtnCancelar").textContent = opts.textoCancelar || "Cancelar";
+        document.getElementById("confirmModal").classList.remove("hidden");
+        return new Promise(function (resolve) { _confirmResolve = resolve; });
+      }
+
+      function _confirmResponder(valor) {
+        document.getElementById("confirmModal").classList.add("hidden");
+        var resolve = _confirmResolve;
+        _confirmResolve = null;
+        if (resolve) resolve(valor);
+      }
+
       // Pinta (ou esconde) a tag de motivo — mesmo rótulo/cor em
       // MOTIVO_LABELS/MOTIVO_CORES, usados também no dashboard.
       function _setMotivoTag(tagEl, motivo) {
@@ -987,8 +1017,9 @@
       // de desfazer.
       function _setItemAnalisado(el, analisado) {
         if (!analisado) {
-          if (!confirm("Reverter esta análise? A justificativa registrada será perdida.")) return;
-          _aplicarAnalisado(el, false, null);
+          _confirmarAcao("Reverter esta análise? A justificativa registrada será perdida.", {
+            titulo: "↻ Reverter análise", textoOk: "Reverter", corOk: "var(--vermelho)",
+          }).then(function (ok) { if (ok) _aplicarAnalisado(el, false, null); });
           return;
         }
         if (el.classList.contains("riscado")) return; // já analisado, nada a fazer
@@ -2431,9 +2462,14 @@
           // Reverter o grupo inteiro apaga a justificativa de TODOS os
           // pontos de uma vez — pede confirmação antes.
           var qtdRiscados = todosItens.filter(function (i) { return i.classList.contains("riscado"); }).length;
-          if (!confirm("Reverter a análise de " + qtdRiscados + " ponto(s) deste veículo? As justificativas registradas serão perdidas.")) return;
-          todosItens.forEach(function (i) { _aplicarAnalisado(i, false, null); });
-          _finalizarRiscarGrupo(details, btnEl);
+          _confirmarAcao(
+            "Reverter a análise de " + qtdRiscados + " ponto(s) deste veículo? As justificativas registradas serão perdidas.",
+            { titulo: "↻ Reverter análise do grupo", textoOk: "Reverter", corOk: "var(--vermelho)" },
+          ).then(function (ok) {
+            if (!ok) return;
+            todosItens.forEach(function (i) { _aplicarAnalisado(i, false, null); });
+            _finalizarRiscarGrupo(details, btnEl);
+          });
           return;
         }
 
@@ -3981,6 +4017,27 @@
           <button class="btn btn-primary" id="justBtnConfirmar" onclick="_confirmarJustificativa()">Confirmar análise</button>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ── MODAL CONFIRMAR AÇÃO (genérico) ──────────────────────── -->
+    <!-- Substitui window.confirm()/alert() nativos do navegador — a
+         página roda incorporada num iframe do Apps Script, e o diálogo
+         nativo do navegador aparece com a URL feia do script por cima
+         (googleusercontent.com), sem a cara do sistema. Ver
+         _confirmarAcao()/_alertarAcao() no script. -->
+    <div class="oc-overlay hidden" id="confirmModal" onclick="if(event.target===this)_confirmResponder(false)">
+      <div class="oc-panel" style="max-width:420px">
+        <div class="oc-header">
+          <h3 id="confirmTitulo">⚠️ Confirmar ação</h3>
+        </div>
+        <div class="oc-body">
+          <p id="confirmMensagem" style="font-size:13px;color:var(--texto2);line-height:1.5;white-space:pre-line">—</p>
+        </div>
+        <div class="oc-footer">
+          <button class="btn btn-ghost" id="confirmBtnCancelar" onclick="_confirmResponder(false)">Cancelar</button>
+          <button class="btn btn-primary" id="confirmBtnOk" onclick="_confirmResponder(true)">Confirmar</button>
+        </div>
       </div>
     </div>
   </body>
