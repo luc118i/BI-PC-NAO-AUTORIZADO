@@ -947,7 +947,12 @@
       function _confirmarAcao(mensagem, opts) {
         opts = opts || {};
         document.getElementById("confirmTitulo").textContent = opts.titulo || "⚠️ Confirmar ação";
-        document.getElementById("confirmMensagem").textContent = mensagem;
+        // mensagemHtml: usado quando a mensagem precisa de um link
+        // clicável (ex.: "Abrir no Drive") — só passar com conteúdo
+        // confiável (montado aqui mesmo), nunca com texto vindo do
+        // usuário/backend sem escapar.
+        var msgEl = document.getElementById("confirmMensagem");
+        if (opts.mensagemHtml) msgEl.innerHTML = mensagem; else msgEl.textContent = mensagem;
         var btnOk = document.getElementById("confirmBtnOk");
         btnOk.textContent = opts.textoOk || "Confirmar";
         btnOk.style.background = opts.corOk || "";
@@ -1377,6 +1382,7 @@
         alertTriangle: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
         alertOctagon: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>',
         layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>',
+        clipboard: '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -2760,6 +2766,8 @@
               '</div>' +
               '<div class="acc-right">' +
                 '<span class="acc-count" data-total="' + itensRegiao.length + '">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span>' +
+                '<button type="button" class="acc-mini-btn" title="Baixa um PDF com tudo que já foi analisado nesta região (relatório gerado ou descartado por justificativa)" ' +
+                  'onclick="event.preventDefault();event.stopPropagation();_gerarResumoDiaRegiao(' + ri + ', this)">' + _icon("clipboard") + ' Resumo do dia</button>' +
                 '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência pendente desta região, veículo por veículo" ' +
                   'onclick="event.preventDefault();event.stopPropagation();abrirRelatorioMassaRegiao(' + ri + ')">' + _icon("layers") + ' Relatório em massa</button>' +
               '</div>' +
@@ -3143,6 +3151,78 @@
         _massaAtiva = false;
         _massaFila = [];
         _massaIndex = 0;
+      }
+
+      // ── Resumo do dia (PDF) — região inteira ────────────────────
+      // Diferente de "Relatório em massa" (cria ocorrências reais só
+      // pros pontos PENDENTES), isso é um documento de registro/consulta
+      // com tudo que já foi ANALISADO na região — relatório gerado
+      // (culpa do motorista) ou descartado por justificativa. Não mexe
+      // em nada pendente nem cria ocorrência nenhuma.
+      function _gerarResumoDiaRegiao(ri, btnEl) {
+        var gidxs = _regiaoGidxs[ri] || [];
+        var todosIdxs = [];
+        gidxs.forEach(function (gidx) { todosIdxs = todosIdxs.concat(_grupoEsquemaIdxs[gidx] || []); });
+
+        var itensAnalisados = todosIdxs.map(function (idx) {
+          var item = _relatorioItens[idx];
+          if (!item || !item.chave || !_statusAnalisadoCache || !_statusAnalisadoCache.has(item.chave)) return null;
+          var just = (_justificativaCache && _justificativaCache.get(item.chave)) || {};
+          var motivoLabel = MOTIVO_LABELS[just.motivo] || just.motivo || "—";
+          var detalhe = "";
+          if (just.motivo === "EMBARQUE") {
+            detalhe = "Embarque: " + (just.qtdEmbarque || 0) + " · Desembarque: " + (just.qtdDesembarque || 0) +
+              " · Apoio rodoviária: " + (just.apoioRodoviaria === "SIM" ? "Sim" : just.apoioRodoviaria === "NAO" ? "Não" : "—");
+          }
+          if (just.observacao) detalhe += (detalhe ? " — " : "") + just.observacao;
+          return {
+            veiculo: item.veiculo || "",
+            ponto: item.ponto || "",
+            cidade: item.cidade || "",
+            uf: item.uf || "",
+            entrada: _fmtHM(item.entrada),
+            saida: _fmtHM(item.saida),
+            excedenteMin: Math.round(item.excedenteSeg / 60),
+            motivoLabel: motivoLabel,
+            detalhe: detalhe,
+          };
+        }).filter(Boolean);
+
+        if (!itensAnalisados.length) {
+          _alertarAcao("Nenhuma excedência analisada nesta região ainda.", { titulo: "📋 Resumo do dia" });
+          return;
+        }
+
+        var regiaoNome = btnEl.closest(".acc-regiao").querySelector(":scope > summary .acc-prefixo").textContent;
+        var dataLabel = _fmtData(_relatorioItens[todosIdxs[0]].entrada) || "";
+
+        var textoOrig = btnEl.innerHTML;
+        btnEl.disabled = true;
+        btnEl.innerHTML = "Gerando...";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = textoOrig;
+            _alertarAcao(
+              'Resumo de <b>' + itensAnalisados.length + '</b> excedência' + (itensAnalisados.length !== 1 ? "s" : "") +
+              ' analisada' + (itensAnalisados.length !== 1 ? "s" : "") + ' salvo no Drive.<br><br>' +
+              '<a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline">Abrir no Drive</a>',
+              { titulo: "✅ Resumo do dia — " + regiaoNome, mensagemHtml: true },
+            );
+          })
+          .withFailureHandler(function (err) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = textoOrig;
+            _alertarAcao("Erro ao gerar o resumo: " + ((err && err.message) || err), { titulo: "❌ Erro" });
+          })
+          .gerarResumoAnaliseRegiaoPdf({
+            regiao: regiaoNome,
+            dataLabel: dataLabel,
+            analisadoPor: _authLogado() ? _obterUsuarioAtual() : "",
+            totalItens: todosIdxs.length,
+            itens: itensAnalisados,
+          });
       }
 
       // ── Relatório em massa (região inteira) ─────────────────────

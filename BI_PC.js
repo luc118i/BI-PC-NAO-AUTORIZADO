@@ -89,6 +89,81 @@ function definirPastaDriveRelatorios(folderId, folderName) {
   return { folderId: pasta.getId(), folderName: pasta.getName() };
 }
 
+// ── 1.2 Resumo do dia (PDF) — Tempo de Permanência ─────────────
+// Documento de registro/consulta com tudo que já foi ANALISADO numa
+// região (relatório gerado OU descartado por justificativa) — não cria
+// ocorrência nenhuma na API externa, diferente do "Relatório em
+// massa" (esse sim cria ocorrências reais, só pros pontos PENDENTES).
+// Usa a mesma pasta do Drive configurada em "Configurar Drive" (ver
+// getCredenciaisDriveRelatorios acima).
+//
+// payload: { regiao, dataLabel, analisadoPor, totalItens,
+//            itens: [{ veiculo, ponto, cidade, uf, entrada, saida,
+//                       excedenteMin, motivoLabel, detalhe }] }
+function gerarResumoAnaliseRegiaoPdf(payload) {
+  payload = payload || {};
+  var itens = payload.itens || [];
+  if (!itens.length) throw new Error("Nenhuma excedência analisada pra resumir.");
+
+  var regiao = payload.regiao || "Região";
+  var dataLabel = payload.dataLabel || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd.MM.yyyy");
+
+  var pastaInfo = getCredenciaisDriveRelatorios();
+  var pasta = DriveApp.getFolderById(pastaInfo.folderId);
+
+  var doc = DocumentApp.create("Resumo de Análise - " + regiao + " - " + dataLabel);
+  var body = doc.getBody();
+  body.setMarginTop(36).setMarginBottom(36).setMarginLeft(48).setMarginRight(48);
+
+  body.appendParagraph("Resumo de Análise — Tempo de Permanência").setHeading(DocumentApp.ParagraphHeading.TITLE);
+  body.appendParagraph("Região: " + regiao + " · " + dataLabel).setHeading(DocumentApp.ParagraphHeading.SUBTITLE);
+
+  var infoPar = body.appendParagraph(
+    "Analisadas: " + itens.length +
+    (payload.totalItens ? " de " + payload.totalItens + " excedências no total" : "") +
+    (payload.analisadoPor ? " · Por: " + payload.analisadoPor : ""),
+  );
+  infoPar.editAsText().setFontSize(10).setForegroundColor("#666666");
+  body.appendParagraph("");
+
+  var linhas = [["Veículo", "Ponto", "Chegada", "Saída", "Excedente", "Motivo", "Detalhe"]].concat(
+    itens.map(function (it) {
+      return [
+        it.veiculo || "",
+        (it.ponto || "") + (it.cidade ? " (" + it.cidade + (it.uf ? " - " + it.uf : "") + ")" : ""),
+        it.entrada || "",
+        it.saida || "",
+        it.excedenteMin != null ? "+" + it.excedenteMin + " min" : "",
+        it.motivoLabel || "",
+        it.detalhe || "",
+      ];
+    }),
+  );
+  var tabela = body.appendTable(linhas);
+  var header = tabela.getRow(0);
+  for (var c = 0; c < header.getNumCells(); c++) {
+    header.getCell(c).setBackgroundColor("#f47920");
+    header.getCell(c).editAsText().setBold(true).setForegroundColor("#ffffff").setFontSize(9);
+  }
+  for (var r = 1; r < tabela.getNumRows(); r++) {
+    for (var c2 = 0; c2 < tabela.getRow(r).getNumCells(); c2++) {
+      tabela.getRow(r).getCell(c2).editAsText().setFontSize(9);
+    }
+  }
+
+  doc.saveAndClose();
+
+  var pdfBlob = DriveApp.getFileById(doc.getId()).getAs(MimeType.PDF);
+  var nomeArquivo = ("Resumo Analise - " + regiao + " - " + dataLabel).replace(/\//g, ".") + ".pdf";
+  pdfBlob.setName(nomeArquivo);
+  var pdfFile = pasta.createFile(pdfBlob);
+
+  // Só o PDF interessa — o Google Doc usado pra montar a tabela é descartável.
+  DriveApp.getFileById(doc.getId()).setTrashed(true);
+
+  return { url: pdfFile.getUrl(), fileName: pdfFile.getName() };
+}
+
 // ── 2. Estrutura da aba "PC'S NÃO AUTORIZADO" (índices 0-based) ─
 // Col  0  → Código
 // Col  1  → Cód. Emb.
