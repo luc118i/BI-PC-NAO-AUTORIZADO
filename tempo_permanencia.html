@@ -332,6 +332,17 @@
       }
       .perm-esquema-editar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
 
+      /* Botão "Salvar linha" — aparece no painel de esquema quando o
+         ponto já está analisado (persiste a linha/sessão vinculada sem
+         precisar reverter/rejustificar, ver _salvarLinhaNaAnalise). */
+      .perm-esquema-salvar-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 4px 9px;
+        border-radius: 6px; border: 1px solid var(--verde); background: transparent; color: var(--verde);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+      }
+      .perm-esquema-salvar-btn:hover { background: rgba(34,201,122,0.12); }
+      .perm-esquema-salvar-btn:disabled { opacity: 0.6; cursor: default; }
+
       /* ── MODAL GERAR RELATÓRIO (mesmo padrão do dashboard) ─── */
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
@@ -2329,12 +2340,23 @@
         return pontoMatch;
       }
 
-      function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml) {
+      // idx (opcional): quando o ponto já está analisado, mostra o botão
+      // "Salvar linha" — persiste a linha/sessão recém vinculada na
+      // análise já feita, sem precisar reverter/rejustificar (ver
+      // _salvarLinhaNaAnalise). Pontos ainda pendentes já salvam a linha
+      // sozinhos ao gerar relatório/justificar, então não precisam dele.
+      function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml, idx) {
+        var salvarBtnHtml = "";
+        if (idx != null && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave)) {
+          salvarBtnHtml = '<button type="button" class="perm-esquema-salvar-btn" ' +
+            'title="Essa excedência já foi analisada antes desta linha ser vinculada — salva sem reverter a análise" ' +
+            'onclick="event.stopPropagation();_salvarLinhaNaAnalise(' + idx + ', this)">' + _icon("check", 12) + ' Salvar linha</button>';
+        }
         var html = '<div class="perm-esquema-detalhe">' +
           '<div class="perm-esquema-detalhe-head">' +
             '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
               ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
-            alterarBtnHtml +
+            '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtnHtml + salvarBtnHtml + '</div>' +
           '</div>';
 
         if (pontoMatch) {
@@ -2350,6 +2372,52 @@
 
         html += '</div>';
         return html;
+      }
+
+      // Persiste a linha/horário de sessão já vinculados (item._esquemaInfo)
+      // num ponto JÁ ANALISADO, sem reverter/rejustificar — só atualiza os
+      // campos de linha da justificativa que já estava salva, mantendo o
+      // motivo original. Usado pelo botão "Salvar linha" que aparece no
+      // painel de esquema quando o ponto já está riscado (analisado antes
+      // dessa linha ter sido vinculada — ver _htmlEsquemaDetalhe).
+      function _salvarLinhaNaAnalise(idx, btnEl) {
+        var item = _relatorioItens[idx];
+        if (!item || !item.chave || !item._esquemaInfo || !item._esquemaInfo.codLinha) return;
+        if (!_statusAnalisadoCache || !_statusAnalisadoCache.has(item.chave)) return;
+
+        var justAtual = (_justificativaCache && _justificativaCache.get(item.chave)) || {};
+        var novaJust = {};
+        for (var k in justAtual) novaJust[k] = justAtual[k];
+        novaJust.linhaCod = item._esquemaInfo.codLinha;
+        novaJust.linhaNome = item._esquemaInfo.nomeLinha || "";
+        novaJust.linhaTripId = item._esquemaInfo.tripId || "";
+        novaJust.horarioSessao = item._esquemaInfo.horarioSessao || "";
+        novaJust.pontoSessao = item._esquemaInfo.pontoSessao || "";
+        _persistirStatus(item, true, novaJust);
+
+        // Reavalia o "Esquema vinculado" do cabeçalho do grupo — agora
+        // que esse ponto tem a linha salva, o grupo pode passar a bater.
+        var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+        if (el) _atualizarEstadoGrupo(el);
+
+        if (btnEl) { btnEl.innerHTML = _icon("check", 12) + " Salvo"; btnEl.disabled = true; }
+      }
+
+      // Mesma ideia, mas pra todos os pontos JÁ ANALISADOS de um grupo
+      // (prefixo/veículo) de uma vez — usado pelo botão "Salvar linha (N)"
+      // do painel de esquema em nível de grupo.
+      function _salvarLinhaGrupoNaAnalise(gidx, btnEl) {
+        var idxs = _grupoEsquemaIdxs[gidx] || [];
+        var salvos = 0;
+        idxs.forEach(function (idx) {
+          var item = _relatorioItens[idx];
+          if (item && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave) &&
+              item._esquemaInfo && item._esquemaInfo.codLinha) {
+            _salvarLinhaNaAnalise(idx);
+            salvos++;
+          }
+        });
+        if (btnEl) { btnEl.innerHTML = _icon("check", 12) + " Salvo (" + salvos + ")"; btnEl.disabled = true; }
       }
 
       function _verDetalheEsquema(idx, esquemaId) {
@@ -2377,7 +2445,7 @@
           }
 
           var pontoMatch = _aplicarEsquemaAoItem(idx, json);
-          corpo.innerHTML = _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtn);
+          corpo.innerHTML = _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtn, idx);
         });
       }
 
@@ -2504,7 +2572,7 @@
                   'onclick="event.stopPropagation();_buscarEsquema(' + idx + ', _esquemaQueryPorIdx[' + idx + '] || \'\')">' +
                   _icon("edit", 12) + '</button>';
                 painelItem.innerHTML = '<div class="perm-esquema-corpo" id="esquema-corpo-' + idx + '">' +
-                  _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnItem) + '</div>';
+                  _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnItem, idx) + '</div>';
                 painelItem.setAttribute("data-init", "1");
               }
 
@@ -2522,11 +2590,26 @@
               return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)");
             }).join("");
 
+            // Quantos pontos deste grupo já estavam analisados ANTES de
+            // vincular essa linha agora — só esses precisam do botão
+            // "Salvar linha" (os pendentes já salvam sozinhos ao gerar
+            // relatório/justificar, ver _htmlEsquemaDetalhe).
+            var qtdParaSalvar = idxs.filter(function (idx) {
+              var it = _relatorioItens[idx];
+              return it && it.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(it.chave);
+            }).length;
+            var salvarGrupoBtnHtml = qtdParaSalvar
+              ? '<button type="button" class="perm-esquema-salvar-btn" ' +
+                  'title="' + qtdParaSalvar + ' ponto(s) deste veículo já estavam analisados antes desta linha ser vinculada" ' +
+                  'onclick="event.stopPropagation();_salvarLinhaGrupoNaAnalise(' + gidx + ', this)">' +
+                  _icon("check", 12) + ' Salvar linha (' + qtdParaSalvar + ')</button>'
+              : "";
+
             corpo.innerHTML = '<div class="perm-esquema-detalhe">' +
               '<div class="perm-esquema-detalhe-head">' +
                 '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
                   ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
-                alterarBtn +
+                '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtn + salvarGrupoBtnHtml + '</div>' +
               '</div>' +
               '<div style="margin-top:2px;font-size:11px;color:var(--texto3)">Vinculado a ' + idxs.length +
                 ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo:</div>' +
