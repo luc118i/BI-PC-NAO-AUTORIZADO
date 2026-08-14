@@ -336,7 +336,7 @@
       .hist-table tr:hover .det-gerar-btn { opacity: 1; pointer-events: auto; }
       .det-gerar-btn:hover { background: var(--laranja3); }
 
-      /* ── MODAL OCORRÊNCIA ───────────────────────────────────── */
+      /* ── MODAIS (Sua conta / Gerar Relatório) ─────────────────── */
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
       .hidden { display: none !important; }
@@ -353,14 +353,47 @@
       .oc-field input, .oc-field select { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 7px 10px; border-radius: var(--radius-sm); width: 100%; }
       .oc-field input:focus, .oc-field select:focus { outline: none; border-color: var(--laranja); }
       .oc-field select option { background: var(--preto3); }
-      .oc-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .oc-img-box { border-radius: var(--radius-sm); overflow: hidden; background: var(--preto3); border: 1px solid var(--borda); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
-      .oc-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .oc-img-box span { font-size: 11px; color: var(--texto3); text-align: center; padding: 8px; }
       .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
       .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
       .oc-status.ok { color: var(--verde); }
       .oc-status.err { color: var(--vermelho); }
+
+      /* Dropdown de autocomplete (linha / motorista) — portado de
+         tempo_permanencia.html pro fluxo "Gerar Relatório" desta tela. */
+      .oc-autocomplete-list {
+        position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 20;
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        max-height: 200px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      }
+      .oc-autocomplete-item { padding: 8px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid var(--borda); }
+      .oc-autocomplete-item:last-child { border-bottom: none; }
+      .oc-autocomplete-item:hover, .oc-autocomplete-item.ativo { background: var(--laranja4); color: var(--laranja); }
+      .oc-autocomplete-item .oc-ac-sub { display: block; font-size: 10px; color: var(--texto3); }
+      .oc-autocomplete-item:hover .oc-ac-sub, .oc-autocomplete-item.ativo .oc-ac-sub { color: var(--laranja); opacity: 0.75; }
+      .oc-autocomplete-empty { padding: 10px; font-size: 12px; color: var(--texto3); text-align: center; }
+      .oc-selecionado { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--laranja4); border: 1px solid var(--borda-l); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; color: var(--laranja); }
+      .oc-selecionado button { background: none; border: none; color: var(--laranja); cursor: pointer; font-size: 14px; line-height: 1; }
+      .oc-field { position: relative; }
+
+      /* Evidências: colar / arrastar / selecionar */
+      .oc-evid-zone { border: 2px dashed var(--cinza2); border-radius: var(--radius); padding: 22px 16px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; color: var(--texto3); user-select: none; outline: none; }
+      .oc-evid-zone:hover, .oc-evid-zone:focus, .oc-evid-zone.drag-over { border-color: var(--laranja); background: var(--laranja4); color: var(--laranja); }
+      .oc-evid-zone-label { font-size: 13px; font-weight: 600; }
+      .oc-evid-zone-sub { font-size: 11px; margin-top: 3px; }
+      .oc-evid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+      .oc-evid-thumb { position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--borda2); aspect-ratio: 1; background: var(--preto3); }
+      .oc-evid-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .oc-evid-remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; border: none; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+      .oc-evid-remove:hover { background: var(--vermelho); }
+
+      /* Botão "Gerar Relatório" por linha da tabela de detecção */
+      .det-relatorio-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 4px 10px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      }
+      .det-relatorio-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .det-relatorio-btn.ativo { border-color: var(--verde); color: var(--verde); cursor: default; }
 
       /* ── RESPONSIVE ──────────────────────────────────────── */
       @media (max-width: 960px) {
@@ -448,6 +481,7 @@
       </div>
       <div class="header-meta">
         <div id="badgeStatus" class="badge-pill pill-loading">⏳ Carregando</div>
+        <button class="btn btn-ghost" id="btnUsuarioAtual" onclick="abrirModalUsuario()" title="Conta usada como 'Analisado por' nos relatórios de Parada Irregular gerados por aqui">👤 <span id="btnUsuarioAtualNome">Entrar</span></button>
         <button class="btn-modo-apresentacao" onclick="abrirModoApresentacao()">
           <svg class="btn-apres-icon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
           <span class="btn-apres-texto">Modo apresentação</span>
@@ -757,6 +791,636 @@
       let mapa            = null;
       let webAppBaseUrl   = "";
 
+      // ═════════════════════════════════════════════════════════
+      //  "Gerar Relatório" — Parada Irregular (PC não autorizado)
+      //  Portado de tempo_permanencia.html (fluxo "Excesso de
+      //  Permanência") — mesma API, mesmo padrão de autenticação,
+      //  linha/motorista e evidências. typeCode diferente
+      //  (DESCUMP_OP_PARADA_FORA — "Descumprimento Operacional:
+      //  Parada Fora do Programado"), que já tem um webhook plugado
+      //  nesta planilha: ao criar a ocorrência, a API notifica
+      //  doPost() (ocorrencias.js), que chama addOcorrencia() e grava
+      //  na aba "Histórico" sozinha — não precisamos fazer isso aqui.
+      // ═════════════════════════════════════════════════════════
+      var REPORTS_API_URL = "https://novel-trina-luccasinaacio-17a13a2a.koyeb.app";
+
+      function _normTP(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .toUpperCase().trim().replace(/\s+/g, " ");
+      }
+
+      // ── Ícones SVG (estilo lucide) — no lugar de emoji ────────
+      var _ICON_PATHS = {
+        x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+        check: '<polyline points="20 6 9 17 4 12"></polyline>',
+      };
+      function _icon(nome, tamanho) {
+        tamanho = tamanho || 14;
+        return '<svg width="' + tamanho + '" height="' + tamanho + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+          'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block;flex-shrink:0">' +
+          (_ICON_PATHS[nome] || "") + "</svg>";
+      }
+
+      // ── Autenticação — mesma conta do Gerador de Relatórios Operacionais ──
+      // Este BI não tem backend de auth próprio. Login aqui é feito direto
+      // contra o Supabase Auth (GoTrue) do projeto usado pelo Gerador de
+      // Relatórios — mesma URL/anon key já embutidas no bundle daquele app
+      // (a anon key é pública por design, só a senha de cada conta
+      // autentica de verdade). Assim o nome que vai como "analisadoPor" é
+      // o mesmo perfil (tabela "profiles") daquele app, não texto livre.
+      var SUPABASE_URL = "https://rolcprjrwxmdibzajvri.supabase.co";
+      var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvbGNwcmpyd3htZGliemFqdnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODY0ODIsImV4cCI6MjA4NTg2MjQ4Mn0.VSoKSDQOQHXR6bWHzxetfRwF50KG4I22K1hdcBpDP68";
+      var AUTH_STORAGE_KEY = "pc_auth_sessao"; // { access_token, refresh_token, expires_at, email, nome }
+
+      var _authSession = null;
+
+      function _authCarregarSessao() {
+        try {
+          var raw = localStorage.getItem(AUTH_STORAGE_KEY);
+          _authSession = raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          _authSession = null;
+        }
+        return _authSession;
+      }
+
+      function _authSalvarSessao(sessao) {
+        _authSession = sessao;
+        try {
+          if (sessao) localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessao));
+          else localStorage.removeItem(AUTH_STORAGE_KEY);
+        } catch (e) {
+          // localStorage indisponível (modo privado, etc.) — segue sem persistir
+        }
+        _atualizarBotaoUsuarioAtual();
+      }
+
+      function _authLogado() {
+        return !!(_authSession && _authSession.access_token);
+      }
+
+      // Nome usado em "analisadoPor" ao criar a ocorrência — null se
+      // ninguém autenticado ainda (bloqueia a geração, ver _gerarRelatorioParada).
+      function _obterUsuarioAtual() {
+        return (_authSession && (_authSession.nome || _authSession.email)) || null;
+      }
+
+      // ID estável (auth.users.id) de quem está logado — ver analisadoPorUserId
+      // em _criarOcorrenciaParada(). null se a sessão foi carregada de um
+      // login antigo (antes desse campo existir) — nesse caso basta relogar.
+      function _obterUsuarioIdAtual() {
+        return (_authSession && _authSession.id) || null;
+      }
+
+      // Busca o nome de exibição na tabela "profiles" — mesma regra do
+      // AuthContext.tsx do Gerador de Relatórios: profiles.nome, com
+      // fallback pro display_name/metadata ou pro que vier antes do @
+      // no e-mail.
+      function _authBuscarNomePerfil(userId, accessToken) {
+        return fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + userId + "&select=nome", {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + accessToken },
+        })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (rows) { return (rows && rows[0] && String(rows[0].nome || "").trim()) || ""; })
+          .catch(function () { return ""; });
+      }
+
+      function _authMontarSessaoDoToken(tokenJson) {
+        var user = tokenJson.user || {};
+        var meta = user.user_metadata || {};
+        var fallback = meta.nome || meta.display_name || meta.full_name || meta.name ||
+          (user.email || "").split("@")[0] || "Analista";
+
+        return _authBuscarNomePerfil(user.id, tokenJson.access_token).then(function (nomePerfil) {
+          return {
+            access_token: tokenJson.access_token,
+            refresh_token: tokenJson.refresh_token,
+            expires_at: tokenJson.expires_at, // epoch em segundos, já vem pronto da API
+            email: user.email || "",
+            nome: nomePerfil || fallback,
+            id: user.id || null,
+          };
+        });
+      }
+
+      function _authLogin(email, senha) {
+        return fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+          body: JSON.stringify({ email: email.trim(), password: senha }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+          .then(function (res) {
+            if (!res.ok) {
+              throw new Error((res.json && (res.json.error_description || res.json.msg)) || "E-mail ou senha inválidos.");
+            }
+            return _authMontarSessaoDoToken(res.json);
+          })
+          .then(function (sessao) {
+            _authSalvarSessao(sessao);
+            return sessao;
+          });
+      }
+
+      function _authLogout() {
+        _authSalvarSessao(null);
+      }
+
+      // Renova o access_token com o refresh_token quando ele estiver perto
+      // de expirar (ou já venceu) — evita pedir senha de novo a cada ~1h
+      // só pra gerar um relatório. Se o refresh falhar, desloga e deixa o
+      // guard em _gerarRelatorioParada pedir login de novo.
+      function _authGarantirTokenValido() {
+        if (!_authSession) return Promise.resolve(null);
+        var expiraEmMs = (_authSession.expires_at || 0) * 1000;
+        var folgaMs = 60 * 1000;
+        if (expiraEmMs - Date.now() > folgaMs) return Promise.resolve(_authSession);
+
+        return fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+          body: JSON.stringify({ refresh_token: _authSession.refresh_token }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+          .then(function (res) {
+            if (!res.ok) { _authSalvarSessao(null); return null; }
+            return _authMontarSessaoDoToken(res.json).then(function (sessao) {
+              _authSalvarSessao(sessao);
+              return sessao;
+            });
+          })
+          .catch(function () { return _authSession; });
+      }
+
+      function _atualizarBotaoUsuarioAtual() {
+        var el = document.getElementById("btnUsuarioAtualNome");
+        if (!el) return;
+        el.textContent = _authLogado() ? (_authSession.nome || _authSession.email) : "Entrar";
+      }
+
+      function _renderModalUsuario() {
+        var logado = _authLogado();
+        document.getElementById("usuarioLogadoBox").classList.toggle("hidden", !logado);
+        document.getElementById("usuarioLoginBox").classList.toggle("hidden", logado);
+
+        var btnPrimario = document.getElementById("usuarioBtnPrimario");
+        var btnSecundario = document.getElementById("usuarioBtnSecundario");
+
+        if (logado) {
+          document.getElementById("usuarioLogadoNome").textContent = _authSession.nome || "—";
+          document.getElementById("usuarioLogadoEmail").textContent = _authSession.email || "—";
+          btnPrimario.textContent = "Sair";
+          btnPrimario.onclick = _authFazerLogout;
+          btnSecundario.textContent = "Fechar";
+        } else {
+          btnPrimario.textContent = "Entrar";
+          btnPrimario.onclick = _authFazerLogin;
+          btnSecundario.textContent = "Cancelar";
+        }
+      }
+
+      function abrirModalUsuario() {
+        document.getElementById("usuarioStatus").textContent = "";
+        _renderModalUsuario();
+        document.getElementById("usuarioModal").classList.remove("hidden");
+        if (!_authLogado()) {
+          var emailEl = document.getElementById("usuarioLoginEmail");
+          if (emailEl) emailEl.focus();
+        }
+      }
+
+      function fecharModalUsuario() {
+        document.getElementById("usuarioModal").classList.add("hidden");
+      }
+
+      function _authFazerLogin() {
+        var email = document.getElementById("usuarioLoginEmail").value.trim();
+        var senha = document.getElementById("usuarioLoginSenha").value;
+        var status = document.getElementById("usuarioStatus");
+        var btn = document.getElementById("usuarioBtnPrimario");
+
+        if (!email || !senha) {
+          status.textContent = "Informe e-mail e senha.";
+          status.className = "oc-status err";
+          return;
+        }
+
+        btn.disabled = true;
+        status.textContent = "Entrando...";
+        status.className = "oc-status";
+
+        _authLogin(email, senha)
+          .then(function () {
+            status.textContent = "";
+            document.getElementById("usuarioLoginSenha").value = "";
+            _renderModalUsuario();
+            btn.disabled = false;
+          })
+          .catch(function (err) {
+            status.textContent = err.message || "Erro ao entrar.";
+            status.className = "oc-status err";
+            btn.disabled = false;
+          });
+      }
+
+      function _authFazerLogout() {
+        _authLogout();
+        _renderModalUsuario();
+      }
+
+      // ── Credenciais do Drive — mesma pasta configurada em
+      //    tempo_permanencia.html ("Configurar Drive"), reaproveitada
+      //    aqui (getCredenciaisDriveRelatorios é global no Apps Script). ──
+      function _obterCredenciaisDrive() {
+        return new Promise(function (resolve, reject) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(function (err) { reject(new Error((err && err.message) || "Falha ao obter credenciais do Drive")); })
+            .getCredenciaisDriveRelatorios();
+        });
+      }
+
+      // ── Estado da modal "Gerar Relatório" ─────────────────────
+      var _relItemAtualIdx = null;
+      var _relLinhaSelecionada = null;     // { id, lineCode, lineName, departureTime, direction }
+      var _relMotoristaSelecionado = null; // { id, code, name, base }
+      var _relEvidencias = [];             // [{ file, url }]
+      var _relBuscaMotoristaSeq = 0;
+      var _relTripsCache = null; // catálogo completo de viagens, carregado 1x por sessão
+
+      function _dataHoraPartes(dtStr) {
+        var m = String(dtStr || "").match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        return m ? { data: m[1], hora: m[2] } : { data: "", hora: "" };
+      }
+
+      function _setRelStatus(msg, tipo) {
+        var el = document.getElementById("relStatus");
+        el.innerHTML = msg;
+        el.className = "oc-status" + (tipo ? " " + tipo : "");
+      }
+
+      // ── Autocomplete de Linha — busca local por código/nome ou
+      //    horário (GET {REPORTS_API_URL}/trips, carregado 1x) ────
+      function _carregarTrips(cb) {
+        if (_relTripsCache) { if (cb) cb(); return; }
+        fetch(REPORTS_API_URL + "/trips")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            _relTripsCache = (json && json.data) || [];
+            if (cb) cb();
+          })
+          .catch(function () {
+            _relTripsCache = [];
+            if (cb) cb();
+          });
+      }
+
+      function _buscarLinha(termo) {
+        var lista = document.getElementById("relLinhaLista");
+        termo = (termo || "").trim();
+        if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
+
+        if (!_relTripsCache) {
+          lista.innerHTML = '<div class="oc-autocomplete-empty">Carregando linhas...</div>';
+          lista.classList.remove("hidden");
+          _carregarTrips(function () { _buscarLinha(termo); });
+          return;
+        }
+
+        var termoNorm = _normTP(termo);
+        var termoDigitos = termo.replace(/\D/g, "");
+
+        var itens = _relTripsCache.filter(function (t) {
+          var textoCombinado = _normTP((t.lineCode || "") + " " + (t.lineName || ""));
+          if (textoCombinado.includes(termoNorm)) return true;
+          if (termoDigitos.length >= 3) {
+            var horaDigitos = String(t.departureTime || "").replace(/\D/g, "");
+            if (horaDigitos.includes(termoDigitos)) return true;
+          }
+          return false;
+        });
+
+        if (!itens.length) {
+          lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhuma linha encontrada.</div>';
+          lista.classList.remove("hidden");
+          return;
+        }
+        lista.innerHTML = itens.slice(0, 20).map(function (t, i) {
+          return '<div class="oc-autocomplete-item" onclick="_selecionarLinha(' + i + ')" data-idx="' + i + '">' +
+            (t.lineCode || "") + ' — ' + (t.lineName || "") +
+            '<span class="oc-ac-sub">' + (t.departureTime || "") + (t.direction ? " · " + t.direction : "") + '</span>' +
+          '</div>';
+        }).join("");
+        lista.classList.remove("hidden");
+        window._relLinhaOpcoes = itens;
+      }
+
+      function _selecionarLinha(i) {
+        _aplicarLinhaSelecionada(window._relLinhaOpcoes[i]);
+      }
+
+      function _aplicarLinhaSelecionada(t) {
+        if (!t) return;
+        _relLinhaSelecionada = t;
+        document.getElementById("relLinhaLista").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.add("hidden");
+        var sel = document.getElementById("relLinhaSelecionada");
+        sel.innerHTML = '<span>' + t.lineCode + ' — ' + t.lineName + ' (' + t.departureTime + (t.direction ? " · " + t.direction : "") + ')</span>' +
+          '<button type="button" onclick="_limparLinha()" title="Trocar">' + _icon("x") + '</button>';
+        sel.classList.remove("hidden");
+      }
+
+      function _limparLinha() {
+        _relLinhaSelecionada = null;
+        document.getElementById("relLinhaSelecionada").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.remove("hidden");
+        document.getElementById("relLinhaBusca").value = "";
+        document.getElementById("relLinhaBusca").focus();
+      }
+
+      // ── Autocomplete de Motorista (GET {REPORTS_API_URL}/drivers?search=) ──
+      function _buscarMotorista(termo) {
+        var lista = document.getElementById("relMotoristaLista");
+        termo = (termo || "").trim();
+        if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
+
+        var seq = ++_relBuscaMotoristaSeq;
+        fetch(REPORTS_API_URL + "/drivers?search=" + encodeURIComponent(termo) + "&limit=20")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (seq !== _relBuscaMotoristaSeq) return;
+            var itens = (json && json.data) || [];
+            if (!itens.length) {
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado.</div>';
+              lista.classList.remove("hidden");
+              return;
+            }
+            lista.innerHTML = itens.map(function (d, i) {
+              return '<div class="oc-autocomplete-item" onclick="_selecionarMotorista(' + i + ')">' +
+                d.code + ' — ' + d.name +
+                (d.base ? '<span class="oc-ac-sub">' + d.base + '</span>' : '') +
+              '</div>';
+            }).join("");
+            lista.classList.remove("hidden");
+            window._relMotoristaOpcoes = itens;
+          })
+          .catch(function () {
+            lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar motoristas.</div>';
+            lista.classList.remove("hidden");
+          });
+      }
+
+      function _selecionarMotorista(i) {
+        var d = window._relMotoristaOpcoes[i];
+        if (!d) return;
+        _relMotoristaSelecionado = d;
+        document.getElementById("relMotoristaLista").classList.add("hidden");
+        document.getElementById("relMotoristaBusca").classList.add("hidden");
+        var sel = document.getElementById("relMotoristaSelecionada");
+        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
+          '<button type="button" onclick="_limparMotorista()" title="Trocar">' + _icon("x") + '</button>';
+        sel.classList.remove("hidden");
+      }
+
+      function _limparMotorista() {
+        _relMotoristaSelecionado = null;
+        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        document.getElementById("relMotoristaBusca").value = "";
+        document.getElementById("relMotoristaBusca").focus();
+      }
+
+      // ── Evidências: colar / arrastar / selecionar ─────────────
+      function _handlePasteEvidencia(evt) {
+        var items = (evt.clipboardData || window.clipboardData).items;
+        if (!items) return;
+        var arquivos = [];
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf("image/") === 0) {
+            var f = items[i].getAsFile();
+            if (f) arquivos.push(f);
+          }
+        }
+        if (arquivos.length) {
+          evt.preventDefault();
+          _adicionarEvidencias(arquivos);
+        }
+      }
+
+      function _adicionarEvidencias(files) {
+        if (!files || !files.length) return;
+        Array.prototype.forEach.call(files, function (file) {
+          if (!file.type || file.type.indexOf("image/") !== 0) return;
+          var url = URL.createObjectURL(file);
+          _relEvidencias.push({ file: file, url: url });
+        });
+        _renderEvidGrid();
+      }
+
+      function _renderEvidGrid() {
+        var grid = document.getElementById("relEvidGrid");
+        grid.innerHTML = _relEvidencias.map(function (ev, i) {
+          return '<div class="oc-evid-thumb">' +
+            '<img src="' + ev.url + '" alt="Evidência ' + (i + 1) + '" />' +
+            '<button type="button" class="oc-evid-remove" onclick="_removerEvidencia(' + i + ')" title="Remover">' + _icon("x", 12) + '</button>' +
+          '</div>';
+        }).join("");
+      }
+
+      function _removerEvidencia(i) {
+        _relEvidencias.splice(i, 1);
+        _renderEvidGrid();
+      }
+
+      // ── Abrir/fechar modal ─────────────────────────────────────
+      function abrirModalRelatorioParada(idx) {
+        var r = _detLista[idx];
+        if (!r) return;
+
+        _relItemAtualIdx = idx;
+        _relLinhaSelecionada = null;
+        _relMotoristaSelecionado = null;
+        _relEvidencias = [];
+
+        document.getElementById("relVeiculo").textContent = r.veiculo || "—";
+        document.getElementById("relPonto").textContent = r.descResumida || r.ponto || "—";
+        document.getElementById("relRegiao").textContent = (r.regiao || "—") + (r.uf ? " · " + r.uf : "");
+        document.getElementById("relEntrada").textContent = _fmtHM(r.entrada);
+        document.getElementById("relSaida").textContent = _fmtHM(r.saida);
+        document.getElementById("relDuracao").textContent = r.parada || "—";
+
+        document.getElementById("relLinhaBusca").value = "";
+        document.getElementById("relMotoristaBusca").value = "";
+        document.getElementById("relLinhaLista").classList.add("hidden");
+        document.getElementById("relMotoristaLista").classList.add("hidden");
+        document.getElementById("relLinhaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.remove("hidden");
+        document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        document.getElementById("relObservacao").value = "";
+        document.getElementById("relEvidGrid").innerHTML = "";
+        document.getElementById("relStatus").textContent = "";
+        document.getElementById("relStatus").className = "oc-status";
+        document.getElementById("relBtnGerar").disabled = false;
+        document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+
+        // Sugestão inicial (não seleciona sozinho — usuário confirma
+        // clicando) a partir do motorista já casado pelo rastreamento.
+        if (r.motoristaMatch && r.motoristaMatch.nome) {
+          document.getElementById("relMotoristaBusca").value = r.motoristaMatch.nome;
+          _buscarMotorista(r.motoristaMatch.nome);
+        }
+
+        document.getElementById("relatorioParadaModal").classList.remove("hidden");
+        document.addEventListener("paste", _handlePasteEvidencia);
+        _carregarTrips();
+      }
+
+      function fecharModalRelatorioParada() {
+        document.getElementById("relatorioParadaModal").classList.add("hidden");
+        document.removeEventListener("paste", _handlePasteEvidencia);
+      }
+
+      // Nome de arquivo: "PREFIXO - PARADA_IRREG - DD.MM.AA"
+      function _nomeArquivoRelatorioParada(item) {
+        var partes = [item.veiculo || "SEMPREFIXO", "PARADA_IRREG", _fmtDataCurtaPI(item.entrada)].filter(Boolean);
+        return partes.join(" - ") + ".pdf";
+      }
+
+      function _fmtDataCurtaPI(dtStr) {
+        var m = String(dtStr || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return "";
+        return m[3] + "." + m[2] + "." + m[1].slice(2);
+      }
+
+      // Cria a ocorrência (typeCode=DESCUMP_OP_PARADA_FORA) e sobe as
+      // evidências já escolhidas no modal. O webhook da API já grava a
+      // aba "Histórico" sozinho (ver comentário no topo deste bloco) —
+      // não precisamos chamar addOcorrencia aqui.
+      function _criarOcorrenciaParada(item) {
+        var entradaP = _dataHoraPartes(item.entrada);
+        var saidaP = _dataHoraPartes(item.saida);
+
+        return _authGarantirTokenValido().then(function () {
+          var payload = {
+            typeCode: "DESCUMP_OP_PARADA_FORA",
+            eventDate: entradaP.data,
+            tripDate: entradaP.data,
+            startTime: entradaP.hora,
+            endTime: saidaP.hora || entradaP.hora,
+            vehicleNumber: item.veiculo,
+            place: item.descCompleta || item.ponto,
+            placeCode: item.codigo || null,
+            lineLabel: _relLinhaSelecionada ? (_relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName) : null,
+            tripId: _relLinhaSelecionada ? _relLinhaSelecionada.id : null,
+            tripTime: _relLinhaSelecionada ? (_relLinhaSelecionada.departureTime || null) : null,
+            drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+            relatoHtml: (document.getElementById("relObservacao").value || "").trim(),
+            showSectionViagem: true,
+            showSectionIdentificacao: true,
+            showSectionDados: true,
+            showSectionTripulacao: true,
+            showSectionPassageiros: false,
+            devolutivaBeforeEvidences: false,
+            tratativa: "REGISTRO",
+            analisadoPor: _obterUsuarioAtual(),
+            analisadoPorUserId: _obterUsuarioIdAtual(),
+          };
+
+          return fetch(REPORTS_API_URL + "/occurrences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao criar ocorrência"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var occurrenceId = json.id;
+            if (!_relEvidencias.length) return occurrenceId;
+
+            _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
+            var form = new FormData();
+            _relEvidencias.forEach(function (ev) { form.append("files", ev.file, ev.file.name || "evidencia.jpg"); });
+            form.append("metadata", JSON.stringify(_relEvidencias.map(function () { return {}; })));
+
+            return fetch(REPORTS_API_URL + "/occurrences/" + occurrenceId + "/evidences", {
+              method: "POST",
+              body: form,
+            }).then(function (r) {
+              if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error) || "Falha ao enviar evidências"); });
+              return occurrenceId;
+            });
+          });
+      }
+
+      function _gerarEBaixarPdfParada(occurrenceId, item) {
+        var nomeArquivo = _nomeArquivoRelatorioParada(item);
+        _setRelStatus("Conectando ao Drive...", "");
+
+        return _obterCredenciaisDrive().then(function (cred) {
+          _setRelStatus("Gerando PDF e enviando ao Drive...", "");
+          return fetch(REPORTS_API_URL + "/reports/occurrences/" + occurrenceId + "/drive", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: nomeArquivo,
+              force: true,
+              accessToken: cred.accessToken,
+              folderId: cred.folderId,
+            }),
+          });
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && j.error.message) || "Falha ao enviar PDF ao Drive"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var drive = json && json.data && json.data.drive;
+            if (!drive || !drive.webViewLink) throw new Error("PDF enviado, mas sem link do Drive");
+            return { url: drive.webViewLink, nomeArquivo: drive.fileName || nomeArquivo };
+          });
+      }
+
+      function _gerarRelatorioParada() {
+        if (_relItemAtualIdx == null) return;
+        var item = _detLista[_relItemAtualIdx];
+        if (!item) return;
+        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão 👤 na barra) antes de gerar o relatório.", "err"); return; }
+
+        var btn = document.getElementById("relBtnGerar");
+        btn.disabled = true;
+        btn.textContent = "Gerando...";
+        _setRelStatus("Criando ocorrência...", "");
+
+        var idxAtual = _relItemAtualIdx;
+
+        _criarOcorrenciaParada(item)
+          .then(function (occurrenceId) {
+            return _gerarEBaixarPdfParada(occurrenceId, item);
+          })
+          .then(function (res) {
+            _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
+            btn.disabled = true;
+            btn.textContent = "✓ Gerado";
+            var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + idxAtual + '"]');
+            if (linkBtn) {
+              linkBtn.classList.add("ativo");
+              linkBtn.textContent = "✓ Gerado";
+              linkBtn.onclick = null;
+            }
+          })
+          .catch(function (err) {
+            _setRelStatus((err.message || "Erro ao gerar relatório"), "err");
+            btn.disabled = false;
+            btn.textContent = "Gerar relatório";
+          });
+      }
+
       function abrirTempoPermanencia() {
         var url = (webAppBaseUrl || window.location.href.split("?")[0]) + "?view=tempo-permanencia";
         window.open(url, "_blank");
@@ -792,6 +1456,9 @@
         setBadge("loading");
         iniciarMapa();
         carregarDados(ini, fim);
+
+        _authCarregarSessao();
+        _atualizarBotaoUsuarioAtual();
       };
 
       // ─────────────────────────────────────────────────────────
@@ -1758,6 +2425,8 @@
               '<td><span class="dur-tag" style="color:' + cor + ';border-color:' + cor + '">' + r.parada + '</span></td>' +
               '<td style="white-space:nowrap">' +
                 (r.motoristaMatch ? '<span style="font-size:10px;font-weight:600;color:var(--verde);border:1px solid var(--verde);border-radius:4px;padding:1px 6px;margin-right:5px;opacity:.85">' + r.motoristaMatch.nome.split(" ").slice(0,2).join(" ") + '</span>' : '') +
+                '<button type="button" class="det-relatorio-btn" data-idx="' + idx + '" title="Gerar relatório de ocorrência (parada fora do programado)" ' +
+                  'onclick="event.stopPropagation();abrirModalRelatorioParada(' + idx + ')">📄 Gerar Relatório</button>' +
               '</td>' +
               '</tr>';
           });
@@ -2135,152 +2804,6 @@
           .removerPontoParadaIrregular(codigo);
       }
 
-      // ── MODAL OCORRÊNCIA ─────────────────────────────────────
-      var MAPS_KEY = ""; // ← coloque sua chave Google Maps Static API aqui
-
-      function abrirModalOcorrencia(idx) {
-        var r = _detLista[idx];
-        if (!r) return;
-
-        // Preenche campos fixos
-        document.getElementById("ocVeiculo").textContent  = r.veiculo;
-        document.getElementById("ocPonto").textContent    = r.descResumida || r.ponto;
-        document.getElementById("ocRegiao").textContent   = r.regiao + (r.uf ? " · " + r.uf : "");
-        document.getElementById("ocEntrada").textContent  = _fmtHM(r.entrada);
-        document.getElementById("ocSaida").textContent    = _fmtHM(r.saida);
-        document.getElementById("ocDuracao").textContent  = r.parada;
-
-        // Data no formato YYYY-MM-DD para o campo date
-        var dm = String(r.entrada || "").match(/(\d{4})-(\d{2})-(\d{2})/);
-        document.getElementById("ocData").value = dm ? dm[1]+"-"+dm[2]+"-"+dm[3] : "";
-
-        // Guarda índice para o submit
-        document.getElementById("ocModal").dataset.idx = idx;
-
-        // Imagens satélite + Street View
-        _preencherImagens(r.lat, r.lng);
-
-        // Carrega motoristas
-        document.getElementById("ocMotorista").innerHTML = '<option value="">Carregando...</option>';
-        document.getElementById("ocBase").value = "";
-        document.getElementById("ocLinha").value = "";
-        document.getElementById("ocStatus").textContent = "";
-        document.getElementById("ocStatus").className = "oc-status";
-
-        var _motMatch = r.motoristaMatch || null;
-
-        // Usa cache se disponível, senão chama GAS
-        var _preencherSelect = function(lista) {
-          var sel = document.getElementById("ocMotorista");
-          sel.innerHTML = '<option value="">— selecione —</option>';
-          lista.forEach(function(m) {
-            var opt = document.createElement("option");
-            opt.value = m.id + "||" + m.nome;
-            opt.textContent = m.id + " · " + m.nome;
-            sel.appendChild(opt);
-          });
-          if (_motMatch) {
-            for (var i = 0; i < sel.options.length; i++) {
-              if (sel.options[i].value.startsWith(_motMatch.id + "||")) {
-                sel.selectedIndex = i;
-                var st = document.getElementById("ocStatus");
-                st.textContent = "✓ Motorista identificado pelo rastreamento — preencha a Base para continuar";
-                st.className = "oc-status ok";
-                setTimeout(function() { document.getElementById("ocBase").focus(); }, 100);
-                break;
-              }
-            }
-          }
-        };
-
-        if (_motoristasCache && _motoristasCache.length) {
-          _preencherSelect(_motoristasCache);
-        } else {
-          google.script.run
-            .withSuccessHandler(function(lista) { _motoristasCache = lista; _preencherSelect(lista); })
-            .withFailureHandler(function() {
-              document.getElementById("ocMotorista").innerHTML = '<option value="">Erro ao carregar motoristas</option>';
-            })
-            .getMotoristas();
-        }
-
-        document.getElementById("ocModal").classList.remove("hidden");
-      }
-
-      function fecharModalOcorrencia() {
-        document.getElementById("ocModal").classList.add("hidden");
-      }
-
-      function _preencherImagens(lat, lng) {
-        var satBox  = document.getElementById("ocImgSat");
-        var svBox   = document.getElementById("ocImgSV");
-
-        if (!lat || !lng || !MAPS_KEY) {
-          satBox.innerHTML = '<span>Sem coordenadas ou chave Maps</span>';
-          svBox.innerHTML  = '<span>Sem coordenadas ou chave Maps</span>';
-          return;
-        }
-
-        var base = lat + "," + lng;
-        var satUrl = "https://maps.googleapis.com/maps/api/staticmap"
-          + "?center=" + base + "&zoom=17&size=600x340&maptype=satellite"
-          + "&markers=color:red|" + base + "&key=" + MAPS_KEY;
-        var svUrl  = "https://maps.googleapis.com/maps/api/streetview"
-          + "?size=600x340&location=" + base
-          + "&fov=90&pitch=10&key=" + MAPS_KEY;
-
-        satBox.innerHTML = '<img src="' + satUrl + '" alt="Satélite" onerror="this.parentElement.innerHTML=\'<span>Imagem indisponível</span>\'">';
-        svBox.innerHTML  = '<img src="' + svUrl  + '" alt="Street View" onerror="this.parentElement.innerHTML=\'<span>Street View indisponível</span>\'">';
-      }
-
-      function submeterOcorrencia() {
-        var modal = document.getElementById("ocModal");
-        var idx   = parseInt(modal.dataset.idx);
-        var r     = _detLista[idx];
-        if (!r) return;
-
-        var motVal  = document.getElementById("ocMotorista").value;
-        var base    = document.getElementById("ocBase").value.trim();
-        var linha   = document.getElementById("ocLinha").value.trim();
-        var dataRel = document.getElementById("ocData").value;
-        var statusEl = document.getElementById("ocStatus");
-
-        if (!motVal) { statusEl.textContent = "Selecione o motorista."; statusEl.className = "oc-status err"; return; }
-        if (!base)   { statusEl.textContent = "Informe a base.";        statusEl.className = "oc-status err"; return; }
-
-        var motParts    = motVal.split("||");
-        var motoristaId = motParts[0] || "";
-        var motoristaNome = motParts[1] || "";
-
-        var btnSubmit = document.getElementById("ocBtnSubmit");
-        btnSubmit.disabled = true;
-        statusEl.textContent = "Enviando...";
-        statusEl.className = "oc-status";
-
-        google.script.run
-          .withSuccessHandler(function() {
-            statusEl.textContent = "✓ Ocorrência registrada com sucesso!";
-            statusEl.className = "oc-status ok";
-            btnSubmit.disabled = false;
-            setTimeout(fecharModalOcorrencia, 2000);
-          })
-          .withFailureHandler(function(err) {
-            statusEl.textContent = "Erro: " + (err.message || err);
-            statusEl.className = "oc-status err";
-            btnSubmit.disabled = false;
-          })
-          .addOcorrencia({
-            localId:       r.codigo,
-            localNome:     r.descCompleta || r.ponto,
-            carro:         r.veiculo,
-            motoristaId:   motoristaId,
-            motoristaNome: motoristaNome,
-            base:          base,
-            dataRelatorio: dataRel,
-            linha:         linha,
-          });
-      }
-
       function copiarDeteccao() {
         var tbl = document.getElementById("detTable");
         if (!tbl) return;
@@ -2308,13 +2831,17 @@
       <a class="side-link" href="#sec-deteccao">  <span class="side-label">Detecção</span>  <span class="side-dot"></span></a>
     </nav>
 
-    <!-- ── MODAL GERAR OCORRÊNCIA ──────────────────────────────── -->
-    <div class="oc-overlay hidden" id="ocModal" onclick="if(event.target===this)fecharModalOcorrencia()">
+    <!-- ── MODAL GERAR RELATÓRIO — Parada Irregular (PC não autorizado) ──
+         Cria uma ocorrência typeCode=DESCUMP_OP_PARADA_FORA na API do
+         Gerador de Relatórios, sobe evidências e envia o PDF pro Drive —
+         mesmo fluxo de tempo_permanencia.html (Excesso de Permanência),
+         ver abrirModalRelatorioParada()/_gerarRelatorioParada() no script. -->
+    <div class="oc-overlay hidden" id="relatorioParadaModal" onclick="if(event.target===this)fecharModalRelatorioParada()">
       <div class="oc-panel">
 
         <div class="oc-header">
-          <h3>⚡ Gerar Ocorrência</h3>
-          <button class="oc-close" onclick="fecharModalOcorrencia()" title="Fechar">✕</button>
+          <h3>📄 Gerar Relatório — Parada Irregular</h3>
+          <button class="oc-close" onclick="fecharModalRelatorioParada()" title="Fechar">✕</button>
         </div>
 
         <div class="oc-body">
@@ -2323,69 +2850,128 @@
           <div class="oc-resumo">
             <div class="oc-field">
               <label>Veículo</label>
-              <strong id="ocVeiculo">—</strong>
+              <strong id="relVeiculo">—</strong>
             </div>
             <div class="oc-field">
               <label>Ponto de controle</label>
-              <span id="ocPonto">—</span>
+              <span id="relPonto">—</span>
             </div>
             <div class="oc-field">
               <label>Região</label>
-              <span id="ocRegiao">—</span>
+              <span id="relRegiao">—</span>
             </div>
             <div class="oc-field">
               <label>Duração da parada</label>
-              <strong id="ocDuracao" style="color:var(--vermelho)">—</strong>
+              <strong id="relDuracao" style="color:var(--vermelho)">—</strong>
             </div>
             <div class="oc-field">
               <label>Entrada</label>
-              <span id="ocEntrada">—</span>
+              <span id="relEntrada">—</span>
             </div>
             <div class="oc-field">
               <label>Saída</label>
-              <span id="ocSaida">—</span>
+              <span id="relSaida">—</span>
             </div>
           </div>
 
-          <!-- Imagens Maps -->
-          <div>
-            <div class="oc-field" style="margin-bottom:8px"><label>📍 Local — Satélite &amp; Street View</label></div>
-            <div class="oc-imgs">
-              <div class="oc-img-box" id="ocImgSat"><span>Aguardando...</span></div>
-              <div class="oc-img-box" id="ocImgSV"><span>Aguardando...</span></div>
-            </div>
+          <div class="oc-field">
+            <label>Linha (itinerário)</label>
+            <input type="text" id="relLinhaBusca" placeholder="Buscar por código ou nome da linha... (opcional)" autocomplete="off" oninput="_buscarLinha(this.value)" />
+            <div class="oc-autocomplete-list hidden" id="relLinhaLista"></div>
+            <div class="oc-selecionado hidden" id="relLinhaSelecionada"></div>
           </div>
 
-          <!-- Campos editáveis -->
-          <div class="oc-resumo">
-            <div class="oc-field" style="grid-column:1/-1">
-              <label>Motorista *</label>
-              <select id="ocMotorista"><option value="">Carregando...</option></select>
+          <div class="oc-field">
+            <label>Motorista responsável *</label>
+            <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
+            <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
+            <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Observação (opcional)</label>
+            <textarea id="relObservacao" rows="3" placeholder="Detalhe adicional sobre a parada, se precisar..." style="resize:vertical;font-family:inherit"></textarea>
+          </div>
+
+          <div class="oc-field">
+            <label>Evidências</label>
+            <div class="oc-evid-zone" id="relEvidZone" tabindex="0"
+              onclick="document.getElementById('relEvidInput').click()"
+              ondragover="event.preventDefault(); this.classList.add('drag-over')"
+              ondragleave="this.classList.remove('drag-over')"
+              ondrop="event.preventDefault(); this.classList.remove('drag-over'); _adicionarEvidencias(event.dataTransfer.files)">
+              <div class="oc-evid-zone-label">Cole (Ctrl+V), arraste ou clique pra selecionar</div>
+              <div class="oc-evid-zone-sub">Imagens (print, foto) · vão anexadas ao relatório</div>
+              <input type="file" id="relEvidInput" accept="image/*" multiple style="display:none" onchange="_adicionarEvidencias(this.files)" />
             </div>
-            <div class="oc-field">
-              <label>Base *</label>
-              <input id="ocBase" type="text" placeholder="Ex: BHZ CATEDRAL" autocomplete="off">
-            </div>
-            <div class="oc-field">
-              <label>Linha / Serviço</label>
-              <input id="ocLinha" type="text" placeholder="Ex: 0126 ou deixe em branco">
-            </div>
-            <div class="oc-field" style="grid-column:1/-1">
-              <label>Data do relatório *</label>
-              <input id="ocData" type="date">
-            </div>
+            <div class="oc-evid-grid" id="relEvidGrid"></div>
           </div>
 
         </div><!-- /oc-body -->
 
         <div class="oc-footer">
-          <span class="oc-status" id="ocStatus"></span>
-          <button class="btn btn-ghost" onclick="fecharModalOcorrencia()">Cancelar</button>
-          <button class="btn btn-primary" id="ocBtnSubmit" onclick="submeterOcorrencia()">✓ Registrar ocorrência</button>
+          <span class="oc-status" id="relStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharModalRelatorioParada()">Cancelar</button>
+          <button class="btn btn-primary" id="relBtnGerar" onclick="_gerarRelatorioParada()">Gerar relatório</button>
         </div>
 
       </div>
-    </div><!-- /ocModal -->
+    </div><!-- /relatorioParadaModal -->
+
+    <!-- ── MODAL SUA CONTA (navbar) ─────────────────────────────── -->
+    <!-- Este BI não tem auth própria (web app é ANYONE_ANONYMOUS), então
+         não dá pra confiar em Session.getActiveUser() do Apps Script pra
+         saber quem está gerando o relatório. Login aqui é feito direto
+         contra o Supabase Auth do Gerador de Relatórios Operacionais
+         (mesma conta daquele app) e o nome do perfil vai como
+         "analisadoPor" ao criar a ocorrência. -->
+    <div class="oc-overlay hidden" id="usuarioModal" onclick="if(event.target===this)fecharModalUsuario()">
+      <div class="oc-panel" style="max-width:380px">
+
+        <div class="oc-header">
+          <h3>👤 Sua conta</h3>
+          <button class="oc-close" onclick="fecharModalUsuario()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <!-- Estado: logado -->
+          <div id="usuarioLogadoBox" class="hidden">
+            <div class="oc-field">
+              <label>Logado como</label>
+              <strong id="usuarioLogadoNome" style="display:block;font-size:14px;margin-top:2px">—</strong>
+              <span id="usuarioLogadoEmail" style="font-size:12px;color:var(--texto3)">—</span>
+            </div>
+            <p style="font-size:12px;color:var(--texto3);margin:0">
+              Esse é o nome usado como "Analisado por" nos relatórios de Parada Irregular gerados por aqui.
+            </p>
+          </div>
+
+          <!-- Estado: deslogado -->
+          <div id="usuarioLoginBox">
+            <div class="oc-field">
+              <label>E-mail</label>
+              <input type="email" id="usuarioLoginEmail" placeholder="voce@viacaocatedral.com.br" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('usuarioLoginSenha').focus()" />
+            </div>
+            <div class="oc-field">
+              <label>Senha</label>
+              <input type="password" id="usuarioLoginSenha" placeholder="Sua senha do Gerador de Relatórios" autocomplete="current-password" onkeydown="if(event.key==='Enter')_authFazerLogin()" />
+            </div>
+            <p style="font-size:12px;color:var(--texto3);margin:0">
+              Use a mesma conta do Gerador de Relatórios Operacionais.
+            </p>
+          </div>
+
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="usuarioStatus"></span>
+          <button class="btn btn-ghost" id="usuarioBtnSecundario" onclick="fecharModalUsuario()">Cancelar</button>
+          <button class="btn btn-primary" id="usuarioBtnPrimario" onclick="_authFazerLogin()">Entrar</button>
+        </div>
+
+      </div>
+    </div><!-- /usuarioModal -->
 
     <!-- ── MODAL GERENCIAR LOCAIS DE PARADA IRREGULAR ──────────── -->
     <div class="oc-overlay hidden" id="locaisModal" onclick="if(event.target===this)fecharModalGerenciarLocais()">
