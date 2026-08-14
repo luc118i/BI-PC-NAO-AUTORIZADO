@@ -482,7 +482,7 @@
       </div>
       <div class="header-meta">
         <div id="badgeStatus" class="badge-pill pill-loading">⏳ Carregando</div>
-        <button class="btn btn-ghost" id="btnUsuarioAtual" onclick="abrirModalUsuario()" title="Conta usada como 'Analisado por' nos relatórios de Parada Irregular gerados por aqui">👤 <span id="btnUsuarioAtualNome">Entrar</span></button>
+        <button class="btn btn-ghost" id="btnUsuarioAtual" onclick="abrirModalUsuario()" title="Conta usada como 'Analisado por' nos relatórios de Parada Irregular gerados por aqui"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> <span id="btnUsuarioAtualNome">Entrar</span></button>
         <button class="btn-modo-apresentacao" onclick="abrirModoApresentacao()">
           <svg class="btn-apres-icon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
           <span class="btn-apres-texto">Modo apresentação</span>
@@ -815,6 +815,8 @@
       var _ICON_PATHS = {
         x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
         check: '<polyline points="20 6 9 17 4 12"></polyline>',
+        file: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line>',
+        user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -1415,7 +1417,7 @@
         var item = _detLista[_relItemAtualIdx];
         if (!item) return;
         if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
-        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão 👤 na barra) antes de gerar o relatório.", "err"); return; }
+        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão de usuário na barra) antes de gerar o relatório.", "err"); return; }
 
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
@@ -1431,11 +1433,11 @@
           .then(function (res) {
             _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
             btn.disabled = true;
-            btn.textContent = "✓ Gerado";
+            btn.innerHTML = _icon("check") + " Gerado";
             var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + idxAtual + '"]');
             if (linkBtn) {
               linkBtn.classList.add("ativo");
-              linkBtn.textContent = "✓ Gerado";
+              linkBtn.innerHTML = _icon("check", 12) + " Gerado";
               linkBtn.onclick = null;
             }
           })
@@ -2451,7 +2453,7 @@
               '<td style="white-space:nowrap">' +
                 (r.motoristaMatch ? '<span style="font-size:10px;font-weight:600;color:var(--verde);border:1px solid var(--verde);border-radius:4px;padding:1px 6px;margin-right:5px;opacity:.85">' + r.motoristaMatch.nome.split(" ").slice(0,2).join(" ") + '</span>' : '') +
                 '<button type="button" class="det-relatorio-btn" data-idx="' + idx + '" title="Gerar relatório de ocorrência (parada fora do programado)" ' +
-                  'onclick="event.stopPropagation();abrirModalRelatorioParada(' + idx + ')">📄 Gerar Relatório</button>' +
+                  'onclick="event.stopPropagation();abrirModalRelatorioParada(' + idx + ')">' + _icon("file", 12) + ' Gerar Relatório</button>' +
               '</td>' +
               '</tr>';
           });
@@ -2865,7 +2867,7 @@
       <div class="oc-panel">
 
         <div class="oc-header">
-          <h3>📄 Gerar Relatório — Parada Irregular</h3>
+          <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Parada Irregular</h3>
           <button class="oc-close" onclick="fecharModalRelatorioParada()" title="Fechar">✕</button>
         </div>
 
@@ -2952,7 +2954,7 @@
       <div class="oc-panel" style="max-width:380px">
 
         <div class="oc-header">
-          <h3>👤 Sua conta</h3>
+          <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Sua conta</h3>
           <button class="oc-close" onclick="fecharModalUsuario()" title="Fechar">✕</button>
         </div>
 
