@@ -1261,7 +1261,21 @@
         // avança pro próximo — não fecha a modal se ainda houver mais
         // pontos pendentes.
         var atual = _justFila[_justIndex];
-        if (atual) _aplicarAnalisado(atual.el, true, justificativa);
+        if (atual) {
+          // Se já tinha esquema vinculado (via "Ver esquema") na hora de
+          // justificar o descarte, salva a linha junto — sem isso, só
+          // ficava salva quando o ponto virava relatório (RELATORIO_GERADO),
+          // e "Esquema vinculado" resetava no F5 pra descartes.
+          var esq = atual.item && atual.item._esquemaInfo;
+          if (esq && esq.codLinha) {
+            justificativa.linhaCod = esq.codLinha;
+            justificativa.linhaNome = esq.nomeLinha || "";
+            justificativa.linhaTripId = esq.tripId || "";
+            justificativa.horarioSessao = esq.horarioSessao || "";
+            justificativa.pontoSessao = esq.pontoSessao || "";
+          }
+          _aplicarAnalisado(atual.el, true, justificativa);
+        }
         _justIndex++;
         _mostrarProximaJustificativa();
       }
