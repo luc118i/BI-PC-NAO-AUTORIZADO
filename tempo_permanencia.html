@@ -923,18 +923,26 @@
       }
 
       // Recalcula a tag de motivo do cabeçalho do grupo (prefixo/veículo):
-      // só aparece quando TODOS os pontos do grupo já foram analisados —
-      // mostra o motivo se for o mesmo em todos, ou "Vários motivos" se
-      // cada ponto foi descartado por um motivo diferente.
+      // aparece assim que PELO MENOS 1 ponto do grupo já foi analisado
+      // (não precisa esperar todos) — mostra o motivo se for o mesmo em
+      // todos os já analisados, ou "Vários motivos" se cada ponto teve
+      // uma justificativa diferente. Enquanto sobrar ponto pendente, o
+      // título da tag avisa que ainda não é o motivo do grupo inteiro
+      // (ver "X de Y pendente(s)" ao lado, no acc-count).
       function _atualizarMotivoTagGrupoPorDetails(detailsEl) {
         var tagEl = detailsEl.querySelector(':scope > summary [data-role="motivo-tag-grupo"]');
         if (!tagEl) return;
         var itens = Array.prototype.slice.call(detailsEl.querySelectorAll(":scope > .acc-body > .perm-item"));
-        if (!itens.length || !itens.every(function (i) { return i.classList.contains("riscado"); })) {
+        var riscados = itens.filter(function (i) { return i.classList.contains("riscado"); });
+        if (!riscados.length) {
           tagEl.classList.add("hidden");
+          tagEl.title = "";
           return;
         }
-        var motivos = Array.from(new Set(itens.map(function (i) { return i.getAttribute("data-motivo") || ""; }).filter(Boolean)));
+        var parcial = riscados.length < itens.length;
+        tagEl.title = parcial ? (riscados.length + " de " + itens.length + " ponto(s) analisado(s) até agora") : "";
+
+        var motivos = Array.from(new Set(riscados.map(function (i) { return i.getAttribute("data-motivo") || ""; }).filter(Boolean)));
         if (motivos.length === 1) {
           _setMotivoTag(tagEl, motivos[0]);
         } else if (motivos.length > 1) {
