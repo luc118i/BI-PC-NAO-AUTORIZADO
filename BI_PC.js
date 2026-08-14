@@ -242,6 +242,7 @@ function getDadosBI(dataIni, dataFim) {
 // do mesmo CSV. CHAVE = "<veiculo>|<entrada>" (gerada no front-end).
 var TEMPO_PERMANENCIA_STATUS_HEADER = [
   "CHAVE", "VEICULO", "PONTO", "ENTRADA", "STATUS", "ATUALIZADO_EM",
+  "MOTIVO", "QTD_EMBARQUE", "QTD_DESEMBARQUE", "APOIO_RODOVIARIA", "OBSERVACAO",
 ];
 
 // Antes disto, marcarStatusPermanencia() lançava erro se a aba não
@@ -249,15 +250,27 @@ var TEMPO_PERMANENCIA_STATUS_HEADER = [
 // "analisado" falhava silenciosamente (o erro só ia pro console via
 // withFailureHandler) e nada era persistido, por isso sumia após F5.
 // Agora a aba é criada sozinha aqui, igual _abaHistoricoExcesso().
+//
+// As colunas MOTIVO..OBSERVACAO (G-K) foram adicionadas depois — guardam
+// a justificativa exigida pra marcar uma excedência como analisada sem
+// gerar relatório (ver abrirModalJustificativa() em tempo_permanencia.html).
+// Migra sozinha o cabeçalho de abas criadas antes disso, sem mexer nas
+// linhas de dados já gravadas.
 function _abaStatusPermanencia(ss) {
   var aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
   if (!aba) {
     aba = ss.insertSheet("TEMPO_PERMANENCIA_STATUS");
     aba.appendRow(TEMPO_PERMANENCIA_STATUS_HEADER);
+    return aba;
+  }
+  if (aba.getLastColumn() < TEMPO_PERMANENCIA_STATUS_HEADER.length) {
+    aba.getRange(1, 1, 1, TEMPO_PERMANENCIA_STATUS_HEADER.length).setValues([TEMPO_PERMANENCIA_STATUS_HEADER]);
   }
   return aba;
 }
 
+// Devolve as excedências já marcadas como "ANALISADO", com a justificativa
+// registrada — front-end usa pra pintar como riscado E pra saber o motivo.
 function getStatusPermanencia() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
@@ -266,19 +279,27 @@ function getStatusPermanencia() {
   const lastRow = aba.getLastRow();
   if (lastRow < 2) return JSON.stringify([]);
 
-  const data = aba.getRange(2, 1, lastRow - 1, 6).getValues();
-  const chaves = data
+  const data = aba.getRange(2, 1, lastRow - 1, TEMPO_PERMANENCIA_STATUS_HEADER.length).getValues();
+  const registros = data
     .filter(
       (r) =>
         String(r[0] || "").trim() !== "" &&
         String(r[4] || "").trim().toUpperCase() === "ANALISADO",
     )
-    .map((r) => String(r[0]).trim());
+    .map((r) => ({
+      chave: String(r[0]).trim(),
+      motivo: String(r[6] || "").trim(),
+      qtdEmbarque: String(r[7] || "").trim(),
+      qtdDesembarque: String(r[8] || "").trim(),
+      apoioRodoviaria: String(r[9] || "").trim(),
+      observacao: String(r[10] || "").trim(),
+    }));
 
-  return JSON.stringify(chaves);
+  return JSON.stringify(registros);
 }
 
-// payload: { chave, veiculo, ponto, entrada, analisado }
+// payload: { chave, veiculo, ponto, entrada, analisado, motivo,
+//            qtdEmbarque, qtdDesembarque, apoioRodoviaria, observacao }
 function marcarStatusPermanencia(payload) {
   const chave = String((payload && payload.chave) || "").trim();
   if (!chave) throw new Error("chave é obrigatória.");
@@ -288,6 +309,17 @@ function marcarStatusPermanencia(payload) {
 
   const status = payload.analisado ? "ANALISADO" : "";
   const agora = new Date();
+  // Reverter (analisado=false) limpa a justificativa junto — não faz
+  // sentido guardar um motivo de uma análise que foi desfeita.
+  const linha = [
+    status,
+    agora,
+    payload.analisado ? payload.motivo || "" : "",
+    payload.analisado ? payload.qtdEmbarque || "" : "",
+    payload.analisado ? payload.qtdDesembarque || "" : "",
+    payload.analisado ? payload.apoioRodoviaria || "" : "",
+    payload.analisado ? payload.observacao || "" : "",
+  ];
 
   const lastRow = aba.getLastRow();
   let linhaExistente = -1;
@@ -302,16 +334,14 @@ function marcarStatusPermanencia(payload) {
   }
 
   if (linhaExistente > 0) {
-    aba.getRange(linhaExistente, 5, 1, 2).setValues([[status, agora]]);
+    aba.getRange(linhaExistente, 5, 1, linha.length).setValues([linha]);
   } else {
     aba.appendRow([
       chave,
       payload.veiculo || "",
       payload.ponto || "",
       payload.entrada || "",
-      status,
-      agora,
-    ]);
+    ].concat(linha));
   }
 
   return { ok: true };

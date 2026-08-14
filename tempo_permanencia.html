@@ -418,6 +418,28 @@
       .oc-copy-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
       .oc-copy-btn.copiado { border-color: var(--verde); color: var(--verde); }
       .oc-copy-btn-icon { display: inline-flex; }
+
+      .oc-field select, .oc-field textarea {
+        background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto);
+        font-family: "Barlow", sans-serif; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); width: 100%;
+      }
+      .oc-field select:focus, .oc-field textarea:focus { outline: none; border-color: var(--laranja); }
+      .oc-field textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+
+      /* ── MODAL JUSTIFICAR ANÁLISE ────────────────────────── */
+      .just-resumo { font-size: 12px; color: var(--texto2); background: var(--preto3); border: 1px solid var(--borda2); border-radius: var(--radius-sm); padding: 10px 14px; }
+      .just-resumo b { color: var(--texto); }
+      .just-opcoes { display: flex; flex-direction: column; gap: 8px; }
+      .just-opcao { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--cinza2); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+      .just-opcao:hover { border-color: var(--borda-l); background: var(--laranja4); }
+      .just-opcao.selecionada { border-color: var(--laranja); background: var(--laranja4); }
+      .just-opcao input[type="radio"] { margin-top: 3px; accent-color: var(--laranja); flex-shrink: 0; }
+      .just-opcao-texto { display: flex; flex-direction: column; gap: 2px; }
+      .just-opcao-titulo { font-size: 13px; font-weight: 600; color: var(--texto); }
+      .just-opcao-sub { font-size: 11px; color: var(--texto3); }
+      .just-campos-extra { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; background: var(--preto3); border-radius: var(--radius-sm); border: 1px solid var(--borda2); margin-top: 2px; }
+      .just-campos-extra .oc-field-row { display: flex; gap: 10px; }
+      .just-campos-extra .oc-field-row .oc-field { flex: 1; }
     </style>
   </head>
   <body>
@@ -734,27 +756,57 @@
       //  pra sobreviver a reload/novo upload do mesmo CSV.
       // ─────────────────────────────────────────────────────────
       var _statusAnalisadoCache = null; // Set de chaves já marcadas
+      var _justificativaCache = null;   // Map chave → objeto justificativa (motivo, qtdEmbarque, ...)
+
+      // Compatível com os dois formatos que getStatusPermanencia() pode
+      // devolver: array de strings (versão antiga, só chaves) ou array de
+      // objetos {chave, motivo, ...} (versão atual, com a justificativa).
+      function _parseStatusPermanencia(json) {
+        var lista = [];
+        try { lista = JSON.parse(json || "[]"); } catch (e) { lista = []; }
+        var chaves = new Set();
+        var justs = new Map();
+        lista.forEach(function (r) {
+          if (typeof r === "string") { chaves.add(r); return; }
+          if (!r || !r.chave) return;
+          chaves.add(r.chave);
+          justs.set(r.chave, {
+            motivo: r.motivo || "",
+            qtdEmbarque: r.qtdEmbarque || "",
+            qtdDesembarque: r.qtdDesembarque || "",
+            apoioRodoviaria: r.apoioRodoviaria || "",
+            observacao: r.observacao || "",
+          });
+        });
+        return { chaves: chaves, justs: justs };
+      }
 
       function _carregarStatusAnalisado(cb) {
         if (_statusAnalisadoCache) { if (cb) cb(); return; }
         if (!(window.google && google.script && google.script.run)) {
           _statusAnalisadoCache = new Set();
+          _justificativaCache = new Map();
           if (cb) cb();
           return;
         }
         google.script.run
           .withSuccessHandler(function (json) {
-            try { _statusAnalisadoCache = new Set(JSON.parse(json || "[]")); } catch (e) { _statusAnalisadoCache = new Set(); }
+            var parsed = _parseStatusPermanencia(json);
+            _statusAnalisadoCache = parsed.chaves;
+            _justificativaCache = parsed.justs;
             if (cb) cb();
           })
-          .withFailureHandler(function () { _statusAnalisadoCache = new Set(); if (cb) cb(); })
+          .withFailureHandler(function () { _statusAnalisadoCache = new Set(); _justificativaCache = new Map(); if (cb) cb(); })
           .getStatusPermanencia();
       }
 
-      function _persistirStatus(item, analisado) {
+      // justificativa: null ao reverter; { motivo, qtdEmbarque, qtdDesembarque,
+      // apoioRodoviaria, observacao } ao marcar como analisado.
+      function _persistirStatus(item, analisado, justificativa) {
         if (!item || !item.chave) return;
-        if (analisado) _statusAnalisadoCache.add(item.chave);
-        else _statusAnalisadoCache.delete(item.chave);
+        justificativa = justificativa || {};
+        if (analisado) { _statusAnalisadoCache.add(item.chave); _justificativaCache.set(item.chave, justificativa); }
+        else { _statusAnalisadoCache.delete(item.chave); _justificativaCache.delete(item.chave); }
         if (!(window.google && google.script && google.script.run)) return;
         google.script.run
           .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); })
@@ -764,16 +816,37 @@
             ponto: item.ponto,
             entrada: item.entrada,
             analisado: analisado,
+            motivo: justificativa.motivo || "",
+            qtdEmbarque: justificativa.qtdEmbarque || "",
+            qtdDesembarque: justificativa.qtdDesembarque || "",
+            apoioRodoviaria: justificativa.apoioRodoviaria || "",
+            observacao: justificativa.observacao || "",
           });
       }
 
-      // Marca/desmarca um .perm-item (classe + contadores + persistência)
-      function _setItemAnalisado(el, analisado) {
+      // Aplica de fato o estado "analisado" num .perm-item — classe,
+      // contadores e persistência. NÃO abre a modal de justificativa: é
+      // usada tanto pelo confirmar da modal quanto pelo fluxo de "Gerar
+      // Relatório" (que já tem sua própria justificativa: a ocorrência
+      // criada) e pelo reverter (que não precisa de motivo pra desmarcar).
+      function _aplicarAnalisado(el, analisado, justificativa) {
         el.classList.toggle("riscado", analisado);
         _atualizarContadoresA_partir(el);
         var idx = el.getAttribute("data-idx");
         var item = idx != null ? _relatorioItens[idx] : null;
-        if (item) _persistirStatus(item, analisado);
+        if (item) _persistirStatus(item, analisado, justificativa);
+      }
+
+      // Entrada usada pelo clique direto num .perm-item (e pelos botões de
+      // grupo). Marcar como analisado SEMPRE passa pela modal de
+      // justificativa — só reverter (desmarcar) é direto.
+      function _setItemAnalisado(el, analisado) {
+        if (!analisado) { _aplicarAnalisado(el, false, null); return; }
+        if (el.classList.contains("riscado")) return; // já analisado, nada a fazer
+        var idx = el.getAttribute("data-idx");
+        var item = idx != null ? _relatorioItens[idx] : null;
+        if (!item) return;
+        abrirModalJustificativa([item], [el]);
       }
 
       // Aplica no DOM o que já está marcado como analisado na planilha
@@ -793,6 +866,89 @@
             if (btn) { btn.innerHTML = _icon("rotate") + " Reverter"; btn.classList.add("ativo"); }
           }
         });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Modal "Justificar análise" — toda marcação manual de
+      //  analisado (fora do fluxo de Gerar Relatório) exige um motivo:
+      //  chegou antecipadamente, muito embarque/desembarque (guarda
+      //  quantidade + se teve apoio da rodoviária) ou teve ocorrência.
+      // ─────────────────────────────────────────────────────────
+      var _justItens = [];   // itens (_relatorioItens) sendo justificados agora
+      var _justEls = [];     // elementos .perm-item correspondentes
+      var _justOnConfirmar = null; // callback opcional, chamado após confirmar
+
+      function abrirModalJustificativa(itens, els, onConfirmar) {
+        _justItens = itens || [];
+        _justEls = els || [];
+        _justOnConfirmar = onConfirmar || null;
+
+        var titulo = _justItens.length > 1
+          ? (_justItens.length + " excedências — " + _justItens[0].veiculo)
+          : (_justItens[0] ? (_justItens[0].ponto + " — " + _justItens[0].veiculo) : "—");
+        document.getElementById("justModalTitulo").textContent = "📝 Justificar análise";
+        document.getElementById("justResumo").innerHTML = "<b>" + titulo + "</b>" +
+          (_justItens.length > 1 ? " · mesma justificativa será aplicada às " + _justItens.length + " ocorrências deste grupo" : "");
+
+        // Reset dos campos
+        document.querySelectorAll('#justOpcoes input[name="justMotivo"]').forEach(function (r) { r.checked = false; });
+        document.getElementById("justQtdEmbarque").value = "";
+        document.getElementById("justQtdDesembarque").value = "";
+        document.getElementById("justApoioRodoviaria").value = "";
+        document.getElementById("justDescricaoOcorrencia").value = "";
+        document.getElementById("justObservacao").value = "";
+        document.getElementById("justStatus").textContent = "";
+        document.getElementById("justStatus").className = "oc-status";
+        _atualizarCamposJustificativa();
+
+        document.getElementById("justificativaModal").classList.remove("hidden");
+      }
+
+      function fecharModalJustificativa() {
+        document.getElementById("justificativaModal").classList.add("hidden");
+        _justItens = [];
+        _justEls = [];
+        _justOnConfirmar = null;
+      }
+
+      function _atualizarCamposJustificativa() {
+        var motivo = (document.querySelector('#justOpcoes input[name="justMotivo"]:checked') || {}).value || "";
+        document.querySelectorAll("#justOpcoes .just-opcao").forEach(function (op) {
+          op.classList.toggle("selecionada", op.getAttribute("data-motivo") === motivo);
+        });
+        document.getElementById("justCamposEmbarque").classList.toggle("hidden", motivo !== "EMBARQUE");
+        document.getElementById("justCamposOcorrencia").classList.toggle("hidden", motivo !== "OCORRENCIA");
+      }
+
+      function _confirmarJustificativa() {
+        var statusEl = document.getElementById("justStatus");
+        var motivo = (document.querySelector('#justOpcoes input[name="justMotivo"]:checked') || {}).value || "";
+        if (!motivo) { statusEl.textContent = "Selecione um motivo."; statusEl.className = "oc-status err"; return; }
+
+        var justificativa = { motivo: motivo, observacao: document.getElementById("justObservacao").value.trim() };
+
+        if (motivo === "EMBARQUE") {
+          var qe = document.getElementById("justQtdEmbarque").value;
+          var qd = document.getElementById("justQtdDesembarque").value;
+          var apoio = document.getElementById("justApoioRodoviaria").value;
+          if (qe === "" || qd === "" || !apoio) {
+            statusEl.textContent = "Preencha quantidade de embarque, desembarque e se teve apoio da rodoviária.";
+            statusEl.className = "oc-status err";
+            return;
+          }
+          justificativa.qtdEmbarque = qe;
+          justificativa.qtdDesembarque = qd;
+          justificativa.apoioRodoviaria = apoio;
+        } else if (motivo === "OCORRENCIA") {
+          var desc = document.getElementById("justDescricaoOcorrencia").value.trim();
+          if (!desc) { statusEl.textContent = "Descreva a ocorrência."; statusEl.className = "oc-status err"; return; }
+          justificativa.observacao = desc + (justificativa.observacao ? " — " + justificativa.observacao : "");
+        }
+
+        _justEls.forEach(function (el) { _aplicarAnalisado(el, true, justificativa); });
+        var cb = _justOnConfirmar;
+        fecharModalJustificativa();
+        if (cb) cb();
       }
 
       function _matchPC(pontoNome) {
@@ -1435,7 +1591,7 @@
         var idx = _relatorioItens.length;
         _relatorioItens.push(r);
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
-        return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para marcar como analisado">' +
+        return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para justificar e marcar como analisado (ou reverter, se já analisado)">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' + r.ponto + '</div>' +
             '<div class="perm-local-cidade">' + r.cidade + (r.uf ? " - " + r.uf : "") + '</div>' +
@@ -1894,16 +2050,34 @@
       function _riscarGrupo(btnEl) {
         var details = btnEl.closest("details");
         var body = details.querySelector(":scope > .acc-body");
-        var itens = Array.prototype.slice.call(body.querySelectorAll(":scope > .perm-item"));
-        var allRiscado = itens.every(function (i) { return i.classList.contains("riscado"); });
+        var todosItens = Array.prototype.slice.call(body.querySelectorAll(":scope > .perm-item"));
+        var allRiscado = todosItens.every(function (i) { return i.classList.contains("riscado"); });
         var novoEstado = !allRiscado;
-        itens.forEach(function (i) {
-          i.classList.toggle("riscado", novoEstado);
-          var idx = i.getAttribute("data-idx");
-          var item = idx != null ? _relatorioItens[idx] : null;
-          if (item) _persistirStatus(item, novoEstado);
-        });
 
+        if (!novoEstado) {
+          // Reverter o grupo inteiro: não precisa de justificativa.
+          todosItens.forEach(function (i) { _aplicarAnalisado(i, false, null); });
+          _finalizarRiscarGrupo(details, btnEl, false);
+          return;
+        }
+
+        // Marcar como analisado: só os itens ainda pendentes entram na
+        // modal (os que já estavam riscados mantêm a justificativa que já
+        // tinham).
+        var pendentes = todosItens.filter(function (i) { return !i.classList.contains("riscado"); });
+        if (!pendentes.length) { _finalizarRiscarGrupo(details, btnEl, true); return; }
+
+        var itensDados = pendentes.map(function (i) {
+          var idx = i.getAttribute("data-idx");
+          return idx != null ? _relatorioItens[idx] : null;
+        }).filter(Boolean);
+
+        abrirModalJustificativa(itensDados, pendentes, function () {
+          _finalizarRiscarGrupo(details, btnEl, true);
+        });
+      }
+
+      function _finalizarRiscarGrupo(details, btnEl, novoEstado) {
         var prefixoEl = details.querySelector(":scope > summary .acc-prefixo");
         if (prefixoEl) prefixoEl.classList.toggle("all-riscado", novoEstado);
 
@@ -2706,14 +2880,18 @@
       // analisada (2º clique, quando o texto já virou "Concluído").
       function _onClickBtnGerar() {
         if (_relGerado) {
+          // Já passou pela justificativa "de verdade": o relatório gerado
+          // cria uma ocorrência real (erro do motorista confirmado), então
+          // marca direto como analisado sem passar pela modal de motivo.
+          var justRelatorio = { motivo: "RELATORIO_GERADO", observacao: "Ocorrência de excesso de permanência registrada via Gerar Relatório." };
           if (_relModoGrupo) {
             _relGrupoIdxs.forEach(function (idx) {
               var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
-              if (el) _setItemAnalisado(el, true);
+              if (el) _aplicarAnalisado(el, true, justRelatorio);
             });
           } else {
             var el = _relItemAtualIdx != null ? document.querySelector('.perm-item[data-idx="' + _relItemAtualIdx + '"]') : null;
-            if (el) _setItemAnalisado(el, true);
+            if (el) _aplicarAnalisado(el, true, justRelatorio);
           }
           fecharModalRelatorio();
           return;
@@ -3305,6 +3483,97 @@
           <span class="oc-status" id="usuarioStatus"></span>
           <button class="btn btn-ghost" id="usuarioBtnSecundario" onclick="fecharModalUsuario()">Cancelar</button>
           <button class="btn btn-primary" id="usuarioBtnPrimario" onclick="_authFazerLogin()">Entrar</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── MODAL JUSTIFICAR ANÁLISE ─────────────────────────────── -->
+    <!-- Toda marcação "manual" de analisado (fora do fluxo de Gerar
+         Relatório, que já cria uma ocorrência real) passa por aqui —
+         ver abrirModalJustificativa() / _confirmarJustificativa() em
+         script. Objetivo: só descartar uma excedência com um motivo
+         registrado (não é erro do motorista), pra sobreviver auditoria. -->
+    <div class="oc-overlay hidden" id="justificativaModal" onclick="if(event.target===this)fecharModalJustificativa()">
+      <div class="oc-panel" style="max-width:520px">
+
+        <div class="oc-header">
+          <h3 id="justModalTitulo">📝 Justificar análise</h3>
+          <button class="oc-close" onclick="fecharModalJustificativa()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <div class="just-resumo" id="justResumo">—</div>
+
+          <div class="oc-field">
+            <label>Motivo — por que a permanência excedida não é erro do motorista?</label>
+            <div class="just-opcoes" id="justOpcoes">
+              <label class="just-opcao" data-motivo="ANTECIPADO">
+                <input type="radio" name="justMotivo" value="ANTECIPADO" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Chegou antecipadamente</span>
+                  <span class="just-opcao-sub">O veículo chegou antes do horário previsto — a permanência maior é folga, não atraso.</span>
+                </span>
+              </label>
+              <label class="just-opcao" data-motivo="EMBARQUE">
+                <input type="radio" name="justMotivo" value="EMBARQUE" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Muito embarque / desembarque</span>
+                  <span class="just-opcao-sub">Volume de passageiros justificou o tempo parado no ponto.</span>
+                </span>
+              </label>
+              <label class="just-opcao" data-motivo="OCORRENCIA">
+                <input type="radio" name="justMotivo" value="OCORRENCIA" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Teve alguma ocorrência</span>
+                  <span class="just-opcao-sub">Pane, problema com passageiro, fiscalização, etc.</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Campos condicionais: embarque/desembarque -->
+          <div class="just-campos-extra hidden" id="justCamposEmbarque">
+            <div class="oc-field-row">
+              <div class="oc-field">
+                <label>Qtd. embarque *</label>
+                <input type="number" id="justQtdEmbarque" min="0" step="1" placeholder="0" />
+              </div>
+              <div class="oc-field">
+                <label>Qtd. desembarque *</label>
+                <input type="number" id="justQtdDesembarque" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+            <div class="oc-field">
+              <label>Teve apoio da rodoviária para o desembarque? *</label>
+              <select id="justApoioRodoviaria">
+                <option value="">Selecione...</option>
+                <option value="SIM">Sim</option>
+                <option value="NAO">Não</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Campo condicional: ocorrência -->
+          <div class="just-campos-extra hidden" id="justCamposOcorrencia">
+            <div class="oc-field">
+              <label>Descreva a ocorrência *</label>
+              <textarea id="justDescricaoOcorrencia" placeholder="O que aconteceu no ponto..."></textarea>
+            </div>
+          </div>
+
+          <div class="oc-field">
+            <label>Observação (opcional)</label>
+            <textarea id="justObservacao" placeholder="Detalhe adicional, se precisar..."></textarea>
+          </div>
+
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="justStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharModalJustificativa()">Cancelar</button>
+          <button class="btn btn-primary" onclick="_confirmarJustificativa()">Confirmar análise</button>
         </div>
 
       </div>
