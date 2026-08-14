@@ -1258,7 +1258,6 @@
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
-        document.getElementById("relObservacao").value = "";
         document.getElementById("relEvidGrid").innerHTML = "";
         document.getElementById("relStatus").textContent = "";
         document.getElementById("relStatus").className = "oc-status";
@@ -1316,7 +1315,7 @@
             tripId: _relLinhaSelecionada ? _relLinhaSelecionada.id : null,
             tripTime: _relLinhaSelecionada ? (_relLinhaSelecionada.departureTime || null) : null,
             drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
-            relatoHtml: (document.getElementById("relObservacao").value || "").trim(),
+            relatoHtml: "",
             showSectionViagem: true,
             showSectionIdentificacao: true,
             showSectionDados: true,
@@ -2886,11 +2885,6 @@
             <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
             <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
             <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
-          </div>
-
-          <div class="oc-field">
-            <label>Observação (opcional)</label>
-            <textarea id="relObservacao" rows="3" placeholder="Detalhe adicional sobre a parada, se precisar..." style="resize:vertical;font-family:inherit"></textarea>
           </div>
 
           <div class="oc-field">
