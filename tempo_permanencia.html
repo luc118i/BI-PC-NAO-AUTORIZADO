@@ -962,58 +962,79 @@
         tagEl.classList.remove("hidden");
       }
 
-      // Recalcula a tag de motivo do cabeçalho do grupo (prefixo/veículo):
-      // aparece assim que PELO MENOS 1 ponto do grupo já foi analisado
-      // (não precisa esperar todos) — mostra o motivo se for o mesmo em
-      // todos os já analisados, ou "Vários motivos" se cada ponto teve
-      // uma justificativa diferente. Enquanto sobrar ponto pendente, o
-      // título da tag avisa que ainda não é o motivo do grupo inteiro
-      // (ver "X de Y pendente(s)" ao lado, no acc-count).
-      function _atualizarMotivoTagGrupoPorDetails(detailsEl) {
-        var tagEl = detailsEl.querySelector(':scope > summary [data-role="motivo-tag-grupo"]');
-        if (!tagEl) return;
+      // Recalcula TUDO no cabeçalho do grupo (prefixo/veículo) que depende
+      // do estado "riscado" dos pontos: a tag de motivo, o botão
+      // Analisado/Reverter e o "risco" no nome do prefixo. Chamada tanto
+      // pelo clique direto num item/pelo "Gerar Relatório" (via
+      // _aplicarAnalisado) quanto pelo botão "Analisado" do próprio grupo
+      // (_finalizarRiscarGrupo) — antes só esse último atualizava o botão,
+      // então gerar relatório deixava a tag certa mas o botão "Analisado"
+      // preso no estado antigo mesmo com "0 de N pendentes".
+      //
+      // Tag: aparece assim que PELO MENOS 1 ponto do grupo já foi
+      // analisado (não precisa esperar todos) — mostra o motivo se for o
+      // mesmo em todos os já analisados, ou "Vários motivos" se cada
+      // ponto teve uma justificativa diferente; enquanto sobrar pendente,
+      // o title avisa que ainda não é o motivo do grupo inteiro.
+      // Botão/risco no prefixo: só viram "Reverter"/riscado quando TODOS
+      // os pontos do grupo estiverem analisados.
+      function _atualizarEstadoGrupoPorDetails(detailsEl) {
         var itens = Array.prototype.slice.call(detailsEl.querySelectorAll(":scope > .acc-body > .perm-item"));
         var riscados = itens.filter(function (i) { return i.classList.contains("riscado"); });
-        if (!riscados.length) {
-          tagEl.classList.add("hidden");
-          tagEl.title = "";
-          return;
-        }
-        var parcial = riscados.length < itens.length;
-        tagEl.title = parcial ? (riscados.length + " de " + itens.length + " ponto(s) analisado(s) até agora") : "";
+        var todosRiscados = itens.length > 0 && riscados.length === itens.length;
 
-        var motivos = Array.from(new Set(riscados.map(function (i) { return i.getAttribute("data-motivo") || ""; }).filter(Boolean)));
-        if (motivos.length === 1) {
-          _setMotivoTag(tagEl, motivos[0]);
-        } else if (motivos.length > 1) {
-          tagEl.textContent = "Vários motivos";
-          tagEl.style.color = "#ccc";
-          tagEl.style.background = "rgba(255,255,255,0.08)";
-          tagEl.classList.remove("hidden");
-        } else {
-          tagEl.classList.add("hidden");
+        var prefixoEl = detailsEl.querySelector(":scope > summary .acc-prefixo");
+        if (prefixoEl) prefixoEl.classList.toggle("all-riscado", todosRiscados);
+
+        var btnEl = detailsEl.querySelector(":scope > summary .acc-btn-analisado");
+        if (btnEl) {
+          btnEl.innerHTML = todosRiscados ? (_icon("rotate") + " Reverter") : (_icon("check") + " Analisado");
+          btnEl.classList.toggle("ativo", todosRiscados);
+        }
+
+        var tagEl = detailsEl.querySelector(':scope > summary [data-role="motivo-tag-grupo"]');
+        if (tagEl) {
+          if (!riscados.length) {
+            tagEl.classList.add("hidden");
+            tagEl.title = "";
+          } else {
+            var parcial = riscados.length < itens.length;
+            tagEl.title = parcial ? (riscados.length + " de " + itens.length + " ponto(s) analisado(s) até agora") : "";
+
+            var motivos = Array.from(new Set(riscados.map(function (i) { return i.getAttribute("data-motivo") || ""; }).filter(Boolean)));
+            if (motivos.length === 1) {
+              _setMotivoTag(tagEl, motivos[0]);
+            } else if (motivos.length > 1) {
+              tagEl.textContent = "Vários motivos";
+              tagEl.style.color = "#ccc";
+              tagEl.style.background = "rgba(255,255,255,0.08)";
+              tagEl.classList.remove("hidden");
+            } else {
+              tagEl.classList.add("hidden");
+            }
+          }
         }
       }
 
-      function _atualizarMotivoTagGrupo(el) {
+      function _atualizarEstadoGrupo(el) {
         var grupoDetails = el.closest(".acc-prefixo-group");
-        if (grupoDetails) _atualizarMotivoTagGrupoPorDetails(grupoDetails);
+        if (grupoDetails) _atualizarEstadoGrupoPorDetails(grupoDetails);
       }
 
       // Aplica de fato o estado "analisado" num .perm-item — classe, tag
-      // de motivo, contadores e persistência. NÃO abre a modal de
-      // justificativa: é usada tanto pelo confirmar da modal quanto pelo
-      // fluxo de "Gerar Relatório" (que já tem sua própria justificativa:
-      // a ocorrência criada, motivo "RELATORIO_GERADO" = culpa do
-      // motorista) e pelo reverter (que não precisa de motivo pra
-      // desmarcar).
+      // de motivo, contadores, estado do grupo (botão/risco/tag) e
+      // persistência. NÃO abre a modal de justificativa: é usada tanto
+      // pelo confirmar da modal quanto pelo fluxo de "Gerar Relatório"
+      // (que já tem sua própria justificativa: a ocorrência criada,
+      // motivo "RELATORIO_GERADO" = culpa do motorista) e pelo reverter
+      // (que não precisa de motivo pra desmarcar).
       function _aplicarAnalisado(el, analisado, justificativa) {
         el.classList.toggle("riscado", analisado);
         var motivo = analisado ? (justificativa && justificativa.motivo) : "";
         el.setAttribute("data-motivo", motivo || "");
         _setMotivoTag(el.querySelector('[data-role="motivo-tag"]'), motivo);
         _atualizarContadoresA_partir(el);
-        _atualizarMotivoTagGrupo(el);
+        _atualizarEstadoGrupo(el);
         var idx = el.getAttribute("data-idx");
         var item = idx != null ? _relatorioItens[idx] : null;
         if (item) _persistirStatus(item, analisado, justificativa);
@@ -1055,14 +1076,7 @@
         });
         document.querySelectorAll("#tpAccordions details.acc-group").forEach(function (d) { _atualizarContador(d); });
         document.querySelectorAll("#tpAccordions details.acc-prefixo-group").forEach(function (d) {
-          var itens = Array.prototype.slice.call(d.querySelectorAll(":scope > .acc-body > .perm-item"));
-          if (itens.length && itens.every(function (i) { return i.classList.contains("riscado"); })) {
-            var prefixoEl = d.querySelector(":scope > summary .acc-prefixo");
-            if (prefixoEl) prefixoEl.classList.add("all-riscado");
-            var btn = d.querySelector(":scope > summary .acc-mini-btn");
-            if (btn) { btn.innerHTML = _icon("rotate") + " Reverter"; btn.classList.add("ativo"); }
-          }
-          _atualizarMotivoTagGrupoPorDetails(d);
+          _atualizarEstadoGrupoPorDetails(d);
         });
       }
 
@@ -2480,7 +2494,7 @@
           ).then(function (ok) {
             if (!ok) return;
             todosItens.forEach(function (i) { _aplicarAnalisado(i, false, null); });
-            _finalizarRiscarGrupo(details, btnEl);
+            _finalizarRiscarGrupo(details);
           });
           return;
         }
@@ -2489,7 +2503,7 @@
         // modal (os que já estavam riscados mantêm a justificativa que já
         // tinham).
         var pendentes = todosItens.filter(function (i) { return !i.classList.contains("riscado"); });
-        if (!pendentes.length) { _finalizarRiscarGrupo(details, btnEl); return; }
+        if (!pendentes.length) { _finalizarRiscarGrupo(details); return; }
 
         var itensDados = pendentes.map(function (i) {
           var idx = i.getAttribute("data-idx");
@@ -2501,20 +2515,15 @@
         // analisado — _finalizarRiscarGrupo lê o estado real do DOM, então
         // reflete isso certinho no botão/contadores de qualquer jeito.
         abrirModalJustificativa(itensDados, pendentes, function () {
-          _finalizarRiscarGrupo(details, btnEl);
+          _finalizarRiscarGrupo(details);
         });
       }
 
-      function _finalizarRiscarGrupo(details, btnEl) {
-        var todosItens = Array.prototype.slice.call(details.querySelectorAll(":scope > .acc-body > .perm-item"));
-        var todosRiscados = todosItens.length > 0 && todosItens.every(function (i) { return i.classList.contains("riscado"); });
-
-        var prefixoEl = details.querySelector(":scope > summary .acc-prefixo");
-        if (prefixoEl) prefixoEl.classList.toggle("all-riscado", todosRiscados);
-
-        btnEl.innerHTML = todosRiscados ? (_icon("rotate") + " Reverter") : (_icon("check") + " Analisado");
-        btnEl.classList.toggle("ativo", todosRiscados);
-
+      // _aplicarAnalisado já atualiza tag/botão/contadores a cada item
+      // marcado — isso aqui é só uma repassada de segurança no fim (cobre
+      // o caso "sem pendentes", onde nenhum item muda de estado).
+      function _finalizarRiscarGrupo(details) {
+        _atualizarEstadoGrupoPorDetails(details);
         _atualizarContadoresA_partir(details);
       }
 
@@ -2637,7 +2646,7 @@
                     'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
                   '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +
                     'onclick="event.preventDefault();event.stopPropagation();abrirModalRelatorioGrupo(' + gidx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
-                  '<button type="button" class="acc-mini-btn" ' +
+                  '<button type="button" class="acc-mini-btn acc-btn-analisado" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">' + _icon("check") + ' Analisado</button>' +
                 '</div>' +
               '</summary>' +
