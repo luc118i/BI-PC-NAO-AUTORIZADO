@@ -448,6 +448,17 @@
       .just-opcao-titulo { font-size: 13px; font-weight: 600; color: var(--texto); text-transform: none; }
       .just-opcao-sub { font-size: 11px; color: var(--texto3); text-transform: none; white-space: normal; overflow-wrap: break-word; }
       .just-campos-extra { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; background: var(--preto3); border-radius: var(--radius-sm); border: 1px solid var(--borda2); margin-top: 2px; }
+
+      /* ── Card "Motivos de análise" no dashboard ────────────── */
+      .just-tabela-wrap { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; }
+      .just-tabela-row { padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+      .just-tabela-row:last-child { border-bottom: none; }
+      .just-tabela-linha1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .just-tabela-veiculo { font-weight: 700; color: var(--texto); min-width: 56px; }
+      .just-tabela-ponto { flex: 1; min-width: 120px; color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .just-tabela-data { color: var(--texto3); font-size: 11px; flex-shrink: 0; }
+      .just-tabela-motivo { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+      .just-tabela-detalhe { margin-top: 3px; font-size: 11px; color: var(--texto3); }
       .just-campos-extra .oc-field-row { display: flex; gap: 10px; }
       .just-campos-extra .oc-field-row .oc-field { flex: 1; }
     </style>
@@ -491,6 +502,7 @@
       <a href="#dashGraficos2" data-secao="dashGraficos2"><span class="sg-dot"></span>Rankings</a>
       <a href="#dashCardMapa" data-secao="dashCardMapa"><span class="sg-dot"></span>Mapa</a>
       <a href="#dashCardCalendario" data-secao="dashCardCalendario"><span class="sg-dot"></span>Calendário</a>
+      <a href="#dashCardJustificativas" data-secao="dashCardJustificativas"><span class="sg-dot"></span>Motivos de análise</a>
       <div class="session-guide-sep"></div>
       <a href="#secNovaAnalise" data-secao="secNovaAnalise"><span class="sg-dot"></span>Nova análise</a>
       <a href="#tpResultCard" data-secao="tpResultCard"><span class="sg-dot"></span>Resultado</a>
@@ -503,9 +515,9 @@
         <h2>Dashboard de excedências</h2>
         <div class="dash-periodo">
           <label for="dashDataIni">De</label>
-          <input type="date" id="dashDataIni" onchange="_carregarHistoricoExcesso()" />
+          <input type="date" id="dashDataIni" onchange="_carregarDashboardPeriodo()" />
           <label for="dashDataFim">até</label>
-          <input type="date" id="dashDataFim" onchange="_carregarHistoricoExcesso()" />
+          <input type="date" id="dashDataFim" onchange="_carregarDashboardPeriodo()" />
         </div>
       </div>
 
@@ -574,6 +586,40 @@
       <div class="card" id="dashCardCalendario">
         <div class="card-title">Calendário de frequência</div>
         <div id="dashCalendario"></div>
+      </div>
+
+      <!-- Excedências descartadas na análise (não viraram ocorrência) —
+           alimentado por TEMPO_PERMANENCIA_STATUS via
+           getJustificativasPermanencia(). Fica escondido quando não há
+           nenhuma descartada com motivo no período. -->
+      <div class="card hidden" id="dashCardJustificativas">
+        <div class="card-title">Motivos de análise — excedências descartadas</div>
+
+        <div class="kpi-row" id="justKpis" style="margin-bottom:14px">
+          <div class="kpi" style="--kpi-c: var(--laranja)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Descartadas no período</div>
+            <div class="kpi-value" id="justKTotal">—</div>
+            <div class="kpi-sub">analisadas e não viraram ocorrência</div>
+          </div>
+          <div class="kpi" style="--kpi-c: #4f8ef7">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Embarque + desembarque</div>
+            <div class="kpi-value" id="justKEmbarque">—</div>
+            <div class="kpi-sub">total somado (motivo embarque/desembarque)</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--verde)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Com apoio da rodoviária</div>
+            <div class="kpi-value" id="justKApoio">—</div>
+            <div class="kpi-sub" id="justKApoioSub">—</div>
+          </div>
+        </div>
+
+        <div class="dash-graficos" style="grid-template-columns:1fr 1.4fr">
+          <div class="chart-wrap" style="height:220px"><canvas id="justChartMotivo"></canvas></div>
+          <div class="just-tabela-wrap" id="justTabela"></div>
+        </div>
       </div>
 
       <div class="dash-header" id="secNovaAnalise" style="margin-top:28px;border-top:1px solid var(--borda);padding-top:20px">
@@ -665,7 +711,7 @@
         var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
         document.getElementById("dashDataIni").value = iso(ha30);
         document.getElementById("dashDataFim").value = iso(hoje);
-        _carregarHistoricoExcesso();
+        _carregarDashboardPeriodo();
         _initGuiaSessao();
         _authCarregarSessao();
         _atualizarBotaoUsuarioAtual();
@@ -1164,6 +1210,15 @@
         if (_dashCharts[id]) { _dashCharts[id].destroy(); _dashCharts[id] = null; }
       }
 
+      // Dispara as duas fontes do dashboard no mesmo range de data:
+      // HISTORICO_EXCESSO (relatórios gerados) e TEMPO_PERMANENCIA_STATUS
+      // (excedências descartadas com justificativa) — ver onchange de
+      // #dashDataIni/#dashDataFim e chamada em window.onload.
+      function _carregarDashboardPeriodo() {
+        _carregarHistoricoExcesso();
+        _carregarJustificativasPermanencia();
+      }
+
       function _carregarHistoricoExcesso() {
         var ini = document.getElementById("dashDataIni").value;
         var fim = document.getElementById("dashDataFim").value;
@@ -1176,6 +1231,105 @@
           })
           .withFailureHandler(function () { _renderDashboard([]); })
           .getHistoricoExcesso(ini, fim);
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Card "Motivos de análise" — excedências marcadas como
+      //  analisadas SEM virar ocorrência (ver abrirModalJustificativa()),
+      //  alimentado por getJustificativasPermanencia() (aba
+      //  TEMPO_PERMANENCIA_STATUS). Mesmo período do resto do dashboard.
+      // ─────────────────────────────────────────────────────────
+      var MOTIVO_LABELS = {
+        ANTECIPADO: "Chegou antecipadamente",
+        INICIO_VIAGEM: "Início de viagem",
+        EMBARQUE: "Muito embarque/desembarque",
+        OCORRENCIA: "Teve ocorrência",
+      };
+      var MOTIVO_CORES = {
+        ANTECIPADO: "#f0c040",
+        INICIO_VIAGEM: "#3b82c4",
+        EMBARQUE: "#22c97a",
+        OCORRENCIA: "#e05050",
+      };
+
+      function _carregarJustificativasPermanencia() {
+        var ini = document.getElementById("dashDataIni").value;
+        var fim = document.getElementById("dashDataFim").value;
+        if (!(window.google && google.script && google.script.run)) { _renderDashJustificativas([]); return; }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            var lista = [];
+            try { lista = JSON.parse(json || "[]"); } catch (e) { lista = []; }
+            _renderDashJustificativas(lista);
+          })
+          .withFailureHandler(function () { _renderDashJustificativas([]); })
+          .getJustificativasPermanencia(ini, fim);
+      }
+
+      function _renderDashJustificativas(listaBruta) {
+        // "RELATORIO_GERADO" (marcado automaticamente ao gerar relatório)
+        // já aparece nos KPIs/gráficos de cima — aqui é só o que foi
+        // descartado (não virou ocorrência).
+        var lista = (listaBruta || []).filter(function (r) { return MOTIVO_LABELS[r.motivo]; });
+
+        document.getElementById("dashCardJustificativas").classList.toggle("hidden", !lista.length);
+        if (!lista.length) { _destruirDashChart("justMotivo"); return; }
+
+        document.getElementById("justKTotal").textContent = lista.length;
+
+        var embarqueItens = lista.filter(function (r) { return r.motivo === "EMBARQUE"; });
+        var totalEmbDesemb = embarqueItens.reduce(function (s, r) { return s + (Number(r.qtdEmbarque) || 0) + (Number(r.qtdDesembarque) || 0); }, 0);
+        document.getElementById("justKEmbarque").textContent = embarqueItens.length ? totalEmbDesemb : "—";
+
+        var comApoio = embarqueItens.filter(function (r) { return r.apoioRodoviaria === "SIM"; }).length;
+        document.getElementById("justKApoio").textContent = embarqueItens.length ? comApoio : "—";
+        document.getElementById("justKApoioSub").textContent = embarqueItens.length
+          ? (comApoio + " de " + embarqueItens.length + " (motivo embarque/desembarque)")
+          : "sem casos de embarque/desembarque no período";
+
+        // Gráfico por motivo
+        _destruirDashChart("justMotivo");
+        var cont = {};
+        lista.forEach(function (r) { cont[r.motivo] = (cont[r.motivo] || 0) + 1; });
+        var motivos = Object.keys(cont);
+        _dashCharts["justMotivo"] = new Chart(document.getElementById("justChartMotivo"), {
+          type: "doughnut",
+          data: {
+            labels: motivos.map(function (m) { return MOTIVO_LABELS[m] || m; }),
+            datasets: [{
+              data: motivos.map(function (m) { return cont[m]; }),
+              backgroundColor: motivos.map(function (m) { return (MOTIVO_CORES[m] || "#888") + "cc"; }),
+              borderColor: "transparent", borderWidth: 0,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: "bottom", labels: { color: "#aaa", font: { family: "Barlow", size: 11 }, boxWidth: 12, padding: 10 } } },
+            cutout: "60%",
+          },
+        });
+
+        // Tabela detalhada — mais recente primeiro
+        var ordenada = lista.slice().sort(function (a, b) { return (b.entrada || "").localeCompare(a.entrada || ""); });
+        document.getElementById("justTabela").innerHTML = ordenada.map(function (r) {
+          var detalhe = "";
+          if (r.motivo === "EMBARQUE") {
+            detalhe = "Embarque: <b>" + (r.qtdEmbarque || 0) + "</b> · Desembarque: <b>" + (r.qtdDesembarque || 0) + "</b> · Apoio da rodoviária: <b>" +
+              (r.apoioRodoviaria === "SIM" ? "Sim" : r.apoioRodoviaria === "NAO" ? "Não" : "—") + "</b>";
+          }
+          if (r.observacao) detalhe += (detalhe ? "<br>" : "") + r.observacao;
+
+          var cor = MOTIVO_CORES[r.motivo] || "#888";
+          return '<div class="just-tabela-row">' +
+            '<div class="just-tabela-linha1">' +
+              '<span class="just-tabela-veiculo">' + (r.veiculo || "—") + '</span>' +
+              '<span class="just-tabela-ponto">' + (r.ponto || "—") + '</span>' +
+              '<span class="just-tabela-data">' + (_fmtData(r.entrada) || r.entrada || "—") + '</span>' +
+              '<span class="just-tabela-motivo" style="color:' + cor + ';background:' + cor + '22">' + (MOTIVO_LABELS[r.motivo] || r.motivo) + '</span>' +
+            '</div>' +
+            (detalhe ? '<div class="just-tabela-detalhe">' + detalhe + '</div>' : '') +
+          '</div>';
+        }).join("");
       }
 
       function _renderDashboard(lista) {

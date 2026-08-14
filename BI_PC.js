@@ -347,6 +347,55 @@ function marcarStatusPermanencia(payload) {
   return { ok: true };
 }
 
+// Devolve as excedências marcadas como "ANALISADO" e com um motivo
+// preenchido (ou seja: descartadas por justificativa, não por relatório
+// gerado sem motivo antigo) — filtra pela data de ENTRADA no mesmo
+// range usado por getHistoricoExcesso(). Alimenta o card "Motivos de
+// análise" do dashboard em tempo_permanencia.html.
+function getJustificativasPermanencia(dataIni, dataFim) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("TEMPO_PERMANENCIA_STATUS");
+  if (!aba) return JSON.stringify([]);
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, TEMPO_PERMANENCIA_STATUS_HEADER.length).getValues();
+
+  const dtIni = dataIni ? new Date(dataIni + "T00:00:00") : null;
+  const dtFim = dataFim ? new Date(dataFim + "T23:59:59") : null;
+
+  const registros = [];
+  data.forEach((r) => {
+    const chave = String(r[0] || "").trim();
+    if (!chave || String(r[4] || "").trim().toUpperCase() !== "ANALISADO") return;
+
+    const motivo = String(r[6] || "").trim();
+    if (!motivo) return; // marcado analisado sem motivo (dado antigo, anterior à justificativa)
+
+    const dataEntrada = _normData(r[3]);
+    if (dtIni && dtFim) {
+      if (!dataEntrada || dataEntrada < dtIni || dataEntrada > dtFim) return;
+    }
+
+    registros.push({
+      chave: chave,
+      veiculo: String(r[1] || "").trim(),
+      ponto: String(r[2] || "").trim(),
+      entrada: dataEntrada
+        ? Utilities.formatDate(dataEntrada, Session.getScriptTimeZone(), "yyyy-MM-dd")
+        : String(r[3] || ""),
+      motivo: motivo,
+      qtdEmbarque: Number(r[7]) || 0,
+      qtdDesembarque: Number(r[8]) || 0,
+      apoioRodoviaria: String(r[9] || "").trim(),
+      observacao: String(r[10] || "").trim(),
+    });
+  });
+
+  return JSON.stringify(registros);
+}
+
 // ── 5c. Histórico de excedências — Tempo de Permanência ────────
 // Aba "HISTORICO_EXCESSO": um registro por relatório gerado a
 // partir de uma excedência (não por excedência apenas detectada).
