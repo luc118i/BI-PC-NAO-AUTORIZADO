@@ -334,7 +334,7 @@
       /* ── MODAL GERAR RELATÓRIO (mesmo padrão do dashboard) ─── */
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
-      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
       .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
       .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
       .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
@@ -427,16 +427,26 @@
       .oc-field textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
       /* ── MODAL JUSTIFICAR ANÁLISE ────────────────────────── */
+      /* .just-opcao é um <label> dentro de .oc-field — sem os resets
+         abaixo (text-transform/letter-spacing/text-align/min-width), ele
+         herdava o estilo de ".oc-field label" (maiúsculo, 10px, espaçado)
+         pensado só pro rótulo "MOTIVO...", e o texto interno não tinha
+         min-width:0 no flex, quebrando linha por caractere e estourando
+         o modal com scroll horizontal. */
       .just-resumo { font-size: 12px; color: var(--texto2); background: var(--preto3); border: 1px solid var(--borda2); border-radius: var(--radius-sm); padding: 10px 14px; }
       .just-resumo b { color: var(--texto); }
-      .just-opcoes { display: flex; flex-direction: column; gap: 8px; }
-      .just-opcao { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--cinza2); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+      .just-opcoes { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+      .just-opcao {
+        display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; width: 100%; box-sizing: border-box;
+        border: 1px solid var(--cinza2); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s;
+        text-transform: none; letter-spacing: normal; text-align: left; color: inherit; font-weight: normal;
+      }
       .just-opcao:hover { border-color: var(--borda-l); background: var(--laranja4); }
       .just-opcao.selecionada { border-color: var(--laranja); background: var(--laranja4); }
-      .just-opcao input[type="radio"] { margin-top: 3px; accent-color: var(--laranja); flex-shrink: 0; }
-      .just-opcao-texto { display: flex; flex-direction: column; gap: 2px; }
-      .just-opcao-titulo { font-size: 13px; font-weight: 600; color: var(--texto); }
-      .just-opcao-sub { font-size: 11px; color: var(--texto3); }
+      .just-opcao input[type="radio"] { margin: 3px 0 0; accent-color: var(--laranja); flex: 0 0 auto; width: 15px; height: 15px; }
+      .just-opcao-texto { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+      .just-opcao-titulo { font-size: 13px; font-weight: 600; color: var(--texto); text-transform: none; }
+      .just-opcao-sub { font-size: 11px; color: var(--texto3); text-transform: none; white-space: normal; overflow-wrap: break-word; }
       .just-campos-extra { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; background: var(--preto3); border-radius: var(--radius-sm); border: 1px solid var(--borda2); margin-top: 2px; }
       .just-campos-extra .oc-field-row { display: flex; gap: 10px; }
       .just-campos-extra .oc-field-row .oc-field { flex: 1; }
