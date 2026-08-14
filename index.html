@@ -378,6 +378,7 @@
       /* Evidências: colar / arrastar / selecionar */
       .oc-evid-zone { border: 2px dashed var(--cinza2); border-radius: var(--radius); padding: 22px 16px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; color: var(--texto3); user-select: none; outline: none; }
       .oc-evid-zone:hover, .oc-evid-zone:focus, .oc-evid-zone.drag-over { border-color: var(--laranja); background: var(--laranja4); color: var(--laranja); }
+      .oc-evid-zone.cheio { cursor: default; pointer-events: none; opacity: 0.55; border-color: var(--vermelho); }
       .oc-evid-zone-label { font-size: 13px; font-weight: 600; }
       .oc-evid-zone-sub { font-size: 11px; margin-top: 3px; }
       .oc-evid-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
@@ -1208,12 +1209,22 @@
         }
       }
 
+      // Mesmo limite do formulário de Nova Ocorrência do Gerador de
+      // Relatórios (MAX_EVIDENCIAS = 20 lá) — replicado aqui só como
+      // aviso visual (o back-end é quem realmente barra no upload).
+      var MAX_EVIDENCIAS_PARADA = 20;
+
       function _adicionarEvidencias(files) {
         if (!files || !files.length) return;
-        Array.prototype.forEach.call(files, function (file) {
-          if (!file.type || file.type.indexOf("image/") !== 0) return;
+        var vagas = MAX_EVIDENCIAS_PARADA - _relEvidencias.length;
+        if (vagas <= 0) { _renderEvidGrid(); return; }
+        var aceitas = 0;
+        Array.prototype.some.call(files, function (file) {
+          if (!file.type || file.type.indexOf("image/") !== 0) return false;
           var url = URL.createObjectURL(file);
           _relEvidencias.push({ file: file, url: url });
+          aceitas++;
+          return aceitas >= vagas; // para assim que enche as vagas restantes
         });
         _renderEvidGrid();
       }
@@ -1226,6 +1237,21 @@
             '<button type="button" class="oc-evid-remove" onclick="_removerEvidencia(' + i + ')" title="Remover">' + _icon("x", 12) + '</button>' +
           '</div>';
         }).join("");
+
+        var n = _relEvidencias.length;
+        var contador = document.getElementById("relEvidContador");
+        if (contador) {
+          contador.textContent = n + "/" + MAX_EVIDENCIAS_PARADA + " fotos";
+          contador.style.color = n >= MAX_EVIDENCIAS_PARADA ? "var(--vermelho)" : n >= MAX_EVIDENCIAS_PARADA - 5 ? "var(--amarelo)" : "var(--texto3)";
+        }
+        var zona = document.getElementById("relEvidZone");
+        if (zona) {
+          var cheio = n >= MAX_EVIDENCIAS_PARADA;
+          zona.classList.toggle("cheio", cheio);
+          zona.querySelector(".oc-evid-zone-label").textContent = cheio
+            ? "Limite de " + MAX_EVIDENCIAS_PARADA + " fotos atingido"
+            : "Cole (Ctrl+V), arraste ou clique pra selecionar";
+        }
       }
 
       function _removerEvidencia(i) {
@@ -1258,7 +1284,7 @@
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
-        document.getElementById("relEvidGrid").innerHTML = "";
+        _renderEvidGrid(); // zera grid + contador + estado da zona (nova modal aberta)
         document.getElementById("relStatus").textContent = "";
         document.getElementById("relStatus").className = "oc-status";
         document.getElementById("relBtnGerar").disabled = false;
@@ -2888,7 +2914,10 @@
           </div>
 
           <div class="oc-field">
-            <label>Evidências</label>
+            <label style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <span>Evidências</span>
+              <span id="relEvidContador" style="text-transform:none;letter-spacing:normal;font-weight:600;color:var(--texto3)">0/20 fotos</span>
+            </label>
             <div class="oc-evid-zone" id="relEvidZone" tabindex="0"
               onclick="document.getElementById('relEvidInput').click()"
               ondragover="event.preventDefault(); this.classList.add('drag-over')"
