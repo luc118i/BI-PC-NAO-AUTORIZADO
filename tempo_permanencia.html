@@ -720,6 +720,32 @@
     </div>
 
     <script>
+      // ── Trava o scroll do FUNDO da página quando alguma modal (.oc-overlay)
+      // está aberta — o painel da modal (.oc-panel) continua rolando
+      // normalmente (tem overflow-y:auto próprio). Funciona pra qualquer
+      // modal existente ou futura sem precisar mexer em cada abrir/fechar:
+      // observa a troca da classe "hidden" nos overlays e recalcula.
+      (function () {
+        function _atualizarBloqueioScrollModal() {
+          var algumaAberta = Array.prototype.some.call(
+            document.querySelectorAll(".oc-overlay"),
+            function (el) { return !el.classList.contains("hidden"); },
+          );
+          document.body.style.overflow = algumaAberta ? "hidden" : "";
+        }
+        function _observarModais() {
+          var overlays = document.querySelectorAll(".oc-overlay");
+          if (!overlays.length) return;
+          var observer = new MutationObserver(_atualizarBloqueioScrollModal);
+          overlays.forEach(function (el) {
+            observer.observe(el, { attributes: true, attributeFilter: ["class"] });
+          });
+          _atualizarBloqueioScrollModal();
+        }
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", _observarModais);
+        else _observarModais();
+      })();
+
       var webAppBaseUrl = "";
 
       // Dispara assim que o navegador chega nesta linha (script no fim do
