@@ -1264,6 +1264,24 @@
         if (cb) cb(restantes);
       }
 
+      // Texto sugerido pra "Chegou antecipadamente" — se o ponto já tiver
+      // esquema vinculado (horário de sessão conhecido), compara com a
+      // saída real usando a mesma lógica do painel "Ver esquema"
+      // (_compararSaidaSessao: saiu antes/depois do horário de sessão).
+      function _textoAutoAntecipado(item) {
+        var texto = "O veículo chegou antes do horário previsto — a permanência maior é folga, não atraso.";
+        var esq = item && item._esquemaInfo;
+        if (esq && esq.horarioSessao) {
+          var saidaHM = _fmtHM(item.saida);
+          var cmp = _compararSaidaSessao(saidaHM, esq.horarioSessao);
+          texto += " Horário de sessão: " + esq.horarioSessao + " · Saída: " + saidaHM;
+          if (cmp === "cedo") texto += " — saiu antes do horário de sessão.";
+          else if (cmp === "atraso") texto += " — saiu depois do horário de sessão.";
+          else texto += ".";
+        }
+        return texto;
+      }
+
       function _atualizarCamposJustificativa() {
         var motivo = (document.querySelector('#justOpcoes input[name="justMotivo"]:checked') || {}).value || "";
         document.querySelectorAll("#justOpcoes .just-opcao").forEach(function (op) {
@@ -1271,6 +1289,16 @@
         });
         document.getElementById("justCamposEmbarque").classList.toggle("hidden", motivo !== "EMBARQUE");
         document.getElementById("justCamposOcorrencia").classList.toggle("hidden", motivo !== "OCORRENCIA");
+
+        // Sugere o texto só se a observação ainda estiver vazia — não
+        // sobrescreve o que o usuário já tiver escrito/editado.
+        if (motivo === "ANTECIPADO") {
+          var obsEl = document.getElementById("justObservacao");
+          if (obsEl && !obsEl.value.trim()) {
+            var pend = _justFila[_justIndex];
+            if (pend) obsEl.value = _textoAutoAntecipado(pend.item);
+          }
+        }
       }
 
       function _confirmarJustificativa() {
