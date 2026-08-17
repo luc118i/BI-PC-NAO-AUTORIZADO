@@ -456,7 +456,7 @@
       }
       .just-opcao:hover { border-color: var(--borda-l); background: var(--laranja4); }
       .just-opcao.selecionada { border-color: var(--laranja); background: var(--laranja4); }
-      .just-opcao input[type="radio"] { margin: 3px 0 0; accent-color: var(--laranja); flex: 0 0 auto; width: 15px; height: 15px; }
+      .just-opcao input[type="radio"], .just-opcao input[type="checkbox"] { margin: 3px 0 0; accent-color: var(--laranja); flex: 0 0 auto; width: 15px; height: 15px; }
       .just-opcao-texto { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
       .just-opcao-titulo { font-size: 13px; font-weight: 600; color: var(--texto); text-transform: none; }
       .just-opcao-sub { font-size: 11px; color: var(--texto3); text-transform: none; white-space: normal; overflow-wrap: break-word; }
@@ -3224,6 +3224,87 @@
         var regiaoNome = btnEl.closest(".acc-regiao").querySelector(":scope > summary .acc-prefixo").textContent;
         var dataLabel = _fmtData(_relatorioItens[todosIdxs[0]].entrada) || "";
 
+        _abrirResumoDiaFiltro(itensAnalisados, regiaoNome, dataLabel, btnEl);
+      }
+
+      // ── Filtro por motivo — "Resumo do dia" ─────────────────────
+      // Deixa escolher quais motivos entram no PDF (ex.: só "Chegou
+      // antecipadamente") antes de gerar — sem isso o resumo sempre
+      // levava TODAS as excedências analisadas da região.
+      var _resumoDiaItensPendentes = [];
+      var _resumoDiaRegiaoNome = "";
+      var _resumoDiaDataLabel = "";
+      var _resumoDiaBtnEl = null;
+
+      function _abrirResumoDiaFiltro(itens, regiaoNome, dataLabel, btnEl) {
+        _resumoDiaItensPendentes = itens;
+        _resumoDiaRegiaoNome = regiaoNome;
+        _resumoDiaDataLabel = dataLabel;
+        _resumoDiaBtnEl = btnEl;
+
+        document.getElementById("resumoDiaFiltroInfo").innerHTML =
+          "<b>" + regiaoNome + "</b>" + (dataLabel ? " · " + dataLabel : "") +
+          '<span class="sep">·</span>' + itens.length + " excedência" + (itens.length !== 1 ? "s" : "") +
+          " analisada" + (itens.length !== 1 ? "s" : "") + " no total";
+
+        var porMotivo = {}; // motivo -> count
+        itens.forEach(function (it) {
+          var m = it.motivo || "—";
+          porMotivo[m] = (porMotivo[m] || 0) + 1;
+        });
+        var motivos = Object.keys(porMotivo).sort(function (a, b) { return porMotivo[b] - porMotivo[a]; });
+
+        document.getElementById("resumoDiaFiltroLista").innerHTML = motivos.map(function (m) {
+          var label = MOTIVO_LABELS[m] || m;
+          var cor = MOTIVO_CORES[m] || "#888";
+          return '<label class="just-opcao selecionada" data-motivo="' + m + '">' +
+            '<input type="checkbox" checked data-motivo-chk="' + m.replace(/"/g, "&quot;") + '" ' +
+              'onchange="this.closest(\'.just-opcao\').classList.toggle(\'selecionada\', this.checked)" />' +
+            '<span class="just-opcao-texto">' +
+              '<span class="just-opcao-titulo" style="color:' + cor + '">' + label + '</span>' +
+              '<span class="just-opcao-sub">' + porMotivo[m] + ' excedência' + (porMotivo[m] !== 1 ? "s" : "") + '</span>' +
+            '</span>' +
+          '</label>';
+        }).join("");
+
+        document.getElementById("resumoDiaFiltroStatus").textContent = "";
+        document.getElementById("resumoDiaFiltroStatus").className = "oc-status";
+        document.getElementById("resumoDiaFiltroModal").classList.remove("hidden");
+      }
+
+      function fecharResumoDiaFiltro() {
+        document.getElementById("resumoDiaFiltroModal").classList.add("hidden");
+      }
+
+      function _resumoDiaMarcarTodos(valor) {
+        document.querySelectorAll('#resumoDiaFiltroLista input[type="checkbox"]').forEach(function (chk) {
+          chk.checked = valor;
+          chk.closest(".just-opcao").classList.toggle("selecionada", valor);
+        });
+      }
+
+      function _confirmarResumoDiaFiltro() {
+        var statusEl = document.getElementById("resumoDiaFiltroStatus");
+        var selecionados = Array.prototype.map.call(
+          document.querySelectorAll('#resumoDiaFiltroLista input[type="checkbox"]:checked'),
+          function (chk) { return chk.getAttribute("data-motivo-chk"); },
+        );
+        if (!selecionados.length) {
+          statusEl.textContent = "Selecione pelo menos um motivo.";
+          statusEl.className = "oc-status err";
+          return;
+        }
+
+        var itensFiltrados = _resumoDiaItensPendentes.filter(function (it) {
+          return selecionados.indexOf(it.motivo || "—") !== -1;
+        });
+
+        var regiaoNome = _resumoDiaRegiaoNome, dataLabel = _resumoDiaDataLabel, btnEl = _resumoDiaBtnEl;
+        fecharResumoDiaFiltro();
+        _prosseguirGerarResumoDia(regiaoNome, dataLabel, itensFiltrados, btnEl);
+      }
+
+      function _prosseguirGerarResumoDia(regiaoNome, dataLabel, itensAnalisados, btnEl) {
         var textoOrig = btnEl.innerHTML;
         btnEl.disabled = true;
         btnEl.innerHTML = "Gerando...";
@@ -4362,6 +4443,44 @@
           <span class="oc-status" id="usuarioStatus"></span>
           <button class="btn btn-ghost" id="usuarioBtnSecundario" onclick="fecharModalUsuario()">Cancelar</button>
           <button class="btn btn-primary" id="usuarioBtnPrimario" onclick="_authFazerLogin()">Entrar</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── MODAL FILTRAR MOTIVOS — Resumo do dia ────────────────── -->
+    <!-- Escolhe quais motivos entram no PDF antes de gerar (ex.: só
+         "Chegou antecipadamente") — ver _abrirResumoDiaFiltro() /
+         _confirmarResumoDiaFiltro() em script. -->
+    <div class="oc-overlay hidden" id="resumoDiaFiltroModal" onclick="if(event.target===this)fecharResumoDiaFiltro()">
+      <div class="oc-panel" style="max-width:460px">
+
+        <div class="oc-header">
+          <h3>📋 Resumo do dia — filtrar motivos</h3>
+          <button class="oc-close" onclick="fecharResumoDiaFiltro()" title="Fechar">✕</button>
+        </div>
+
+        <div class="oc-body">
+
+          <div class="just-resumo" id="resumoDiaFiltroInfo">—</div>
+
+          <div class="oc-field">
+            <label style="display:flex;align-items:center;justify-content:space-between">
+              <span>Motivos a incluir</span>
+              <span style="display:flex;gap:10px;text-transform:none;letter-spacing:normal;font-weight:600">
+                <a href="#" onclick="event.preventDefault();_resumoDiaMarcarTodos(true)" style="color:var(--laranja);font-size:11px">Todos</a>
+                <a href="#" onclick="event.preventDefault();_resumoDiaMarcarTodos(false)" style="color:var(--texto3);font-size:11px">Nenhum</a>
+              </span>
+            </label>
+            <div class="just-opcoes" id="resumoDiaFiltroLista"></div>
+          </div>
+
+        </div>
+
+        <div class="oc-footer">
+          <span class="oc-status" id="resumoDiaFiltroStatus"></span>
+          <button class="btn btn-ghost" onclick="fecharResumoDiaFiltro()">Cancelar</button>
+          <button class="btn btn-primary" onclick="_confirmarResumoDiaFiltro()">Gerar resumo</button>
         </div>
 
       </div>
