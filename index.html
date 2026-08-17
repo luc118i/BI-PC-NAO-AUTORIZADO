@@ -341,6 +341,7 @@
       .oc-overlay.hidden { display: none; }
       .hidden { display: none !important; }
       .oc-panel {
+        position: relative;
         background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius);
         width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7);
         scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent;
@@ -349,6 +350,20 @@
       .oc-panel::-webkit-scrollbar-track { background: transparent; }
       .oc-panel::-webkit-scrollbar-thumb { background-color: var(--cinza2); border-radius: 8px; border: 2px solid var(--preto2); background-clip: padding-box; }
       .oc-panel::-webkit-scrollbar-thumb:hover { background-color: var(--laranja); }
+
+      /* Overlay de carregamento (fundo desfocado + spinner no meio) —
+         cobre o painel inteiro enquanto o relatório está sendo gerado.
+         Some assim que a geração termina (sucesso ou erro). */
+      .oc-loading-overlay {
+        position: absolute; inset: 0; z-index: 20; border-radius: var(--radius);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+        background: rgba(17,17,17,0.55);
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      .oc-loading-overlay.hidden { display: none; }
+      .oc-spinner { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--laranja); border-radius: 50%; animation: oc-spin 0.7s linear infinite; }
+      .oc-loading-text { font-size: 12.5px; font-weight: 600; color: var(--texto2); letter-spacing: 0.02em; text-align: center; padding: 0 24px; }
+      @keyframes oc-spin { to { transform: rotate(360deg); } }
 
       /* Valor de campo "copiável" (Veículo / Ponto de controle no resumo
          da modal "Gerar Relatório") — mesma UX de copiar prefixo/descrição
@@ -1120,6 +1135,23 @@
         var el = document.getElementById("relStatus");
         el.innerHTML = msg;
         el.className = "oc-status" + (tipo ? " " + tipo : "");
+        // Espelha a mensagem no overlay de carregamento (quando visível) —
+        // assim quem tá vendo o spinner acompanha "Criando ocorrência...",
+        // "Enviando evidências...", etc. sem precisar ler atrás do blur.
+        var overlayTxt = document.getElementById("relLoadingText");
+        if (overlayTxt) overlayTxt.textContent = msg;
+      }
+
+      // Mostra/esconde o overlay de carregamento (fundo desfocado + spinner)
+      // da modal "Gerar Relatório" — cobre o painel inteiro enquanto a
+      // ocorrência/PDF estão sendo gerados.
+      function _mostrarLoadingModal() {
+        var ov = document.getElementById("relLoadingOverlay");
+        if (ov) ov.classList.remove("hidden");
+      }
+      function _esconderLoadingModal() {
+        var ov = document.getElementById("relLoadingOverlay");
+        if (ov) ov.classList.add("hidden");
       }
 
       // ── Autocomplete de Linha — busca local por código/nome ou
@@ -1354,8 +1386,11 @@
         _renderEvidGrid(); // zera grid + contador + estado da zona (nova modal aberta)
         document.getElementById("relStatus").textContent = "";
         document.getElementById("relStatus").className = "oc-status";
-        document.getElementById("relBtnGerar").disabled = false;
-        document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+        _esconderLoadingModal();
+        var btnGerarSingle = document.getElementById("relBtnGerar");
+        btnGerarSingle.disabled = false;
+        btnGerarSingle.textContent = "Gerar relatório";
+        btnGerarSingle.onclick = _gerarRelatorioParada;
 
         // Sugestão inicial (não seleciona sozinho — usuário confirma
         // clicando) a partir do motorista já casado pelo rastreamento.
@@ -1407,8 +1442,11 @@
         _renderEvidGrid();
         document.getElementById("relStatus").textContent = "";
         document.getElementById("relStatus").className = "oc-status";
-        document.getElementById("relBtnGerar").disabled = false;
-        document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+        _esconderLoadingModal();
+        var btnGerarGrupo = document.getElementById("relBtnGerar");
+        btnGerarGrupo.disabled = false;
+        btnGerarGrupo.textContent = "Gerar relatório";
+        btnGerarGrupo.onclick = _gerarRelatorioParada;
 
         // Sugestão inicial de motorista — primeiro match encontrado no grupo.
         var comMatch = itens.find(function (it) { return it.r.motoristaMatch && it.r.motoristaMatch.nome; });
@@ -1432,7 +1470,7 @@
         document.getElementById("relResumoGrupoLista").innerHTML = _relGrupoItens.map(function (it, pos) {
           var r = it.r;
           return '<div class="rel-grupo-item">' +
-            '<span class="rel-grupo-ponto">' + (r.descResumida || r.ponto || "—") + '</span>' +
+            '<span class="rel-grupo-ponto oc-field-copy" onclick="_copiarValorCampo(this)" title="Clique para copiar">' + (r.descResumida || r.ponto || "—") + '</span>' +
             '<div class="rel-grupo-right">' +
               '<span class="rel-grupo-meta">' + (r.regiao || "—") + ' · ' + _fmtHM(r.entrada) + '–' + _fmtHM(r.saida) + ' · ' + (r.parada || "—") + '</span>' +
               (_relGrupoItens.length > 1
@@ -1656,6 +1694,7 @@
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
         btn.textContent = "Gerando...";
+        _mostrarLoadingModal();
         _setRelStatus("Criando ocorrência...", "");
 
         var idxAtual = _relItemAtualIdx;
@@ -1667,9 +1706,13 @@
             return _gerarEBaixarPdfParada(occurrenceId, item);
           })
           .then(function (res) {
+            _esconderLoadingModal();
             _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
-            btn.disabled = true;
+            // Fica clicável — clicar em "Gerado" fecha a modal (relatório
+            // já foi enviado, não tem mais nada a fazer aqui).
+            btn.disabled = false;
             btn.innerHTML = _icon("check") + " Gerado";
+            btn.onclick = fecharModalRelatorioParada;
             _persistirStatusParadaIrregular(item, occurrenceIdCriada, "INDIVIDUAL");
             var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + idxAtual + '"]');
             if (linkBtn) {
@@ -1686,6 +1729,7 @@
             _aplicarStatusGeradoDeteccao();
           })
           .catch(function (err) {
+            _esconderLoadingModal();
             _setRelStatus((err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
@@ -1703,6 +1747,7 @@
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
         btn.textContent = "Gerando...";
+        _mostrarLoadingModal();
         _setRelStatus("Criando ocorrência...", "");
 
         var itensAtual = _relGrupoItens;
@@ -1715,9 +1760,12 @@
             return _gerarEBaixarPdfParada(occurrenceId, { veiculo: primeira.veiculo, entrada: primeira.entrada }, itensAtual.length);
           })
           .then(function (res) {
+            _esconderLoadingModal();
             _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
-            btn.disabled = true;
+            // Fica clicável — clicar em "Gerado" fecha a modal.
+            btn.disabled = false;
             btn.innerHTML = _icon("check") + " Gerado";
+            btn.onclick = fecharModalRelatorioParada;
             itensAtual.forEach(function (it) {
               _persistirStatusParadaIrregular(it.r, occurrenceIdCriada, "MULTIPLO");
               var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + it.idx + '"]');
@@ -1735,6 +1783,7 @@
             _aplicarStatusGeradoDeteccao();
           })
           .catch(function (err) {
+            _esconderLoadingModal();
             _setRelStatus((err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
@@ -3300,6 +3349,11 @@
     <div class="oc-overlay hidden" id="relatorioParadaModal" onclick="if(event.target===this)fecharModalRelatorioParada()">
       <div class="oc-panel">
 
+        <div class="oc-loading-overlay hidden" id="relLoadingOverlay">
+          <div class="oc-spinner"></div>
+          <div class="oc-loading-text" id="relLoadingText">Gerando relatório...</div>
+        </div>
+
         <div class="oc-header">
           <h3 id="relatorioParadaTitulo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Parada Irregular</h3>
           <button class="oc-close" onclick="fecharModalRelatorioParada()" title="Fechar">✕</button>
@@ -3337,7 +3391,7 @@
 
           <!-- Resumo da detecção — modo múltiplo ("Gerar Múltiplo": N paradas do mesmo veículo em 1 relatório) -->
           <div class="oc-field hidden" id="relResumoGrupo">
-            <label>Veículo <strong id="relVeiculoGrupo" style="color:var(--texto);font-weight:700"></strong> — paradas incluídas neste relatório</label>
+            <label>Veículo <strong id="relVeiculoGrupo" class="oc-field-copy" style="color:var(--texto);font-weight:700" onclick="event.stopPropagation();_copiarValorCampo(this)" title="Clique para copiar"></strong> — paradas incluídas neste relatório</label>
             <div class="rel-grupo-lista" id="relResumoGrupoLista"></div>
           </div>
 
