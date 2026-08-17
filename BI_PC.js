@@ -519,6 +519,90 @@ function getHistoricoExcesso(dataIni, dataFim) {
   return JSON.stringify(registros);
 }
 
+// ── 5d. Status de geração — Parada Irregular (index.html) ──────
+// Aba "PARADA_IRREGULAR_STATUS": guarda quais paradas irregulares já
+// tiveram relatório gerado (individual ou via "Gerar Múltiplo"), pra
+// sobreviver a reload/novo upload do mesmo CSV — mesmo padrão de
+// TEMPO_PERMANENCIA_STATUS (ver acima), só que sem justificativa (aqui
+// só existe um estado: "relatório já gerado" ou não).
+// CHAVE = "<veiculo>|<entrada>" (gerada no front-end, ver _detectarIrregulares).
+var PARADA_IRREGULAR_STATUS_HEADER = [
+  "CHAVE", "VEICULO", "PONTO", "ENTRADA", "GERADO", "ATUALIZADO_EM",
+  "OCCURRENCE_ID", "TIPO",
+];
+
+function _abaStatusParadaIrregular(ss) {
+  var aba = ss.getSheetByName("PARADA_IRREGULAR_STATUS");
+  if (!aba) {
+    aba = ss.insertSheet("PARADA_IRREGULAR_STATUS");
+    aba.appendRow(PARADA_IRREGULAR_STATUS_HEADER);
+    return aba;
+  }
+  if (aba.getLastColumn() < PARADA_IRREGULAR_STATUS_HEADER.length) {
+    aba.getRange(1, 1, 1, PARADA_IRREGULAR_STATUS_HEADER.length).setValues([PARADA_IRREGULAR_STATUS_HEADER]);
+  }
+  return aba;
+}
+
+// Devolve só as chaves já marcadas como geradas — front-end usa pra pintar
+// o botão "Gerar Relatório"/"Gerar Múltiplo" como "Gerado" após reload.
+function getStatusParadaIrregular() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = ss.getSheetByName("PARADA_IRREGULAR_STATUS");
+  if (!aba) return JSON.stringify([]);
+
+  var lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  var data = aba.getRange(2, 1, lastRow - 1, PARADA_IRREGULAR_STATUS_HEADER.length).getValues();
+  var chaves = data
+    .filter(function (r) {
+      return String(r[0] || "").trim() !== "" && String(r[4] || "").trim().toUpperCase() === "GERADO";
+    })
+    .map(function (r) { return String(r[0]).trim(); });
+
+  return JSON.stringify(chaves);
+}
+
+// payload: { chave, veiculo, ponto, entrada, occurrenceId, tipo }
+// tipo: "INDIVIDUAL" (1 parada) ou "MULTIPLO" (N paradas do mesmo veículo
+// num só relatório) — só informativo, não afeta a checagem de "já gerado".
+function marcarStatusParadaIrregular(payload) {
+  var chave = String((payload && payload.chave) || "").trim();
+  if (!chave) throw new Error("chave é obrigatória.");
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = _abaStatusParadaIrregular(ss);
+  var agora = new Date();
+
+  var lastRow = aba.getLastRow();
+  var linhaExistente = -1;
+  if (lastRow >= 2) {
+    var chavesExistentes = aba.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < chavesExistentes.length; i++) {
+      if (String(chavesExistentes[i][0]).trim() === chave) {
+        linhaExistente = i + 2;
+        break;
+      }
+    }
+  }
+
+  var valoresLinha = ["GERADO", agora, payload.occurrenceId || "", payload.tipo || "INDIVIDUAL"];
+
+  if (linhaExistente > 0) {
+    aba.getRange(linhaExistente, 5, 1, valoresLinha.length).setValues([valoresLinha]);
+  } else {
+    aba.appendRow([
+      chave,
+      payload.veiculo || "",
+      payload.ponto || "",
+      payload.entrada || "",
+    ].concat(valoresLinha));
+  }
+
+  return { ok: true };
+}
+
 // ── 6. Helpers privados ───────────────────────────────────────
 // ── Normalização automática de nomes de bases ─────────────────
 function _normalizeBase(raw) {

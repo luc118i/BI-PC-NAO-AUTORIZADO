@@ -340,7 +340,22 @@
       .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
       .oc-overlay.hidden { display: none; }
       .hidden { display: none !important; }
-      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-panel {
+        background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius);
+        width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+        scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent;
+      }
+      .oc-panel::-webkit-scrollbar { width: 9px; }
+      .oc-panel::-webkit-scrollbar-track { background: transparent; }
+      .oc-panel::-webkit-scrollbar-thumb { background-color: var(--cinza2); border-radius: 8px; border: 2px solid var(--preto2); background-clip: padding-box; }
+      .oc-panel::-webkit-scrollbar-thumb:hover { background-color: var(--laranja); }
+
+      /* Valor de campo "copiável" (Veículo / Ponto de controle no resumo
+         da modal "Gerar Relatório") — mesma UX de copiar prefixo/descrição
+         já usada na tabela de detecção (_copiarPrefixo/_copiarDesc): sublinhado
+         tracejado + fica laranja no hover, sem precisar de ícone extra. */
+      .oc-field-copy { cursor: pointer; border-bottom: 1px dashed var(--cinza2); transition: color 0.15s, border-color 0.15s; }
+      .oc-field-copy:hover { color: var(--laranja); border-color: var(--laranja); }
       .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
       .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
       .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
@@ -395,6 +410,17 @@
       }
       .det-relatorio-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
       .det-relatorio-btn.ativo { border-color: var(--verde); color: var(--verde); cursor: default; }
+      .det-multiplo-btn { border-color: var(--laranja); color: var(--laranja); }
+      .det-multiplo-btn:hover { background: var(--laranja4); }
+
+      /* Resumo do grupo na modal "Gerar Múltiplo" — lista das N paradas incluídas */
+      .rel-grupo-lista { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+      .rel-grupo-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border: 1px solid var(--borda2); border-radius: 6px; background: var(--preto3); }
+      .rel-grupo-ponto { font-size: 12.5px; font-weight: 600; color: var(--texto); }
+      .rel-grupo-meta { font-size: 11px; color: var(--texto3); white-space: nowrap; }
+      .rel-grupo-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+      .rel-grupo-remover { background: none; border: none; color: var(--texto3); cursor: pointer; padding: 3px; border-radius: 4px; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+      .rel-grupo-remover:hover { color: var(--vermelho); background: rgba(224,80,80,0.14); }
 
       /* ── RESPONSIVE ──────────────────────────────────────── */
       @media (max-width: 960px) {
@@ -1080,6 +1106,11 @@
       var _relBuscaMotoristaSeq = 0;
       var _relTripsCache = null; // catálogo completo de viagens, carregado 1x por sessão
 
+      // "Gerar Múltiplo": 1 relatório cobrindo N paradas irregulares do
+      // mesmo veículo (ver abrirModalRelatorioParadaGrupo/_gerarRelatorioParadaGrupo).
+      var _relModoGrupo = false;
+      var _relGrupoItens = []; // [{ r: <item de _detLista>, idx: <índice em _detLista> }]
+
       function _dataHoraPartes(dtStr) {
         var m = String(dtStr || "").match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
         return m ? { data: m[1], hora: m[2] } : { data: "", hora: "" };
@@ -1295,9 +1326,15 @@
         if (!r) return;
 
         _relItemAtualIdx = idx;
+        _relModoGrupo = false;
+        _relGrupoItens = [];
         _relLinhaSelecionada = null;
         _relMotoristaSelecionado = null;
         _relEvidencias = [];
+
+        document.getElementById("relatorioParadaTitulo").lastChild.textContent = " Gerar Relatório — Parada Irregular";
+        document.getElementById("relResumoGrupo").classList.add("hidden");
+        document.getElementById("relResumoSingle").classList.remove("hidden");
 
         document.getElementById("relVeiculo").textContent = r.veiculo || "—";
         document.getElementById("relPonto").textContent = r.descResumida || r.ponto || "—";
@@ -1337,9 +1374,100 @@
         document.removeEventListener("paste", _handlePasteEvidencia);
       }
 
-      // Nome de arquivo: "PREFIXO - PARADA_IRREG - DD.MM.AA"
-      function _nomeArquivoRelatorioParada(item) {
-        var partes = [item.veiculo || "SEMPREFIXO", "PARADA_IRREG", _fmtDataCurtaPI(item.entrada)].filter(Boolean);
+      // "Gerar Múltiplo" — abre a mesma modal, em modo grupo: 1 relatório
+      // cobrindo todas as paradas irregulares detectadas pra esse veículo
+      // (mesma motorista/linha/evidências pra todas).
+      function abrirModalRelatorioParadaGrupo(veiculo) {
+        var itens = [];
+        _detLista.forEach(function (r, idx) {
+          if (r.veiculo === veiculo) itens.push({ r: r, idx: idx });
+        });
+        if (itens.length < 2) return;
+
+        _relItemAtualIdx = null;
+        _relModoGrupo = true;
+        _relGrupoItens = itens;
+        _relLinhaSelecionada = null;
+        _relMotoristaSelecionado = null;
+        _relEvidencias = [];
+
+        document.getElementById("relResumoSingle").classList.add("hidden");
+        document.getElementById("relResumoGrupo").classList.remove("hidden");
+        document.getElementById("relVeiculoGrupo").textContent = veiculo || "—";
+        _renderResumoGrupoLista();
+
+        document.getElementById("relLinhaBusca").value = "";
+        document.getElementById("relMotoristaBusca").value = "";
+        document.getElementById("relLinhaLista").classList.add("hidden");
+        document.getElementById("relMotoristaLista").classList.add("hidden");
+        document.getElementById("relLinhaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relLinhaBusca").classList.remove("hidden");
+        document.getElementById("relMotoristaBusca").classList.remove("hidden");
+        _renderEvidGrid();
+        document.getElementById("relStatus").textContent = "";
+        document.getElementById("relStatus").className = "oc-status";
+        document.getElementById("relBtnGerar").disabled = false;
+        document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+
+        // Sugestão inicial de motorista — primeiro match encontrado no grupo.
+        var comMatch = itens.find(function (it) { return it.r.motoristaMatch && it.r.motoristaMatch.nome; });
+        if (comMatch) {
+          document.getElementById("relMotoristaBusca").value = comMatch.r.motoristaMatch.nome;
+          _buscarMotorista(comMatch.r.motoristaMatch.nome);
+        }
+
+        document.getElementById("relatorioParadaModal").classList.remove("hidden");
+        document.addEventListener("paste", _handlePasteEvidencia);
+        _carregarTrips();
+      }
+
+      // Redesenha a lista de paradas do grupo (_relGrupoItens) na modal —
+      // chamada ao abrir e de novo a cada remoção, pra refletir o total
+      // atualizado no título e nos itens restantes.
+      function _renderResumoGrupoLista() {
+        document.getElementById("relatorioParadaTitulo").lastChild.textContent =
+          " Gerar Relatório — Parada Irregular (Múltiplo · " + _relGrupoItens.length + " parada" + (_relGrupoItens.length !== 1 ? "s" : "") + ")";
+
+        document.getElementById("relResumoGrupoLista").innerHTML = _relGrupoItens.map(function (it, pos) {
+          var r = it.r;
+          return '<div class="rel-grupo-item">' +
+            '<span class="rel-grupo-ponto">' + (r.descResumida || r.ponto || "—") + '</span>' +
+            '<div class="rel-grupo-right">' +
+              '<span class="rel-grupo-meta">' + (r.regiao || "—") + ' · ' + _fmtHM(r.entrada) + '–' + _fmtHM(r.saida) + ' · ' + (r.parada || "—") + '</span>' +
+              (_relGrupoItens.length > 1
+                ? '<button type="button" class="rel-grupo-remover" title="Remover esta parada do relatório" onclick="_removerItemGrupoRelatorio(' + pos + ')">' + _icon("x", 14) + '</button>'
+                : '') +
+            '</div>' +
+          '</div>';
+        }).join("");
+      }
+
+      // Remove 1 parada do relatório em grupo antes de gerar — sempre
+      // sobra pelo menos 1 (senão não teria o que gerar); com 1 só
+      // restando, o botão de remover some (força fechar e usar o "Gerar
+      // Relatório" individual daquela linha, ou manter como está).
+      function _removerItemGrupoRelatorio(pos) {
+        if (_relGrupoItens.length <= 1) return;
+        _relGrupoItens.splice(pos, 1);
+        _renderResumoGrupoLista();
+      }
+
+      // Nome de arquivo: "MATRICULA - NOME - BASE - Parada_Irregular - DD.MM.AA"
+      // (ou "Parada_Irregular (N)" no fluxo em grupo, com N = qtd de locais).
+      // Motorista vem de _relMotoristaSelecionado (quem está selecionado na
+      // modal no momento de gerar), não do item da tabela de detecção.
+      function _nomeArquivoRelatorioParada(item, qtdLocais) {
+        var motorista = _relMotoristaSelecionado || {};
+        var qtd = qtdLocais || 1;
+        var tipoOcorrencia = qtd > 1 ? ("Parada_Irregular (" + qtd + ")") : "Parada_Irregular";
+        var partes = [
+          motorista.code || "SEMMATRICULA",
+          motorista.name || "SEMNOME",
+          motorista.base || "SEMBASE",
+          tipoOcorrencia,
+          _fmtDataCurtaPI(item.entrada),
+        ].filter(Boolean);
         return partes.join(" - ") + ".pdf";
       }
 
@@ -1412,8 +1540,84 @@
           });
       }
 
-      function _gerarEBaixarPdfParada(occurrenceId, item) {
-        var nomeArquivo = _nomeArquivoRelatorioParada(item);
+      // Cria a ocorrência (typeCode=DESCUMP_OP_PARADA_FORA) cobrindo N
+      // paradas do mesmo veículo em 1 único registro (occurrence_points) —
+      // usado pelo "Gerar Múltiplo". Mesma mecânica de _criarOcorrenciaParada,
+      // só troca place/startTime/endTime por um array `points`.
+      function _criarOcorrenciaParadaGrupo(itens) {
+        var primeira = itens[0].r;
+        var entradaP = _dataHoraPartes(primeira.entrada);
+
+        var points = itens.map(function (it) {
+          var r = it.r;
+          var eP = _dataHoraPartes(r.entrada);
+          var sP = _dataHoraPartes(r.saida);
+          return {
+            place: r.descCompleta || r.ponto,
+            startTime: eP.hora,
+            endTime: sP.hora || eP.hora,
+            cidade: r.cidade || "",
+            uf: r.uf || "",
+            regiao: r.regiao || "",
+          };
+        });
+
+        return _authGarantirTokenValido().then(function () {
+          var payload = {
+            typeCode: "DESCUMP_OP_PARADA_FORA",
+            eventDate: entradaP.data,
+            tripDate: entradaP.data,
+            startTime: points[0].startTime,
+            endTime: points[points.length - 1].endTime,
+            vehicleNumber: primeira.veiculo,
+            points: points,
+            lineLabel: _relLinhaSelecionada ? (_relLinhaSelecionada.lineCode + " - " + _relLinhaSelecionada.lineName) : null,
+            tripId: _relLinhaSelecionada ? _relLinhaSelecionada.id : null,
+            tripTime: _relLinhaSelecionada ? (_relLinhaSelecionada.departureTime || null) : null,
+            drivers: [{ position: 1, driverId: _relMotoristaSelecionado.id }],
+            relatoHtml: "",
+            showSectionViagem: true,
+            showSectionIdentificacao: true,
+            showSectionDados: true,
+            showSectionTripulacao: true,
+            showSectionPassageiros: false,
+            devolutivaBeforeEvidences: false,
+            tratativa: "REGISTRO",
+            analisadoPor: _obterUsuarioAtual(),
+            analisadoPorUserId: _obterUsuarioIdAtual(),
+          };
+
+          return fetch(REPORTS_API_URL + "/occurrences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao criar ocorrência"); });
+            return r.json();
+          })
+          .then(function (json) {
+            var occurrenceId = json.id;
+            if (!_relEvidencias.length) return occurrenceId;
+
+            _setRelStatus("Enviando " + _relEvidencias.length + " evidência(s)...", "");
+            var form = new FormData();
+            _relEvidencias.forEach(function (ev) { form.append("files", ev.file, ev.file.name || "evidencia.jpg"); });
+            form.append("metadata", JSON.stringify(_relEvidencias.map(function () { return {}; })));
+
+            return fetch(REPORTS_API_URL + "/occurrences/" + occurrenceId + "/evidences", {
+              method: "POST",
+              body: form,
+            }).then(function (r) {
+              if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error) || "Falha ao enviar evidências"); });
+              return occurrenceId;
+            });
+          });
+      }
+
+      function _gerarEBaixarPdfParada(occurrenceId, item, qtdLocais) {
+        var nomeArquivo = _nomeArquivoRelatorioParada(item, qtdLocais);
         _setRelStatus("Conectando ao Drive...", "");
 
         return _obterCredenciaisDrive().then(function (cred) {
@@ -1441,6 +1645,8 @@
       }
 
       function _gerarRelatorioParada() {
+        if (_relModoGrupo) return _gerarRelatorioParadaGrupo();
+
         if (_relItemAtualIdx == null) return;
         var item = _detLista[_relItemAtualIdx];
         if (!item) return;
@@ -1453,21 +1659,80 @@
         _setRelStatus("Criando ocorrência...", "");
 
         var idxAtual = _relItemAtualIdx;
+        var occurrenceIdCriada = null;
 
         _criarOcorrenciaParada(item)
           .then(function (occurrenceId) {
+            occurrenceIdCriada = occurrenceId;
             return _gerarEBaixarPdfParada(occurrenceId, item);
           })
           .then(function (res) {
             _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
             btn.disabled = true;
             btn.innerHTML = _icon("check") + " Gerado";
+            _persistirStatusParadaIrregular(item, occurrenceIdCriada, "INDIVIDUAL");
             var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + idxAtual + '"]');
             if (linkBtn) {
               linkBtn.classList.add("ativo");
               linkBtn.innerHTML = _icon("check", 12) + " Gerado";
               linkBtn.onclick = null;
             }
+            // Registrado: risca/oculta a linha na tabela, igual ao clique
+            // manual de "riscar" — só que automático ao gerar.
+            var linhaTr = document.querySelector('tr[data-idx="' + idxAtual + '"]');
+            if (linhaTr) linhaTr.classList.add("riscado");
+            // Se essa era a última parada pendente do veículo, marca
+            // também o "Gerar Múltiplo" do grupo como concluído.
+            _aplicarStatusGeradoDeteccao();
+          })
+          .catch(function (err) {
+            _setRelStatus((err.message || "Erro ao gerar relatório"), "err");
+            btn.disabled = false;
+            btn.textContent = "Gerar relatório";
+          });
+      }
+
+      // "Gerar Múltiplo" — cria 1 ocorrência cobrindo todas as paradas do
+      // grupo (_relGrupoItens) e gera 1 PDF único, marcando cada linha da
+      // tabela de detecção envolvida como "Gerado".
+      function _gerarRelatorioParadaGrupo() {
+        if (!_relGrupoItens.length) return;
+        if (!_relMotoristaSelecionado) { _setRelStatus("Selecione o motorista responsável.", "err"); return; }
+        if (!_authLogado()) { abrirModalUsuario(); _setRelStatus("Entre com sua conta (botão de usuário na barra) antes de gerar o relatório.", "err"); return; }
+
+        var btn = document.getElementById("relBtnGerar");
+        btn.disabled = true;
+        btn.textContent = "Gerando...";
+        _setRelStatus("Criando ocorrência...", "");
+
+        var itensAtual = _relGrupoItens;
+        var primeira = itensAtual[0].r;
+        var occurrenceIdCriada = null;
+
+        _criarOcorrenciaParadaGrupo(itensAtual)
+          .then(function (occurrenceId) {
+            occurrenceIdCriada = occurrenceId;
+            return _gerarEBaixarPdfParada(occurrenceId, { veiculo: primeira.veiculo, entrada: primeira.entrada }, itensAtual.length);
+          })
+          .then(function (res) {
+            _setRelStatus(_icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
+            btn.disabled = true;
+            btn.innerHTML = _icon("check") + " Gerado";
+            itensAtual.forEach(function (it) {
+              _persistirStatusParadaIrregular(it.r, occurrenceIdCriada, "MULTIPLO");
+              var linkBtn = document.querySelector('.det-relatorio-btn[data-idx="' + it.idx + '"]');
+              if (linkBtn) {
+                linkBtn.classList.add("ativo");
+                linkBtn.innerHTML = _icon("check", 12) + " Gerado";
+                linkBtn.onclick = null;
+              }
+              // Registrado: risca/oculta a linha na tabela.
+              var linhaTr = document.querySelector('tr[data-idx="' + it.idx + '"]');
+              if (linhaTr) linhaTr.classList.add("riscado");
+            });
+            // Marca o próprio "Gerar Múltiplo" como concluído (todas as
+            // paradas do grupo acabaram de ser persistidas acima).
+            _aplicarStatusGeradoDeteccao();
           })
           .catch(function (err) {
             _setRelStatus((err.message || "Erro ao gerar relatório"), "err");
@@ -2292,7 +2557,12 @@
               lista.forEach(function(item) {
                 item.motoristaMatch = _matchMotorista(item.funcionario);
               });
-              _renderDeteccao(lista);
+              // Carrega o status "já gerado" (persistido, sobrevive a F5)
+              // antes de desenhar a tabela, pra já nascer com os botões
+              // certos — ver _aplicarStatusGeradoDeteccao().
+              _carregarStatusParadaIrregular(function () {
+                _renderDeteccao(lista);
+              });
             });
           } catch(ex) {
             statusEl.innerHTML = '<span style="color:var(--vermelho)">✗ Erro ao processar arquivo: ' + ex.message + '</span>';
@@ -2381,6 +2651,10 @@
             parada:       r.parada,
             seg:          seg,
             funcionario:  r.funcionario || "",
+            // Chave estável ("veiculo|entrada") pra persistir se o
+            // relatório já foi gerado, sobrevivendo a F5/reupload do
+            // mesmo CSV — ver _carregarStatusParadaIrregular/_aplicarStatusGeradoDeteccao.
+            chave:        r.veiculo + "|" + r.entrada,
           });
         });
 
@@ -2397,6 +2671,109 @@
           .withSuccessHandler(function(lista) { _motoristasCache = lista; if (cb) cb(); })
           .withFailureHandler(function()      { _motoristasCache = [];   if (cb) cb(); })
           .getMotoristas();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Status "relatório já gerado" — Parada Irregular
+      //  Persistido no localStorage do navegador (chave → timestamp de
+      //  quando foi gerado), pra sobreviver a F5/reupload do mesmo CSV
+      //  sem depender de ida e volta pro Apps Script. Expira sozinho
+      //  depois de 72h — depois disso o botão volta a oferecer "Gerar
+      //  Relatório" normalmente (evita marcar pra sempre algo que pode
+      //  ter sido reprocessado/corrigido dias depois).
+      // ─────────────────────────────────────────────────────────
+      var PARADA_IRREGULAR_STORAGE_KEY = "pcNaoAutorizado.paradaIrregularGerado";
+      var PARADA_IRREGULAR_TTL_MS = 72 * 60 * 60 * 1000; // 72h
+
+      var _statusGeradoCache = null; // Set de chaves ("veiculo|entrada") já com relatório gerado
+
+      // Lê o localStorage, descarta entradas vencidas (>72h) e devolve o
+      // objeto já limpo — persiste de volta se algo foi descartado.
+      function _lerStatusGeradoStorage() {
+        var obj = {};
+        try {
+          obj = JSON.parse(localStorage.getItem(PARADA_IRREGULAR_STORAGE_KEY) || "{}") || {};
+        } catch (e) {
+          obj = {};
+        }
+        var agora = Date.now();
+        var mudou = false;
+        Object.keys(obj).forEach(function (chave) {
+          var registro = obj[chave];
+          var t = registro && registro.t;
+          if (!t || (agora - t) > PARADA_IRREGULAR_TTL_MS) {
+            delete obj[chave];
+            mudou = true;
+          }
+        });
+        if (mudou) _salvarStatusGeradoStorage(obj);
+        return obj;
+      }
+
+      function _salvarStatusGeradoStorage(obj) {
+        try {
+          localStorage.setItem(PARADA_IRREGULAR_STORAGE_KEY, JSON.stringify(obj));
+        } catch (e) {
+          // localStorage indisponível (modo privado, cota cheia, etc.) —
+          // segue sem persistir, o "Gerado" só dura a sessão atual.
+        }
+      }
+
+      // Mantido com callback (cb) por compatibilidade com quem já chamava
+      // essa função esperando um fluxo assíncrono — leitura do
+      // localStorage é síncrona, então cb roda na hora.
+      function _carregarStatusParadaIrregular(cb) {
+        var obj = _lerStatusGeradoStorage();
+        _statusGeradoCache = new Set(Object.keys(obj));
+        if (cb) cb();
+      }
+
+      // tipo: "INDIVIDUAL" (1 parada) ou "MULTIPLO" (N paradas do mesmo
+      // veículo num só relatório) — só informativo, guardado pra eventual debug.
+      function _persistirStatusParadaIrregular(item, occurrenceId, tipo) {
+        if (!item || !item.chave) return;
+        if (!_statusGeradoCache) _statusGeradoCache = new Set();
+        _statusGeradoCache.add(item.chave);
+
+        var obj = _lerStatusGeradoStorage();
+        obj[item.chave] = { t: Date.now(), occurrenceId: occurrenceId || "", tipo: tipo || "INDIVIDUAL" };
+        _salvarStatusGeradoStorage(obj);
+      }
+
+      // Aplica no DOM (botões da tabela de detecção) o que já está marcado
+      // como gerado — chamado logo depois de _renderDeteccao, com o cache
+      // já carregado (ver processarArquivo).
+      function _aplicarStatusGeradoDeteccao() {
+        if (!_statusGeradoCache || !_statusGeradoCache.size) return;
+
+        _detLista.forEach(function (r, idx) {
+          if (!r.chave || !_statusGeradoCache.has(r.chave)) return;
+          var btn = document.querySelector('.det-relatorio-btn[data-idx="' + idx + '"]');
+          if (btn) {
+            btn.classList.add("ativo");
+            btn.innerHTML = _icon("check", 12) + " Gerado";
+            btn.onclick = null;
+          }
+          // Registrado: já nasce riscada/oculta (mesmo estado de quem
+          // acabou de gerar, só que restaurado após F5/reupload do CSV).
+          var linhaTr = document.querySelector('tr[data-idx="' + idx + '"]');
+          if (linhaTr) linhaTr.classList.add("riscado");
+        });
+
+        // "Gerar Múltiplo": marca como concluído quando todas as paradas
+        // do veículo já foram geradas (individualmente ou via múltiplo).
+        document.querySelectorAll(".det-multiplo-btn").forEach(function (btn) {
+          var veiculo = btn.getAttribute("data-veiculo");
+          if (!veiculo) return;
+          var itensGrupo = _detLista.filter(function (r) { return r.veiculo === veiculo; });
+          var todosGerados = itensGrupo.length > 0 && itensGrupo.every(function (r) {
+            return r.chave && _statusGeradoCache.has(r.chave);
+          });
+          if (!todosGerados) return;
+          btn.classList.add("ativo");
+          btn.innerHTML = _icon("check", 12) + " Gerado";
+          btn.onclick = null;
+        });
       }
 
       function _matchMotorista(nomeCsv) {
@@ -2455,18 +2832,24 @@
         ordemGrupos.forEach(function(veiculo) {
           var grupo = grupos[veiculo];
           rows += '<tr style="background:rgba(244,121,32,0.07);border-top:1px solid rgba(244,121,32,0.18);cursor:pointer" onclick="_riscarGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
-            '<td colspan="7" style="padding:7px 10px">' +
+            '<td colspan="6" style="padding:7px 10px">' +
               '<strong class="det-prefixo" style="color:var(--laranja);font-size:13px;letter-spacing:0.04em" ' +
                 'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + veiculo.replace(/'/g,"") + '\')" ' +
                 'title="Clique para copiar prefixo">' + veiculo + '</strong>' +
               '<span style="color:var(--texto3);font-size:11px;margin-left:10px">' +
                 grupo.length + ' parada' + (grupo.length !== 1 ? 's' : '') +
               '</span>' +
+              (grupo.length > 1
+                ? '<button type="button" class="det-relatorio-btn det-multiplo-btn" style="margin-left:10px" data-veiculo="' + veiculo.replace(/"/g,"") + '" ' +
+                    'title="Gerar 1 relat&#243;rio cobrindo as ' + grupo.length + ' paradas irregulares deste ve&#237;culo" ' +
+                    'onclick="event.stopPropagation();abrirModalRelatorioParadaGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
+                    _icon("file", 12) + ' Gerar M&#250;ltiplo</button>'
+                : '') +
             '</td></tr>';
           grupo.forEach(function(entry) {
             var r = entry.r; var idx = entry.idx;
             var cor = r.seg >= 30*60 ? 'var(--vermelho)' : r.seg >= 15*60 ? 'var(--amarelo)' : 'var(--laranja)';
-            rows += '<tr data-grupo="' + veiculo.replace(/"/g,"") + '" style="cursor:pointer" onclick="this.classList.toggle(\'riscado\')">' +
+            rows += '<tr data-grupo="' + veiculo.replace(/"/g,"") + '" data-idx="' + idx + '" style="cursor:pointer" onclick="this.classList.toggle(\'riscado\')">' +
               '<td style="padding-left:22px;color:var(--texto3);font-size:11px;border-left:2px solid rgba(244,121,32,0.2)"></td>' +
               '<td style="color:var(--texto);white-space:normal">' +
                 '<div class="det-ponto-wrap">' +
@@ -2474,7 +2857,6 @@
                   (r.descResumida ? '<span class="det-copy-desc" onclick="event.stopPropagation();_copiarDesc(this,\'' + r.descResumida.replace(/'/g, "") + '\')" title="Copiar: ' + r.descResumida.replace(/"/g, "") + '">⎘ ' + r.descResumida + '</span>' : '') +
                 '</div>' +
               '</td>' +
-              '<td style="color:var(--texto2)">' + r.regiao + '</td>' +
               '<td>' + _fmtHM(r.entrada) + (_fmtData(r.entrada) ? '<br><span style="font-size:10px;color:var(--texto3)">' + _fmtData(r.entrada) + '</span>' : '') + '</td>' +
               '<td>' + _fmtHM(r.saida) + (_fmtData(r.saida) ? '<br><span style="font-size:10px;color:var(--texto3)">' + _fmtData(r.saida) + '</span>' : '') + '</td>' +
               '<td><span class="dur-tag" style="color:' + cor + ';border-color:' + cor + '">' + r.parada + '</span></td>' +
@@ -2491,9 +2873,13 @@
           '<div class="hist-table-wrap">' +
           '<table class="hist-table" id="detTable">' +
           '<thead><tr>' +
-          '<th>Veículo</th><th>Ponto de controle</th><th>Região</th>' +
+          '<th>Veículo</th><th>Ponto de controle</th>' +
           '<th>Entrada</th><th>Saída</th><th>Duração</th><th></th>' +
           '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+        // Pinta como "Gerado" quem já tinha relatório gerado antes do
+        // reload/reupload deste CSV (cache carregado em processarArquivo).
+        _aplicarStatusGeradoDeteccao();
       }
 
       function _copiarDesc(el, desc) {
@@ -2524,6 +2910,26 @@
           setTimeout(function() {
             el.textContent = orig;
             el.style.color = "";
+          }, 1200);
+        });
+      }
+
+      // Copia o texto atual de um campo .oc-field-copy (ex.: Veículo/Ponto
+      // de controle na modal "Gerar Relatório") — lê o valor na hora do
+      // clique (já preenchido dinamicamente ao abrir a modal), sem precisar
+      // passar o valor pronto no onclick.
+      function _copiarValorCampo(el) {
+        var valor = (el.textContent || "").trim();
+        if (!valor || valor === "—") return;
+        navigator.clipboard.writeText(valor).then(function() {
+          var orig = el.textContent;
+          el.textContent = "✓ Copiado";
+          el.style.color = "var(--verde)";
+          el.style.borderColor = "var(--verde)";
+          setTimeout(function() {
+            el.textContent = orig;
+            el.style.color = "";
+            el.style.borderColor = "";
           }, 1200);
         });
       }
@@ -2895,21 +3301,21 @@
       <div class="oc-panel">
 
         <div class="oc-header">
-          <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Parada Irregular</h3>
+          <h3 id="relatorioParadaTitulo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Parada Irregular</h3>
           <button class="oc-close" onclick="fecharModalRelatorioParada()" title="Fechar">✕</button>
         </div>
 
         <div class="oc-body">
 
-          <!-- Resumo da detecção -->
-          <div class="oc-resumo">
+          <!-- Resumo da detecção — modo parada única -->
+          <div class="oc-resumo" id="relResumoSingle">
             <div class="oc-field">
               <label>Veículo</label>
-              <strong id="relVeiculo">—</strong>
+              <strong id="relVeiculo" class="oc-field-copy" onclick="_copiarValorCampo(this)" title="Clique para copiar">—</strong>
             </div>
             <div class="oc-field">
               <label>Ponto de controle</label>
-              <span id="relPonto">—</span>
+              <span id="relPonto" class="oc-field-copy" onclick="_copiarValorCampo(this)" title="Clique para copiar">—</span>
             </div>
             <div class="oc-field">
               <label>Região</label>
@@ -2927,6 +3333,12 @@
               <label>Saída</label>
               <span id="relSaida">—</span>
             </div>
+          </div>
+
+          <!-- Resumo da detecção — modo múltiplo ("Gerar Múltiplo": N paradas do mesmo veículo em 1 relatório) -->
+          <div class="oc-field hidden" id="relResumoGrupo">
+            <label>Veículo <strong id="relVeiculoGrupo" style="color:var(--texto);font-weight:700"></strong> — paradas incluídas neste relatório</label>
+            <div class="rel-grupo-lista" id="relResumoGrupoLista"></div>
           </div>
 
           <div class="oc-field">
