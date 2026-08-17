@@ -108,6 +108,51 @@
         color: var(--texto3);
         margin-top: 2px;
       }
+      .ap-header-left {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        min-width: 0;
+      }
+
+      /* ── Indicador de seção (PC irregular × excesso de permanência) ── */
+      .ap-secao-indicador {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-shrink: 0;
+      }
+      .ap-secao-item {
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--texto3);
+        opacity: 0.55;
+        transition:
+          color 0.25s ease,
+          opacity 0.25s ease,
+          font-size 0.25s ease;
+      }
+      .ap-secao-item.ativo {
+        opacity: 1;
+        font-size: 18px;
+      }
+      .ap-secao-item.ativo#secaoItemPC {
+        color: var(--laranja);
+      }
+      .ap-secao-item.ativo#secaoItemExcesso {
+        color: var(--vermelho);
+      }
+      .ap-secao-divisor {
+        width: 2px;
+        height: 22px;
+        background: var(--laranja);
+        transform: rotate(20deg);
+        border-radius: 1px;
+        flex-shrink: 0;
+      }
       .ap-meta {
         display: flex;
         align-items: center;
@@ -901,6 +946,60 @@
         margin-top: 3px;
       }
 
+      /* ── Média embarque/desembarque por ponto (excesso de permanência) ── */
+      .ep-media-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .ep-media-row:last-child {
+        border-bottom: none;
+      }
+      .ep-media-ponto {
+        flex: 1;
+        min-width: 0;
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ep-media-nums {
+        display: flex;
+        gap: 30px;
+        flex-shrink: 0;
+      }
+      .ep-media-num {
+        font-size: 12px;
+        color: var(--texto3);
+        text-align: right;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .ep-media-num b {
+        display: block;
+        font-family: "Barlow Condensed", sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        color: #fff;
+        margin-top: 2px;
+      }
+      .slide-excesso .ep-media-num b {
+        color: var(--vermelho);
+      }
+      .ep-media-count {
+        font-size: 12px;
+        color: var(--texto3);
+        flex-shrink: 0;
+        min-width: 90px;
+        text-align: right;
+      }
+
       /* ── BARRA PROGRESSO ────────────────────────────────── */
       .progress-bar {
         position: fixed;
@@ -1317,6 +1416,65 @@
         position: relative;
         min-height: 0;
       }
+
+      /* ── SLIDES DE EXCESSO DE PERMANÊNCIA — acento vermelho ─
+         em vez do laranja padrão, pra diferenciar de longe (TV)
+         dos slides de PC não autorizado. Sobrescreve só os
+         elementos decorativos das classes compartilhadas — a
+         estrutura/layout continua igual. ── */
+      .slide-excesso .slide-titulo::before {
+        background: var(--vermelho);
+      }
+      .slide-excesso .tv-rank-col-title::before,
+      .slide-excesso .kpi-extra-label::before {
+        background: var(--vermelho);
+      }
+      .slide-excesso .tv-rank-pos.top3 {
+        color: var(--vermelho);
+      }
+      .slide-excesso .tv-rank-cnt,
+      .slide-excesso .kpi-extra-cnt,
+      .slide-excesso .linha-count {
+        color: var(--vermelho);
+        background: rgba(224, 80, 80, 0.1);
+        border-color: rgba(224, 80, 80, 0.2);
+      }
+      .slide-excesso .linha-medal.pos1 {
+        background: linear-gradient(135deg, #e05050, #ff8080);
+        box-shadow: 0 4px 16px rgba(224, 80, 80, 0.45);
+      }
+      .slide-excesso .linha-medal.other {
+        background: rgba(224, 80, 80, 0.08);
+        border: 1px solid rgba(224, 80, 80, 0.2);
+        color: var(--vermelho);
+      }
+      .slide-excesso .vd-day.n1,
+      .slide-excesso .vd-cell.n1 {
+        background: rgba(224, 80, 80, 0.35);
+      }
+      .slide-excesso .vd-day.n2,
+      .slide-excesso .vd-cell.n2 {
+        background: rgba(224, 80, 80, 0.58);
+      }
+      .slide-excesso .vd-day.n3,
+      .slide-excesso .vd-cell.n3 {
+        background: rgba(224, 80, 80, 0.8);
+      }
+      .slide-excesso .vd-day.n4,
+      .slide-excesso .vd-cell.n4 {
+        background: var(--vermelho);
+      }
+
+      /* Dots de navegação: os referentes a slides de excesso de
+         permanência ganham a mesma cor (apagados por padrão, vermelho
+         cheio quando ativos) — dá pra saber em que bloco está mesmo
+         sem ler o título. Classe aplicada via JS em iniciarDots(). */
+      .ap-dot.dot-excesso {
+        background: rgba(224, 80, 80, 0.35);
+      }
+      .ap-dot.dot-excesso.ativo {
+        background: var(--vermelho);
+      }
     </style>
   </head>
   <body>
@@ -1324,17 +1482,28 @@
 
     <!-- HEADER -->
     <div class="ap-header">
-      <div class="ap-logo">
-        <div class="ap-logo-icon">
-          <svg viewBox="0 0 24 24">
-            <path
-              d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-            />
-          </svg>
+      <div class="ap-header-left">
+        <div class="ap-logo">
+          <div class="ap-logo-icon">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="ap-logo-text">
+            <h1>Viação <span>Catedral</span></h1>
+            <p>Modo Apresentação</p>
+          </div>
         </div>
-        <div class="ap-logo-text">
-          <h1>Viação <span>Catedral</span></h1>
-          <p>PC's Não Autorizados · Modo Apresentação</p>
+        <!-- Indica em qual bloco a apresentação está (PC irregular ×
+             excesso de permanência) — ver atualizarSecaoIndicador(). -->
+        <div class="ap-secao-indicador">
+          <span class="ap-secao-item ativo" id="secaoItemPC">PC Irregular</span>
+          <span class="ap-secao-divisor"></span>
+          <span class="ap-secao-item" id="secaoItemExcesso"
+            >Excesso de Permanência</span
+          >
         </div>
       </div>
       <div class="ap-meta">
@@ -1509,6 +1678,137 @@
       </div>
     </div>
 
+    <!-- ══ SLIDE 8: Excesso de permanência — KPIs ════════════ -->
+    <div class="slide slide-excesso" id="slide8">
+      <div class="slide-titulo">Excesso de permanência — resumo do período</div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--kpi-c: var(--laranja)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Relatórios gerados</div>
+          <div class="kpi-val" id="epKTotal">—</div>
+          <div class="kpi-sub">excessos de permanência no período</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--amarelo)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Veículos únicos</div>
+          <div class="kpi-val" id="epKVeiculos">—</div>
+          <div class="kpi-sub">envolvidos no período</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--vermelho)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Ponto mais crítico</div>
+          <div
+            class="kpi-val"
+            id="epKPonto"
+            style="font-size: 30px; padding-top: 10px"
+          >
+            —
+          </div>
+          <div class="kpi-sub" id="epKPontoSub">—</div>
+        </div>
+        <div class="kpi-card" style="--kpi-c: var(--verde)">
+          <div class="kpi-stripe"></div>
+          <div class="kpi-label">Maior excedente</div>
+          <div class="kpi-val" id="epKMaior">—</div>
+          <div class="kpi-sub" id="epKMaiorSub">—</div>
+        </div>
+      </div>
+      <div class="kpi-extra-row">
+        <div class="kpi-extra-card">
+          <div class="kpi-extra-label">Top 5 pontos de retenção</div>
+          <ul class="kpi-extra-list" id="epTopPontos"></ul>
+        </div>
+        <div class="kpi-extra-card">
+          <div class="kpi-extra-label">Top 5 motoristas</div>
+          <ul class="kpi-extra-list" id="epTopMotoristas"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 9: Excesso de permanência — Ranking ═════════ -->
+    <div class="slide slide-excesso" id="slide9">
+      <div class="slide-titulo">Excesso de permanência — ranking de pontos e motoristas</div>
+      <div class="tv-rank-grid">
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Top 10 pontos de retenção</div>
+          <div class="tv-rank-list" id="epRankPontos"></div>
+        </div>
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Top 10 motoristas</div>
+          <div class="tv-rank-list" id="epRankMotoristas"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 10: Excesso de permanência — Motivos de descarte ═ -->
+    <div class="slide slide-excesso" id="slide10">
+      <div class="slide-titulo">Excesso de permanência — motivos de descarte</div>
+      <div class="tv-rank-grid">
+        <div class="tv-rank-col" style="align-items: center">
+          <div class="tv-rank-col-title" style="align-self: flex-start">
+            Por que não virou ocorrência
+          </div>
+          <div class="vd-chart-wrap" style="width: 100%">
+            <canvas id="epDonutChart"></canvas>
+          </div>
+        </div>
+        <div class="tv-rank-col">
+          <div class="tv-rank-col-title">Detalhamento</div>
+          <div
+            id="epMotivosLista"
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+              overflow-y: auto;
+            "
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 11: Excesso de permanência — Evolução ═══════ -->
+    <div class="slide slide-excesso" id="slide11">
+      <div class="slide-titulo">Excesso de permanência — evolução no período</div>
+      <div class="vd-grid">
+        <div class="vd-card">
+          <div class="vd-card-title">Calendário de análise</div>
+          <div id="epCalendario" class="vd-cal"></div>
+          <div class="vd-legenda">
+            <span>Menos</span>
+            <span class="vd-cell n0"></span>
+            <span class="vd-cell n1"></span>
+            <span class="vd-cell n2"></span>
+            <span class="vd-cell n3"></span>
+            <span class="vd-cell n4"></span>
+            <span>Mais</span>
+          </div>
+        </div>
+        <div class="vd-card">
+          <div class="vd-card-title">Evolução diária</div>
+          <div class="vd-chart-wrap"><canvas id="epChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 12: Excesso de permanência — Linhas afetadas ═ -->
+    <div class="slide slide-excesso" id="slide12">
+      <div class="slide-titulo">Excesso de permanência — linhas mais afetadas</div>
+      <div class="tv-rank-col" style="flex: 1">
+        <div class="tv-rank-list" id="epLinhas"></div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 13: Excesso de permanência — Média embarque/desemb. ═ -->
+    <div class="slide slide-excesso" id="slide13">
+      <div class="slide-titulo">
+        Excesso de permanência — média de embarque/desembarque por ponto
+      </div>
+      <div class="tv-rank-col" style="flex: 1">
+        <div class="tv-rank-list" id="epMediaPontos"></div>
+      </div>
+    </div>
+
     <!-- Barra progresso -->
     <div class="progress-bar" id="progressBar" style="width: 0%"></div>
 
@@ -1641,8 +1941,26 @@
       // ═══════════════════════════════════════════════════════
       let registros = [];
       let todosPCs = [];
+      let excedencias = []; // HISTORICO_EXCESSO — excesso de permanência
+      let descartes = []; // TEMPO_PERMANENCIA_STATUS — excedências descartadas com justificativa
       let slideAtual = 0;
-      const TOTAL_SLIDES = 8;
+      const TOTAL_SLIDES = 14;
+
+      // Motivos de descarte de excedência (não geraram ocorrência) —
+      // espelha MOTIVO_LABELS/MOTIVOS_DESCARTE/MOTIVO_CORES de
+      // tempo_permanencia.html, sem o "RELATORIO_GERADO" (esse já está
+      // contado em excedencias/HISTORICO_EXCESSO).
+      const MOTIVO_LABELS_EP = {
+        ANTECIPADO: "Chegou antecipadamente",
+        EMBARQUE: "Muito embarque/desembarque",
+        OCORRENCIA: "Teve ocorrência",
+      };
+      const MOTIVOS_DESCARTE_EP = ["ANTECIPADO", "EMBARQUE", "OCORRENCIA"];
+      const MOTIVO_CORES_EP = {
+        ANTECIPADO: "#f0c040",
+        EMBARQUE: "#22c97a",
+        OCORRENCIA: "#8b5cf6",
+      };
 
       let DURACAO_SLIDE = 60000;
       const REFRESH_MS = 15 * 60 * 1000;
@@ -1786,7 +2104,8 @@
         const cont = document.getElementById("apDots");
         for (let i = 0; i < TOTAL_SLIDES; i++) {
           const d = document.createElement("div");
-          d.className = "ap-dot" + (i === 0 ? " ativo" : "");
+          d.className =
+            "ap-dot" + (i >= 8 ? " dot-excesso" : "") + (i === 0 ? " ativo" : "");
           d.id = "dot" + i;
           cont.appendChild(d);
         }
@@ -1794,8 +2113,22 @@
       function atualizarDots(idx) {
         for (let i = 0; i < TOTAL_SLIDES; i++) {
           document.getElementById("dot" + i).className =
-            "ap-dot" + (i === idx ? " ativo" : "");
+            "ap-dot" +
+            (i >= 8 ? " dot-excesso" : "") +
+            (i === idx ? " ativo" : "");
         }
+      }
+
+      // Destaca no header em qual bloco a apresentação está (slides 0-7 =
+      // PC irregular, 8-12 = excesso de permanência) — ver .ap-secao-item.
+      function atualizarSecaoIndicador(idx) {
+        const emExcesso = idx >= 8;
+        document
+          .getElementById("secaoItemPC")
+          .classList.toggle("ativo", !emExcesso);
+        document
+          .getElementById("secaoItemExcesso")
+          .classList.toggle("ativo", emExcesso);
       }
 
       // ═══════════════════════════════════════════════════════
@@ -1807,6 +2140,9 @@
         });
         slideAtual = idx;
         atualizarDots(idx);
+        atualizarSecaoIndicador(idx);
+        document.getElementById("progressBar").style.background =
+          idx >= 8 ? "var(--vermelho)" : "var(--laranja)";
         if (idx === 2 && mapaApres)
           setTimeout(function () {
             mapaApres.invalidateSize();
@@ -1816,6 +2152,14 @@
         if (idx === 6 && chartsApres["vd"])
           setTimeout(function () {
             chartsApres["vd"].resize();
+          }, 150);
+        if (idx === 10 && chartsApres["epDonut"])
+          setTimeout(function () {
+            chartsApres["epDonut"].resize();
+          }, 150);
+        if (idx === 11 && chartsApres["ep"])
+          setTimeout(function () {
+            chartsApres["ep"].resize();
           }, 150);
         iniciarProgress();
       }
@@ -1896,8 +2240,10 @@
         isPaused = false;
         document.getElementById("apBadge").textContent = "⏳ Carregando";
         carregarDados(cfgIni, cfgFim);
+        carregarDadosExcesso(cfgIni, cfgFim);
         setInterval(function () {
           carregarDados(cfgIni, cfgFim);
+          carregarDadosExcesso(cfgIni, cfgFim);
         }, REFRESH_MS);
       }
 
@@ -2011,6 +2357,49 @@
           .getPCs();
       }
 
+      // Excesso de permanência — mesmas datas do modal, fontes distintas
+      // (HISTORICO_EXCESSO e TEMPO_PERMANENCIA_STATUS), independentes do
+      // carregamento de PC's não autorizado acima.
+      function carregarDadosExcesso(ini, fim) {
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try {
+              excedencias = JSON.parse(json || "[]");
+            } catch (e) {
+              excedencias = [];
+            }
+            renderExcessoPermanencia();
+          })
+          .withFailureHandler(function (e) {
+            excedencias = [];
+            renderExcessoPermanencia();
+            console.error(e);
+          })
+          .getHistoricoExcesso(ini, fim);
+
+        google.script.run
+          .withSuccessHandler(function (json) {
+            let lista = [];
+            try {
+              lista = JSON.parse(json || "[]");
+            } catch (e) {
+              lista = [];
+            }
+            descartes = lista.filter(
+              (r) => MOTIVOS_DESCARTE_EP.indexOf(r.motivo) !== -1,
+            );
+            renderMotivosDescarte();
+            renderMediaEmbarquePorPonto();
+          })
+          .withFailureHandler(function (e) {
+            descartes = [];
+            renderMotivosDescarte();
+            renderMediaEmbarquePorPonto();
+            console.error(e);
+          })
+          .getJustificativasPermanencia(ini, fim);
+      }
+
       // ═══════════════════════════════════════════════════════
       //  Renderização geral
       // ═══════════════════════════════════════════════════════
@@ -2023,6 +2412,13 @@
         renderBasesRegiaoTV();
         renderVisitasPorDia();
         renderRankingLinhasTV();
+      }
+
+      function renderExcessoPermanencia() {
+        renderKPIsExcesso();
+        renderRankingExcesso();
+        renderCalendarioExcesso();
+        renderLinhasExcesso();
       }
 
       // ─── KPIs (Slide 0) ───────────────────────────────────
@@ -2477,6 +2873,432 @@
       }
 
       // ─── Visitas por dia (Slide 6) ────────────────────────
+      // Monta o HTML do calendário mensal (grade .vd-cal-months) a partir de
+      // um mapa "data ISO → contagem" e do período (cfgIni/cfgFim). Extraído
+      // de renderVisitasPorDia() pra ser reaproveitado também pelo
+      // calendário de excesso de permanência (renderCalendarioExcesso).
+      function _construirCalendarioHTML(cont, rotuloItem) {
+        if (!cfgIni || !cfgFim) {
+          return '<div style="color:#555;font-size:16px">Sem período definido</div>';
+        }
+        const ini = new Date(cfgIni + "T00:00:00");
+        const fim = new Date(cfgFim + "T00:00:00");
+        const maxCount = Math.max(1, ...Object.values(cont));
+        const nivel = (c) => {
+          if (!c) return 0;
+          const r = c / maxCount;
+          if (r <= 0.25) return 1;
+          if (r <= 0.5) return 2;
+          if (r <= 0.75) return 3;
+          return 4;
+        };
+        const iso = (d) =>
+          d.getFullYear() +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getDate()).padStart(2, "0");
+
+        const MESES = [
+          "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+        ];
+        const DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+        // Lista de meses (ano-mês) cobertos pelo período
+        const meses = [];
+        let mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
+        const mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
+        while (mc <= mFim) {
+          meses.push(new Date(mc));
+          mc.setMonth(mc.getMonth() + 1);
+        }
+
+        let html = '<div class="vd-cal-months">';
+        meses.forEach((m) => {
+          const ano = m.getFullYear();
+          const mes = m.getMonth();
+          const primeiroDow = new Date(ano, mes, 1).getDay();
+          const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+          html += '<div class="vd-month">';
+          html +=
+            '<div class="vd-month-title">' +
+            MESES[mes] + " " + ano +
+            "</div>";
+          html +=
+            '<div class="vd-month-dow">' +
+            DOW.map((d) => "<span>" + d + "</span>").join("") +
+            "</div>";
+          html += '<div class="vd-month-grid">';
+          // células vazias antes do dia 1
+          for (let b = 0; b < primeiroDow; b++) {
+            html += '<span class="vd-day vazio"></span>';
+          }
+          for (let dia = 1; dia <= diasNoMes; dia++) {
+            const dataObj = new Date(ano, mes, dia);
+            const key = iso(dataObj);
+            const dentro = dataObj >= ini && dataObj <= fim;
+            const c = cont[key] || 0;
+            if (!dentro) {
+              html +=
+                '<span class="vd-day fora"><span class="vd-day-num">' +
+                dia + "</span></span>";
+            } else {
+              const t =
+                fmtBR(key) + " · " + c + " " + rotuloItem + (c !== 1 ? "s" : "");
+              html +=
+                '<span class="vd-day n' + nivel(c) +
+                '" title="' + t + '">' +
+                '<span class="vd-day-num">' + dia + "</span>" +
+                (c > 0 ? '<span class="vd-day-cnt">' + c + "</span>" : "") +
+                "</span>";
+            }
+          }
+          html += "</div></div>";
+        });
+        html += "</div>";
+        return html;
+      }
+
+      // ─── Excesso de permanência — KPIs (Slide 8) ──────────
+      function _fmtMinEP(min) {
+        const h = Math.floor(min / 60),
+          m = min % 60;
+        return h > 0 ? h + "h" + String(m).padStart(2, "0") : m + " min";
+      }
+
+      function renderKPIsExcesso() {
+        document.getElementById("epKTotal").textContent = excedencias.length;
+        document.getElementById("epKVeiculos").textContent = new Set(
+          excedencias.map((r) => r.veiculo).filter(Boolean),
+        ).size;
+
+        const cPonto = {},
+          cMot = {};
+        excedencias.forEach((r) => {
+          if (r.ponto) cPonto[r.ponto] = (cPonto[r.ponto] || 0) + 1;
+          if (r.motorista) cMot[r.motorista] = (cMot[r.motorista] || 0) + 1;
+        });
+        const topPonto = Object.entries(cPonto).sort((a, b) => b[1] - a[1])[0];
+        document.getElementById("epKPonto").textContent = topPonto
+          ? topPonto[0]
+          : "—";
+        document.getElementById("epKPontoSub").textContent = topPonto
+          ? topPonto[1] + " excedênci" + (topPonto[1] > 1 ? "as" : "a")
+          : "sem dados";
+
+        const maior = excedencias.reduce(
+          (m, r) => Math.max(m, r.excedenteMin || 0),
+          0,
+        );
+        const maiorReg = excedencias.find(
+          (r) => (r.excedenteMin || 0) === maior && maior > 0,
+        );
+        document.getElementById("epKMaior").textContent = maior
+          ? "+" + _fmtMinEP(maior)
+          : "—";
+        document.getElementById("epKMaiorSub").textContent = maiorReg
+          ? maiorReg.veiculo + " · " + (maiorReg.ponto || "—")
+          : "sem dados";
+
+        function renderMini(elId, dados) {
+          const el = document.getElementById(elId);
+          const top5 = Object.entries(dados)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+          el.innerHTML = top5.length
+            ? top5
+                .map(
+                  ([n, v]) =>
+                    '<li class="kpi-extra-item"><span class="kpi-extra-nome">' +
+                    n +
+                    '</span><span class="kpi-extra-cnt">' +
+                    v +
+                    "</span></li>",
+                )
+                .join("")
+            : '<li style="color:#555;padding:8px 0;font-size:14px">Sem dados</li>';
+        }
+        renderMini("epTopPontos", cPonto);
+        renderMini("epTopMotoristas", cMot);
+      }
+
+      // ─── Excesso de permanência — Ranking (Slide 9) ───────
+      function renderRankingExcesso() {
+        const cPonto = {},
+          cMot = {};
+        excedencias.forEach((r) => {
+          if (r.ponto) cPonto[r.ponto] = (cPonto[r.ponto] || 0) + 1;
+          if (r.motorista) cMot[r.motorista] = (cMot[r.motorista] || 0) + 1;
+        });
+
+        function renderTVList(elId, dados) {
+          const el = document.getElementById(elId);
+          const sorted = Object.entries(dados)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+          el.innerHTML =
+            sorted
+              .map(
+                ([nome, cnt], i) =>
+                  '<div class="tv-rank-item">' +
+                  '<div class="tv-rank-pos' +
+                  (i < 3 ? " top3" : "") +
+                  '">' +
+                  (i + 1) +
+                  "</div>" +
+                  '<div class="tv-rank-info"><div class="tv-rank-nome">' +
+                  nome +
+                  "</div></div>" +
+                  '<div class="tv-rank-cnt">' +
+                  cnt +
+                  "</div>" +
+                  "</div>",
+              )
+              .join("") ||
+            '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados</div>';
+        }
+        renderTVList("epRankPontos", cPonto);
+        renderTVList("epRankMotoristas", cMot);
+      }
+
+      // ─── Excesso de permanência — Motivos de descarte (Slide 10) ─
+      function renderMotivosDescarte() {
+        if (chartsApres["epDonut"]) {
+          chartsApres["epDonut"].destroy();
+          chartsApres["epDonut"] = null;
+        }
+        const cont = {};
+        descartes.forEach((r) => {
+          cont[r.motivo] = (cont[r.motivo] || 0) + 1;
+        });
+        const motivos = Object.keys(cont);
+        const total = descartes.length;
+
+        const canvas = document.getElementById("epDonutChart");
+        if (canvas && motivos.length) {
+          chartsApres["epDonut"] = new Chart(canvas, {
+            type: "doughnut",
+            data: {
+              labels: motivos.map((m) => MOTIVO_LABELS_EP[m] || m),
+              datasets: [
+                {
+                  data: motivos.map((m) => cont[m]),
+                  backgroundColor: motivos.map(
+                    (m) => (MOTIVO_CORES_EP[m] || "#888") + "cc",
+                  ),
+                  borderColor: "transparent",
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "bottom",
+                  labels: {
+                    color: "#ccc",
+                    font: { family: "Barlow", size: 13 },
+                    boxWidth: 14,
+                    padding: 12,
+                  },
+                },
+              },
+              cutout: "62%",
+            },
+          });
+        }
+
+        const listaEl = document.getElementById("epMotivosLista");
+        if (!listaEl) return;
+        const sorted = Object.entries(cont).sort((a, b) => b[1] - a[1]);
+        listaEl.innerHTML = sorted.length
+          ? sorted
+              .map(([m, v]) => {
+                const pct = total ? Math.round((v / total) * 100) : 0;
+                const cor = MOTIVO_CORES_EP[m] || "#888";
+                return (
+                  '<div class="bases-tv-item" style="flex-direction:column;align-items:flex-start;gap:6px">' +
+                  '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">' +
+                  '<span class="bases-tv-nome" style="display:flex;align-items:center;gap:8px">' +
+                  '<span style="width:10px;height:10px;border-radius:50%;background:' +
+                  cor +
+                  ';flex-shrink:0"></span>' +
+                  (MOTIVO_LABELS_EP[m] || m) +
+                  "</span>" +
+                  '<span class="bases-tv-cnt">' +
+                  v +
+                  " (" + pct + "%)" +
+                  "</span>" +
+                  "</div>" +
+                  '<div style="width:100%;height:4px;background:rgba(255,255,255,0.08);border-radius:2px">' +
+                  '<div style="width:' +
+                  pct +
+                  "%;height:100%;background:" +
+                  cor +
+                  ';border-radius:2px"></div>' +
+                  "</div>" +
+                  "</div>"
+                );
+              })
+              .join("")
+          : '<div style="color:#555;padding:20px 0;font-size:16px">Sem descartes justificados no período</div>';
+      }
+
+      // ─── Excesso de permanência — Média embarque/desembarque (Slide 13) ─
+      // Só usa os descartes com motivo "muito embarque/desembarque", já
+      // que é o único que guarda essa quantidade — mesmo critério do
+      // card "Média de embarque/desembarque por ponto" do dashboard em
+      // tempo_permanencia.html (_renderDashMediaPontos).
+      function renderMediaEmbarquePorPonto() {
+        const el = document.getElementById("epMediaPontos");
+        if (!el) return;
+
+        const embarqueItens = descartes.filter((r) => r.motivo === "EMBARQUE");
+        if (!embarqueItens.length) {
+          el.innerHTML =
+            '<div style="color:#555;padding:20px 0;font-size:16px">Sem casos de muito embarque/desembarque no período</div>';
+          return;
+        }
+
+        const porPonto = {}; // ponto -> { count, somaEmb, somaDesemb }
+        embarqueItens.forEach((r) => {
+          const k = r.ponto || "—";
+          if (!porPonto[k]) porPonto[k] = { count: 0, somaEmb: 0, somaDesemb: 0 };
+          porPonto[k].count++;
+          porPonto[k].somaEmb += Number(r.qtdEmbarque) || 0;
+          porPonto[k].somaDesemb += Number(r.qtdDesembarque) || 0;
+        });
+
+        const sorted = Object.keys(porPonto)
+          .map((ponto) => ({ ponto: ponto, dados: porPonto[ponto] }))
+          .sort((a, b) => b.dados.count - a.dados.count);
+
+        const fmt1 = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
+
+        el.innerHTML = sorted
+          .map((e) => {
+            const mediaEmb = fmt1(e.dados.somaEmb / e.dados.count);
+            const mediaDesemb = fmt1(e.dados.somaDesemb / e.dados.count);
+            return (
+              '<div class="ep-media-row">' +
+              '<span class="ep-media-ponto">' + e.ponto + "</span>" +
+              '<span class="ep-media-nums">' +
+              '<span class="ep-media-num">Embarque<b>' + mediaEmb + "</b></span>" +
+              '<span class="ep-media-num">Desembarque<b>' + mediaDesemb + "</b></span>" +
+              "</span>" +
+              '<span class="ep-media-count">' +
+              e.dados.count + " registro" + (e.dados.count !== 1 ? "s" : "") +
+              "</span>" +
+              "</div>"
+            );
+          })
+          .join("");
+      }
+
+      // ─── Excesso de permanência — Calendário (Slide 11) ───
+      function renderCalendarioExcesso() {
+        const cont = {};
+        excedencias.forEach((r) => {
+          if (r.data) cont[r.data] = (cont[r.data] || 0) + 1;
+        });
+
+        const calEl = document.getElementById("epCalendario");
+        if (calEl) calEl.innerHTML = _construirCalendarioHTML(cont, "excedência");
+
+        if (chartsApres["ep"]) {
+          chartsApres["ep"].destroy();
+          chartsApres["ep"] = null;
+        }
+        const dias = Object.keys(cont).sort();
+        const cv = document.getElementById("epChart");
+        if (cv && dias.length) {
+          chartsApres["ep"] = new Chart(cv, {
+            type: "line",
+            data: {
+              labels: dias.map((d) => fmtBR(d)),
+              datasets: [
+                {
+                  data: dias.map((d) => cont[d]),
+                  borderColor: "#e05050",
+                  backgroundColor: "rgba(224,80,80,0.08)",
+                  borderWidth: 2,
+                  pointRadius: 3,
+                  pointBackgroundColor: "#e05050",
+                  fill: true,
+                  tension: 0.3,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: {
+                  grid: { color: "rgba(255,255,255,0.05)" },
+                  ticks: { color: "#888", font: { size: 11 } },
+                },
+                y: {
+                  beginAtZero: true,
+                  grid: { color: "rgba(255,255,255,0.05)" },
+                  ticks: { color: "#888", font: { size: 11 }, precision: 0 },
+                },
+              },
+            },
+          });
+        }
+      }
+
+      // ─── Excesso de permanência — Linhas afetadas (Slide 12) ─
+      function renderLinhasExcesso() {
+        const cont = {};
+        excedencias.forEach((r) => {
+          const linha = (r.linha || "").trim();
+          if (!linha) return;
+          if (!cont[linha]) cont[linha] = { ocorrencias: 0, pontos: new Set() };
+          cont[linha].ocorrencias++;
+          cont[linha].pontos.add(r.ponto || "—");
+        });
+        const sorted = Object.entries(cont)
+          .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias)
+          .slice(0, 10);
+
+        function medalClass(i) {
+          if (i === 0) return "pos1";
+          if (i === 1) return "pos2";
+          if (i === 2) return "pos3";
+          return "other";
+        }
+
+        const el = document.getElementById("epLinhas");
+        if (!el) return;
+        if (!sorted.length) {
+          el.innerHTML =
+            '<div style="color:#555;padding:20px 0;font-size:16px">Sem dados de linha</div>';
+          return;
+        }
+        el.innerHTML = sorted
+          .map(([linha, d], i) => {
+            const locTxt =
+              d.pontos.size !== 1 ? d.pontos.size + " pontos" : "1 ponto";
+            return (
+              '<div class="linha-card">' +
+              '<div class="linha-medal ' + medalClass(i) + '">' + (i + 1) + "</div>" +
+              '<div class="linha-info"><div class="linha-rota">' + linha + "</div></div>" +
+              '<div class="linha-metricas">' +
+              '<div class="linha-count">' + d.ocorrencias + "</div>" +
+              '<div class="linha-locais">' + locTxt + "</div>" +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+      }
+
       function renderVisitasPorDia() {
         const cont = {};
         registros.forEach((r) => {
@@ -2485,91 +3307,7 @@
 
         // ── Calendário mensal ──
         const calEl = document.getElementById("vdCalendario");
-        if (calEl) {
-          if (!cfgIni || !cfgFim) {
-            calEl.innerHTML =
-              '<div style="color:#555;font-size:16px">Sem período definido</div>';
-          } else {
-            const ini = new Date(cfgIni + "T00:00:00");
-            const fim = new Date(cfgFim + "T00:00:00");
-            const maxCount = Math.max(1, ...Object.values(cont));
-            const nivel = (c) => {
-              if (!c) return 0;
-              const r = c / maxCount;
-              if (r <= 0.25) return 1;
-              if (r <= 0.5) return 2;
-              if (r <= 0.75) return 3;
-              return 4;
-            };
-            const iso = (d) =>
-              d.getFullYear() +
-              "-" +
-              String(d.getMonth() + 1).padStart(2, "0") +
-              "-" +
-              String(d.getDate()).padStart(2, "0");
-
-            const MESES = [
-              "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-              "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-            ];
-            const DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
-
-            // Lista de meses (ano-mês) cobertos pelo período
-            const meses = [];
-            let mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
-            const mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
-            while (mc <= mFim) {
-              meses.push(new Date(mc));
-              mc.setMonth(mc.getMonth() + 1);
-            }
-
-            let html = '<div class="vd-cal-months">';
-            meses.forEach((m) => {
-              const ano = m.getFullYear();
-              const mes = m.getMonth();
-              const primeiroDow = new Date(ano, mes, 1).getDay();
-              const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-
-              html += '<div class="vd-month">';
-              html +=
-                '<div class="vd-month-title">' +
-                MESES[mes] + " " + ano +
-                "</div>";
-              html +=
-                '<div class="vd-month-dow">' +
-                DOW.map((d) => "<span>" + d + "</span>").join("") +
-                "</div>";
-              html += '<div class="vd-month-grid">';
-              // células vazias antes do dia 1
-              for (let b = 0; b < primeiroDow; b++) {
-                html += '<span class="vd-day vazio"></span>';
-              }
-              for (let dia = 1; dia <= diasNoMes; dia++) {
-                const dataObj = new Date(ano, mes, dia);
-                const key = iso(dataObj);
-                const dentro = dataObj >= ini && dataObj <= fim;
-                const c = cont[key] || 0;
-                if (!dentro) {
-                  html +=
-                    '<span class="vd-day fora"><span class="vd-day-num">' +
-                    dia + "</span></span>";
-                } else {
-                  const t =
-                    fmtBR(key) + " · " + c + " parada" + (c !== 1 ? "s" : "");
-                  html +=
-                    '<span class="vd-day n' + nivel(c) +
-                    '" title="' + t + '">' +
-                    '<span class="vd-day-num">' + dia + "</span>" +
-                    (c > 0 ? '<span class="vd-day-cnt">' + c + "</span>" : "") +
-                    "</span>";
-                }
-              }
-              html += "</div></div>";
-            });
-            html += "</div>";
-            calEl.innerHTML = html;
-          }
-        }
+        if (calEl) calEl.innerHTML = _construirCalendarioHTML(cont, "parada");
 
         // ── Gráfico de linha (igual ao BI) ──
         if (chartsApres["vd"]) {
