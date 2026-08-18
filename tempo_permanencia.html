@@ -521,15 +521,28 @@
       .just-opcao-sub { font-size: 11px; color: var(--texto3); text-transform: none; white-space: normal; overflow-wrap: break-word; }
       .just-campos-extra { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; background: var(--preto3); border-radius: var(--radius-sm); border: 1px solid var(--borda2); margin-top: 2px; }
 
-      /* ── Card "Motivos de análise" no dashboard ────────────── */
-      .just-tabela-wrap { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; }
-      .just-tabela-row { padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
-      .just-tabela-row:last-child { border-bottom: none; }
-      .just-tabela-linha1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .just-tabela-veiculo { font-weight: 700; color: var(--texto); min-width: 56px; }
-      .just-tabela-ponto { flex: 1; min-width: 120px; color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .just-tabela-data { color: var(--texto3); font-size: 11px; flex-shrink: 0; }
-      .just-tabela-detalhe { margin-top: 3px; font-size: 11px; color: var(--texto3); }
+      /* ── Card "Motivos de análise" no dashboard ────────────────
+         Grid fixo (em vez de flex-wrap solto) pra veículo/ponto/data/tag
+         ficarem sempre alinhados em coluna, mesmo com nomes de ponto de
+         tamanhos bem diferentes — e uma faixa lateral colorida (mesma cor
+         do motivo) pra escanear a lista mais rápido. ── */
+      .just-tabela-wrap { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+      .just-tabela-row {
+        display: grid; grid-template-columns: 58px 1fr 88px auto; align-items: center; gap: 14px;
+        padding: 10px 12px; border-radius: var(--radius-sm);
+        border-left: 3px solid var(--just-cor, var(--cinza2));
+        background: var(--just-fundo, rgba(255,255,255,0.02));
+        font-size: 12px; transition: background 0.15s;
+      }
+      .just-tabela-row:hover { background: rgba(255,255,255,0.045); }
+      .just-tabela-linha1 { display: contents; }
+      .just-tabela-veiculo { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 14px; color: var(--texto); }
+      .just-tabela-ponto { color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .just-tabela-data { color: var(--texto3); font-size: 11px; text-align: right; }
+      .just-tabela-detalhe {
+        grid-column: 2 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);
+        font-size: 11px; color: var(--texto3); line-height: 1.5;
+      }
 
       /* Tag de motivo — usada na tabela do dashboard, no cabeçalho do
          grupo (acc-summary) e em cada .perm-item, sempre com a mesma
@@ -1785,7 +1798,7 @@
           if (r.observacao) detalhe += (detalhe ? "<br>" : "") + r.observacao;
 
           var cor = MOTIVO_CORES[r.motivo] || "#888";
-          return '<div class="just-tabela-row">' +
+          return '<div class="just-tabela-row" style="--just-cor:' + cor + ';--just-fundo:' + cor + '0d" title="' + (r.ponto || "").replace(/"/g, "&quot;") + '">' +
             '<div class="just-tabela-linha1">' +
               '<span class="just-tabela-veiculo">' + (r.veiculo || "—") + '</span>' +
               '<span class="just-tabela-ponto">' + (r.ponto || "—") + '</span>' +
