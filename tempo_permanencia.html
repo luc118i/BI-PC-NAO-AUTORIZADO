@@ -6,11 +6,6 @@
     <title>Tempo de Permanência · Viação Catedral</title>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <!-- unpkg.com não carrega nesse ambiente (testado: window.L fica
-         undefined mesmo sem extensões) — troca pro mesmo CDN do Chart.js
-         acima, que já comprovadamente funciona aqui. -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <style>
       /* ── CATEDRAL DESIGN SYSTEM (mesma paleta do dashboard) ──── */
       :root {
@@ -168,14 +163,6 @@
       .dash-graficos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; margin-bottom: 10px; }
       @media (max-width: 900px) { .dash-graficos { grid-template-columns: 1fr; } }
       .chart-wrap { position: relative; width: 100%; height: 240px; }
-
-      /* Mapa (Leaflet) — mesmo tema escuro do index.html */
-      .leaflet-container { font-family: "Barlow", sans-serif !important; }
-      .leaflet-popup-content-wrapper { background: var(--preto3); color: var(--texto); border: 1px solid var(--borda2); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
-      .leaflet-popup-tip { background: var(--preto3); }
-      .leaflet-popup-content { font-family: "Barlow", sans-serif; font-size: 12px; }
-      .leaflet-tile-pane { filter: brightness(0.6) saturate(0.4); }
-      #dashMapa { height: 320px; border-radius: var(--radius-sm); }
 
       /* Calendário de frequência — mesmo padrão bical-* do index.html */
       .bical-months { display: flex; flex-wrap: wrap; gap: 18px; }
@@ -569,7 +556,6 @@
       <a href="#dashGraficos" data-secao="dashGraficos"><span class="sg-dot"></span>Gráficos</a>
       <a href="#dashCardPontos" data-secao="dashCardPontos"><span class="sg-dot"></span>Top pontos</a>
       <a href="#dashGraficos2" data-secao="dashGraficos2"><span class="sg-dot"></span>Rankings</a>
-      <a href="#dashCardMapa" data-secao="dashCardMapa"><span class="sg-dot"></span>Mapa</a>
       <a href="#dashCardCalendario" data-secao="dashCardCalendario"><span class="sg-dot"></span>Calendário</a>
       <a href="#dashCardJustificativas" data-secao="dashCardJustificativas"><span class="sg-dot"></span>Motivos de análise</a>
       <div class="session-guide-sep"></div>
@@ -645,11 +631,6 @@
           <div class="card-title">Ranking de motoristas</div>
           <div class="rank-list" id="dashRankMotoristas"></div>
         </div>
-      </div>
-
-      <div class="card" id="dashCardMapa">
-        <div class="card-title">Mapa dos pontos de parada</div>
-        <div id="dashMapa"></div>
       </div>
 
       <div class="card" id="dashCardCalendario">
@@ -1817,7 +1798,6 @@
         document.getElementById("dashGraficos").classList.toggle("hidden", !lista.length);
         document.getElementById("dashCardPontos").classList.toggle("hidden", !lista.length);
         document.getElementById("dashGraficos2").classList.toggle("hidden", !lista.length);
-        document.getElementById("dashCardMapa").classList.toggle("hidden", !lista.length);
         document.getElementById("dashCardCalendario").classList.toggle("hidden", !lista.length);
 
         var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
@@ -1848,7 +1828,6 @@
         _renderDashChartPontos(lista);
         _renderDashRankLinhas(lista);
         _renderDashRankMotoristas(lista);
-        _renderDashMapa(lista);
         _renderDashCalendario(lista);
       }
 
@@ -1941,58 +1920,6 @@
             '<span class="rank-count">' + e[1] + '</span>' +
           '</div>';
         }).join("");
-      }
-
-      var _dashMap = null;
-      var _dashMapMarkers = [];
-
-      function _renderDashMapa(lista) {
-        if (!window.L) return;
-        if (!_dashMap) {
-          _dashMap = L.map("dashMapa", { scrollWheelZoom: false }).setView([-15.78, -47.93], 4);
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenStreetMap",
-          }).addTo(_dashMap);
-        }
-        _dashMapMarkers.forEach(function (m) { _dashMap.removeLayer(m); });
-        _dashMapMarkers = [];
-
-        var cont = {}; // "lat,lng" -> { lat, lng, ponto, count }
-        lista.forEach(function (r) {
-          if (r.lat == null || r.lng == null) return;
-          var k = r.lat + "," + r.lng;
-          if (!cont[k]) cont[k] = { lat: r.lat, lng: r.lng, ponto: r.ponto, count: 0 };
-          cont[k].count++;
-        });
-
-        // O mapa é pra destacar onde o carro mais fica retido, não listar
-        // todo ponto com pelo menos 1 ocorrência — mesmo critério (nº de
-        // ocorrências) e mesmo limite do gráfico "Top pontos" ao lado.
-        var pontos = Object.values(cont)
-          .sort(function (a, b) { return b.count - a.count; })
-          .slice(0, 10);
-
-        if (pontos.length) {
-          pontos.forEach(function (p) {
-            var raio = 6 + Math.min(14, p.count * 2);
-            var marker = L.circleMarker([p.lat, p.lng], {
-              radius: raio, color: "#f47920", fillColor: "#f47920", fillOpacity: 0.6, weight: 2,
-            }).bindPopup(
-              "<strong>" + p.ponto + "</strong><br>" + p.count + " ocorrência" + (p.count !== 1 ? "s" : ""),
-            );
-            marker.addTo(_dashMap);
-            _dashMapMarkers.push(marker);
-          });
-
-          var bounds = L.latLngBounds(pontos.map(function (p) { return [p.lat, p.lng]; }));
-          _dashMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
-        }
-
-        // Sempre reajusta o tamanho, mesmo sem nenhum ponto com lat/lng —
-        // sem isso o mapa podia ficar preso cinza/mal renderizado (o
-        // container só é revelado/redimensionado depois que o Leaflet já
-        // tinha calculado as tiles com base num tamanho desatualizado).
-        setTimeout(function () { if (_dashMap) _dashMap.invalidateSize(); }, 100);
       }
 
       var MESES_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
