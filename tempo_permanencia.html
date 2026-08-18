@@ -151,6 +151,10 @@
       .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
       .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
 
+      /* ── Divisor entre seções da página — só um respiro visual pra dar
+         noção de onde uma seção termina e a próxima começa ao rolar. ── */
+      .secao-hr { border: none; border-top: 1px solid var(--borda); margin: 26px 0; }
+
       /* ── DASHBOARD HISTÓRICO ─────────────────────────────── */
       .dash-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
       .dash-header h2 { font-family: "Barlow Condensed", sans-serif; font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--texto); }
@@ -634,6 +638,8 @@
         <div class="estado-vazio">Nenhum relatório de excesso de permanência gerado no período selecionado.</div>
       </div>
 
+      <hr class="secao-hr" />
+
       <div class="dash-graficos" id="dashGraficos">
         <div class="card">
           <div class="card-title">Excedências por dia</div>
@@ -644,10 +650,15 @@
           <div class="chart-wrap"><canvas id="dashChartRegiao"></canvas></div>
         </div>
       </div>
+
+      <hr class="secao-hr" />
+
       <div class="card" id="dashCardPontos">
         <div class="card-title">Top pontos de parada</div>
         <div class="chart-wrap" style="height:260px"><canvas id="dashChartPontos"></canvas></div>
       </div>
+
+      <hr class="secao-hr" />
 
       <div class="dash-graficos" id="dashGraficos2">
         <div class="card">
@@ -660,10 +671,14 @@
         </div>
       </div>
 
+      <hr class="secao-hr" />
+
       <div class="card" id="dashCardCalendario">
         <div class="card-title">Calendário de frequência</div>
         <div id="dashCalendario"></div>
       </div>
+
+      <hr class="secao-hr" />
 
       <!-- Excedências descartadas na análise (não viraram ocorrência) —
            alimentado por TEMPO_PERMANENCIA_STATUS via
@@ -706,7 +721,9 @@
         </div>
       </div>
 
-      <div class="dash-header" id="secNovaAnalise" style="margin-top:28px;border-top:1px solid var(--borda);padding-top:20px">
+      <hr class="secao-hr" />
+
+      <div class="dash-header" id="secNovaAnalise">
         <h2 style="font-size:14px;color:var(--texto2)">Nova análise (CSV pontual)</h2>
       </div>
 
