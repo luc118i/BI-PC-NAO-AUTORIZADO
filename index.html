@@ -157,6 +157,7 @@
       .popup-linha { display: flex; justify-content: space-between; gap: 12px; color: var(--texto2); margin-top: 3px; }
       .popup-valor { font-weight: 600; color: var(--texto); }
       .leaflet-tile-pane { filter: brightness(0.6) saturate(0.4); }
+      .mapa-pin-icon { background: transparent; border: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5)); }
 
       /* ── RANKING TABLE ───────────────────────────────────── */
       .rank-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -2137,6 +2138,18 @@
 
       let mapaLayerGroup = null;
 
+      // Bandeirinha/pin (em vez do círculo padrão do Leaflet) — mesmo
+      // formato de "gota" com furo branco no meio de um marcador de mapa
+      // comum, só que colorido dinamicamente (laranja = visitado, cinza =
+      // sem visita) e escalado pelo nº de visitas.
+      function _pinIconHtml(cor, largura) {
+        var altura = Math.round(largura * 1.5);
+        return '<svg width="' + largura + '" height="' + altura + '" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">' +
+          '<path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="' + cor + '" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>' +
+          '<circle cx="12" cy="12" r="5.5" fill="#fff"/>' +
+        '</svg>';
+      }
+
       function renderMapa(regs) {
         if (!mapa) return;
         if (mapaLayerGroup) { mapaLayerGroup.clearLayers(); }
@@ -2158,13 +2171,20 @@
           if (!pc.lat || !pc.lng) return;
           const info = contPC[pc.codigo] || null;
           const visitas = info ? info.visitas : 0;
-          const raio = visitas > 0 ? 8 + (visitas / maxVisitas) * 22 : 5;
+          const largura = visitas > 0 ? 22 + (visitas / maxVisitas) * 22 : 16;
+          const altura  = Math.round(largura * 1.5);
           const cor  = visitas > 0 ? "#f47920" : "#555555";
-          const opacidade = visitas > 0 ? 0.85 : 0.35;
+          const opacidade = visitas > 0 ? 0.95 : 0.55;
 
-          const circ = L.circleMarker([pc.lat, pc.lng], {
-            radius: raio, fillColor: cor, color: visitas > 0 ? "#fff" : "#333",
-            weight: visitas > 0 ? 1.5 : 1, opacity: 0.8, fillOpacity: opacidade
+          const pin = L.marker([pc.lat, pc.lng], {
+            icon: L.divIcon({
+              className: "mapa-pin-icon",
+              html: _pinIconHtml(cor, largura),
+              iconSize: [largura, altura],
+              iconAnchor: [largura / 2, altura],
+              popupAnchor: [0, -altura],
+            }),
+            opacity: opacidade,
           });
 
           const nomeExib = pc.descResumida || pc.descCompleta || pc.codigo;
@@ -2175,8 +2195,8 @@
             (visitas > 0 ? '<div class="popup-linha"><span>Motoristas:</span><span class="popup-valor">' + info.motoristas.size + '</span></div>' +
               '<div style="margin-top:6px;font-size:11px;color:#aaa">' + motoristasStr + '</div>' : '');
 
-          circ.bindPopup(popup, { maxWidth: 260 });
-          mapaLayerGroup.addLayer(circ);
+          pin.bindPopup(popup, { maxWidth: 260 });
+          mapaLayerGroup.addLayer(pin);
         });
 
         // Ajusta o zoom se houver pontos visitados
