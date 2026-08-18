@@ -541,6 +541,17 @@
         grid-column: 2 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);
         font-size: 11px; color: var(--texto3); line-height: 1.5;
       }
+      /* Cabeçalho de grupo — aparece quando #justAgruparSel não está em
+         "Sem agrupamento" (ver _renderJustTabela()). */
+      .just-grupo-titulo {
+        display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; padding: 0 2px;
+        font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.06em;
+      }
+      .just-grupo-titulo:first-child { margin-top: 0; }
+      .just-grupo-count {
+        font-size: 10px; font-weight: 700; color: var(--texto2); background: rgba(255,255,255,0.06);
+        border-radius: 8px; padding: 1px 7px;
+      }
 
       /* Tag de motivo — usada na tabela do dashboard, no cabeçalho do
          grupo (acc-summary) e em cada .perm-item, sempre com a mesma
@@ -717,6 +728,16 @@
             <div class="kpi-value" id="justKApoio">—</div>
             <div class="kpi-sub" id="justKApoioSub">—</div>
           </div>
+        </div>
+
+        <div class="filtro-bar" style="margin-bottom:10px">
+          <label for="justAgruparSel" style="font-size:11px;color:var(--texto2)">Agrupar por</label>
+          <select id="justAgruparSel" onchange="_renderJustTabela()">
+            <option value="">Sem agrupamento</option>
+            <option value="motivo">Tipo</option>
+            <option value="ponto">Local</option>
+            <option value="veiculo">Veículo</option>
+          </select>
         </div>
 
         <div class="dash-graficos" style="grid-template-columns:1fr 1.4fr">
@@ -1785,9 +1806,27 @@
           },
         });
 
-        // Tabela detalhada — mais recente primeiro
+        // Tabela detalhada — guarda a lista atual pra _renderJustTabela()
+        // poder reagrupar (select "Agrupar por") sem precisar buscar de novo.
+        _justListaAtual = lista;
+        _renderJustTabela();
+
+        _renderDashMediaPontos(embarqueItens);
+      }
+
+      var _justListaAtual = []; // cache da lista atual — ver _renderJustTabela()
+
+      // Renderiza (ou reagrupa, via #justAgruparSel) a tabela detalhada de
+      // motivos de análise — mais recente primeiro dentro de cada grupo,
+      // ou sem grupo nenhum quando "Sem agrupamento" está selecionado.
+      function _renderJustTabela() {
+        var lista = _justListaAtual;
+        var el = document.getElementById("justTabela");
+        if (!lista.length) { el.innerHTML = ""; return; }
+
         var ordenada = lista.slice().sort(function (a, b) { return (b.entrada || "").localeCompare(a.entrada || ""); });
-        document.getElementById("justTabela").innerHTML = ordenada.map(function (r) {
+
+        var linhaHtml = function (r) {
           var detalhe = "";
           if (r.motivo === "EMBARQUE") {
             detalhe = "Embarque: <b>" + (r.qtdEmbarque || 0) + "</b> · Desembarque: <b>" + (r.qtdDesembarque || 0) + "</b> · Apoio da rodoviária: <b>" +
@@ -1805,9 +1844,27 @@
             '</div>' +
             (detalhe ? '<div class="just-tabela-detalhe">' + detalhe + '</div>' : '') +
           '</div>';
-        }).join("");
+        };
 
-        _renderDashMediaPontos(embarqueItens);
+        var agruparPor = (document.getElementById("justAgruparSel") || {}).value || "";
+        if (!agruparPor) { el.innerHTML = ordenada.map(linhaHtml).join(""); return; }
+
+        var campoPorGrupo = { motivo: "motivo", ponto: "ponto", veiculo: "veiculo" };
+        var campo = campoPorGrupo[agruparPor];
+        var grupos = {}; // chave -> { label, itens: [...] }
+        ordenada.forEach(function (r) {
+          var chave = r[campo] || "—";
+          var label = agruparPor === "motivo" ? (MOTIVO_LABELS[chave] || chave) : chave;
+          if (!grupos[chave]) grupos[chave] = { label: label, itens: [] };
+          grupos[chave].itens.push(r);
+        });
+        var chaves = Object.keys(grupos).sort(function (a, b) { return grupos[b].itens.length - grupos[a].itens.length; });
+        el.innerHTML = chaves.map(function (k) {
+          var g = grupos[k];
+          return '<div class="just-grupo-titulo">' + g.label +
+            '<span class="just-grupo-count">' + g.itens.length + '</span></div>' +
+            g.itens.map(linhaHtml).join("");
+        }).join("");
       }
 
       // Média de embarque/desembarque por ponto — só usa os descartes com
