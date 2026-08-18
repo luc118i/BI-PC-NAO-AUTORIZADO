@@ -1474,6 +1474,7 @@
 
         document.getElementById("relatorioParadaTitulo").lastChild.textContent = " Gerar Relatório — Parada Irregular";
         document.getElementById("relResumoGrupo").classList.add("hidden");
+        document.getElementById("relDataGrupoWrap").classList.add("hidden");
         document.getElementById("relResumoSingle").classList.remove("hidden");
 
         document.getElementById("relVeiculo").textContent = r.veiculo || "—";
@@ -1539,6 +1540,12 @@
         document.getElementById("relResumoGrupo").classList.remove("hidden");
         document.getElementById("relVeiculoGrupo").textContent = veiculo || "—";
         _renderResumoGrupoLista();
+
+        // Data de início da viagem — 1 relatório em grupo é 1 viagem só,
+        // então usa a data da 1ª parada como sugestão (editável, igual ao
+        // fluxo individual — ver _criarOcorrenciaParadaGrupo).
+        document.getElementById("relDataGrupo").value = _dataHoraPartes(itens[0].r.entrada).data || "";
+        document.getElementById("relDataGrupoWrap").classList.remove("hidden");
 
         document.getElementById("relLinhaBusca").value = "";
         document.getElementById("relMotoristaBusca").value = "";
@@ -1700,6 +1707,12 @@
       function _criarOcorrenciaParadaGrupo(itens) {
         var primeira = itens[0].r;
         var entradaP = _dataHoraPartes(primeira.entrada);
+        // Data de início da viagem — editável no campo "Data" do resumo
+        // (input#relDataGrupo). Vale pra TODAS as paradas do grupo (a API
+        // grava o mesmo eventDate em cada ponto — é 1 viagem só, ver
+        // occurrences.service.ts). Cai pra data da 1ª parada se vazio.
+        var relDataGrupoEl = document.getElementById("relDataGrupo");
+        var dataViagem = (relDataGrupoEl && relDataGrupoEl.value) || entradaP.data;
 
         var points = itens.map(function (it) {
           var r = it.r;
@@ -1718,8 +1731,8 @@
         return _authGarantirTokenValido().then(function () {
           var payload = {
             typeCode: "DESCUMP_OP_PARADA_FORA",
-            eventDate: entradaP.data,
-            tripDate: entradaP.data,
+            eventDate: dataViagem,
+            tripDate: dataViagem,
             startTime: points[0].startTime,
             endTime: points[points.length - 1].endTime,
             vehicleNumber: primeira.veiculo,
@@ -3560,6 +3573,11 @@
           <div class="oc-field hidden" id="relResumoGrupo">
             <label>Veículo <strong id="relVeiculoGrupo" class="oc-field-copy" style="color:var(--texto);font-weight:700" onclick="event.stopPropagation();_copiarValorCampo(this)" title="Clique para copiar"></strong> — paradas incluídas neste relatório</label>
             <div class="rel-grupo-lista" id="relResumoGrupoLista"></div>
+          </div>
+
+          <div class="oc-field hidden" id="relDataGrupoWrap">
+            <label>Data de início da viagem</label>
+            <input type="date" id="relDataGrupo" style="max-width:180px" title="Data usada em todas as paradas deste relatório (é 1 viagem só) — corrija se a viagem começou em outro dia" />
           </div>
 
           <div class="oc-field">
