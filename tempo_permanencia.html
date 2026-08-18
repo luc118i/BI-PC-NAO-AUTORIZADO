@@ -363,7 +363,22 @@
         backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
       }
       .oc-overlay.hidden { display: none; }
-      .oc-panel { background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-panel { position: relative; background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+
+      /* Overlay de carregamento (fundo desfocado + spinner no meio) —
+         cobre o painel inteiro enquanto o relatório está sendo gerado.
+         Some assim que a geração termina (sucesso ou erro). Mesmo padrão
+         do index.html (Parada Irregular). */
+      .oc-loading-overlay {
+        position: absolute; inset: 0; z-index: 20; border-radius: var(--radius);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+        background: rgba(17,17,17,0.55);
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      .oc-loading-overlay.hidden { display: none; }
+      .oc-spinner { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--laranja); border-radius: 50%; animation: oc-spin 0.7s linear infinite; }
+      .oc-loading-text { font-size: 12.5px; font-weight: 600; color: var(--texto2); letter-spacing: 0.02em; text-align: center; padding: 0 24px; }
+      @keyframes oc-spin { to { transform: rotate(360deg); } }
       .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
       .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
       .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
@@ -3114,6 +3129,7 @@
         document.getElementById("relStatus").className = "oc-status";
         document.getElementById("relBtnGerar").disabled = false;
         document.getElementById("relBtnGerar").textContent = "Gerar relatório";
+        _esconderLoadingModal();
         document.getElementById("relPreview").classList.add("hidden");
         document.querySelectorAll("#relPreview .oc-copy-btn").forEach(function (b) {
           b.innerHTML = _icon("copy", 12) + " Copiar";
@@ -3719,6 +3735,23 @@
         var el = document.getElementById("relStatus");
         el.innerHTML = msg;
         el.className = "oc-status" + (tipo ? " " + tipo : "");
+        // Espelha a mensagem no overlay de carregamento (quando visível) —
+        // assim quem tá vendo o spinner acompanha "Criando ocorrência...",
+        // "Enviando evidências...", etc. sem precisar ler atrás do blur.
+        var overlayTxt = document.getElementById("relLoadingText");
+        if (overlayTxt) overlayTxt.textContent = msg;
+      }
+
+      // Mostra/esconde o overlay de carregamento (fundo desfocado + spinner)
+      // da modal "Gerar Relatório" — cobre o painel inteiro enquanto a
+      // ocorrência/PDF estão sendo gerados.
+      function _mostrarLoadingModal() {
+        var ov = document.getElementById("relLoadingOverlay");
+        if (ov) ov.classList.remove("hidden");
+      }
+      function _esconderLoadingModal() {
+        var ov = document.getElementById("relLoadingOverlay");
+        if (ov) ov.classList.add("hidden");
       }
 
       function _dataHoraPartes(dtStr) {
@@ -4270,12 +4303,14 @@
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
         btn.textContent = "Gerando...";
+        _mostrarLoadingModal();
         _setRelStatus("Criando ocorrência...", "");
 
         var item = _relItemAtual;
 
         _criarOcorrenciaEBaixarPdf(item, null)
           .then(function (res) {
+            _esconderLoadingModal();
             var status = document.getElementById("relStatus");
             status.innerHTML = _icon("check") + ' Relatório enviado ao Drive! <a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>';
             status.className = "oc-status ok";
@@ -4285,6 +4320,7 @@
             _mostrarPreview(item, res.nomeArquivo, _relLinhaSelecionada);
           })
           .catch(function (err) {
+            _esconderLoadingModal();
             _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório"), "err");
             btn.disabled = false;
             btn.textContent = "Gerar relatório";
@@ -4308,6 +4344,7 @@
         var btn = document.getElementById("relBtnGerar");
         btn.disabled = true;
         btn.textContent = "Gerando...";
+        _mostrarLoadingModal();
 
         var itens = _relGrupoIdxs.map(function (idx) { return _relatorioItens[idx]; }).filter(Boolean);
         var total = itens.length;
@@ -4327,6 +4364,7 @@
             return _gerarEBaixarPdfGrupo(occurrenceIds, itens[0]);
           })
           .then(function (res) {
+            _esconderLoadingModal();
             _setRelStatus(_icon("check") + " Relatório enviado ao Drive (" + total + " pontos)! " +
               '<a href="' + res.url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline;margin-left:6px">Abrir no Drive</a>', "ok");
             _relGerado = true;
@@ -4335,6 +4373,7 @@
             _mostrarPreviewGrupo(itens, res.nomeArquivo, _relLinhaSelecionada);
           })
           .catch(function (err) {
+            _esconderLoadingModal();
             _setRelStatus(_icon("x") + " " + (err.message || "Erro ao gerar relatório") +
               (occurrenceIds.length ? " (" + occurrenceIds.length + " de " + total + " ocorrências já criadas)" : ""), "err");
             btn.disabled = false;
@@ -4346,6 +4385,11 @@
     <!-- ── MODAL GERAR RELATÓRIO ────────────────────────────────── -->
     <div class="oc-overlay hidden" id="relatorioModal" onclick="if(event.target===this)fecharModalRelatorio()">
       <div class="oc-panel">
+
+        <div class="oc-loading-overlay hidden" id="relLoadingOverlay">
+          <div class="oc-spinner"></div>
+          <div class="oc-loading-text" id="relLoadingText">Gerando relatório...</div>
+        </div>
 
         <div class="oc-header">
           <h3 id="relModalTitulo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg> Gerar Relatório — Excesso de Permanência</h3>
