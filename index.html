@@ -1384,6 +1384,7 @@
         document.getElementById("relVeiculo").textContent = r.veiculo || "—";
         document.getElementById("relPonto").textContent = r.descResumida || r.ponto || "—";
         document.getElementById("relRegiao").textContent = (r.regiao || "—") + (r.uf ? " · " + r.uf : "");
+        document.getElementById("relData").textContent = _fmtData(r.entrada) || "—";
         document.getElementById("relEntrada").textContent = _fmtHM(r.entrada);
         document.getElementById("relSaida").textContent = _fmtHM(r.saida);
         document.getElementById("relDuracao").textContent = r.parada || "—";
@@ -1485,7 +1486,7 @@
           return '<div class="rel-grupo-item">' +
             '<span class="rel-grupo-ponto oc-field-copy" onclick="_copiarValorCampo(this)" title="Clique para copiar">' + (r.descResumida || r.ponto || "—") + '</span>' +
             '<div class="rel-grupo-right">' +
-              '<span class="rel-grupo-meta">' + (r.regiao || "—") + ' · ' + _fmtHM(r.entrada) + '–' + _fmtHM(r.saida) + ' · ' + (r.parada || "—") + '</span>' +
+              '<span class="rel-grupo-meta">' + (r.regiao || "—") + ' · ' + (_fmtData(r.entrada) || "—") + ' · ' + _fmtHM(r.entrada) + '–' + _fmtHM(r.saida) + ' · ' + (r.parada || "—") + '</span>' +
               (_relGrupoItens.length > 1
                 ? '<button type="button" class="rel-grupo-remover" title="Remover esta parada do relatório" onclick="_removerItemGrupoRelatorio(' + pos + ')">' + _icon("x", 14) + '</button>'
                 : '') +
@@ -3401,6 +3402,10 @@
             <div class="oc-field">
               <label>Duração da parada</label>
               <strong id="relDuracao" style="color:var(--vermelho)">—</strong>
+            </div>
+            <div class="oc-field">
+              <label>Data</label>
+              <span id="relData">—</span>
             </div>
             <div class="oc-field">
               <label>Entrada</label>
