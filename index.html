@@ -411,12 +411,28 @@
       .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
       .oc-field span, .oc-field strong { font-size: 13px; color: var(--texto); }
       .oc-field input, .oc-field select { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 7px 10px; border-radius: var(--radius-sm); width: 100%; }
+      .oc-field select { color-scheme: dark; cursor: pointer; }
       .oc-field input:focus, .oc-field select:focus { outline: none; border-color: var(--laranja); }
       .oc-field select option { background: var(--preto3); }
       .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
       .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
       .oc-status.ok { color: var(--verde); }
       .oc-status.err { color: var(--vermelho); }
+
+      /* Perfil resumido do motorista — recorrência de tratativas no mês
+         corrente (GET /drivers/:id/stats), pra decidir a tratativa deste
+         relatório já sabendo o histórico, em vez de tudo virar "Registro"
+         por padrão. Ver _carregarPerfilMotorista(). */
+      .oc-motorista-perfil { margin-top: 8px; padding: 8px 10px; background: var(--preto3); border: 1px solid var(--borda2); border-radius: var(--radius-sm); font-size: 11px; }
+      .oc-motorista-perfil-head { display: flex; align-items: center; justify-content: space-between; color: var(--texto3); }
+      .oc-motorista-perfil-total { font-weight: 700; color: var(--texto2); }
+      .oc-motorista-perfil-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      .oc-motorista-perfil-vazio { margin-top: 4px; color: var(--texto3); }
+      .tratativa-chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
+      .tratativa-chip.reg  { color: var(--texto2); border-color: var(--cinza2); background: rgba(255,255,255,0.03); }
+      .tratativa-chip.adv  { color: var(--amarelo); border-color: var(--amarelo); background: rgba(240,192,64,0.1); }
+      .tratativa-chip.vale { color: var(--vermelho); border-color: var(--vermelho); background: rgba(224,80,80,0.1); }
+      .tratativa-chip.susp { color: #a78bfa; border-color: #a78bfa; background: rgba(167,139,250,0.12); }
 
       /* Dropdown de autocomplete (linha / motorista) — portado de
          tempo_permanencia.html pro fluxo "Gerar Relatório" desta tela. */
@@ -1322,6 +1338,44 @@
         sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
           '<button type="button" onclick="_limparMotorista()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
+        _carregarPerfilMotorista(d);
+      }
+
+      // ── Perfil resumido do motorista (GET {REPORTS_API_URL}/drivers/:id/stats) —
+      //    quantas tratativas ele já teve no mês corrente, pra decidir a
+      //    tratativa deste relatório com o histórico à vista em vez de
+      //    tudo virar "Registro" no automático. ──────────────────────────
+      function _carregarPerfilMotorista(d) {
+        var el = document.getElementById("relMotoristaPerfil");
+        if (!d || !d.id) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+
+        el.innerHTML = '<span style="color:var(--texto3)">Carregando histórico do motorista...</span>';
+        el.classList.remove("hidden");
+
+        fetch(REPORTS_API_URL + "/drivers/" + d.id + "/stats")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (!_relMotoristaSelecionado || _relMotoristaSelecionado.id !== d.id) return; // trocou de motorista enquanto carregava
+            var s = (json && json.data) || {};
+            var registro = Math.max(0, (s.total || 0) - (s.advertencia || 0) - (s.vale || 0) - (s.suspensao || 0));
+            var chip = function (cls, qtd, singular, plural) {
+              return qtd ? '<span class="tratativa-chip ' + cls + '">' + qtd + ' ' + (qtd === 1 ? singular : plural) + '</span>' : '';
+            };
+            var badges = chip("susp", s.suspensao, "suspensão", "suspensões") +
+              chip("vale", s.vale, "vale", "vales") +
+              chip("adv", s.advertencia, "advertência", "advertências") +
+              chip("reg", registro, "registro", "registros");
+
+            el.innerHTML = '<div class="oc-motorista-perfil-head">' +
+                '<span>Histórico em ' + (s.periodLabel || "—") + '</span>' +
+                '<span class="oc-motorista-perfil-total">' + (s.total || 0) + ' ocorrência' + (s.total === 1 ? "" : "s") + '</span>' +
+              '</div>' +
+              (badges ? '<div class="oc-motorista-perfil-badges">' + badges + '</div>' : '<div class="oc-motorista-perfil-vazio">Nenhuma ocorrência neste mês.</div>');
+          })
+          .catch(function () {
+            if (!_relMotoristaSelecionado || _relMotoristaSelecionado.id !== d.id) return;
+            el.innerHTML = '<span style="color:var(--vermelho)">Erro ao carregar histórico do motorista.</span>';
+          });
       }
 
       // ── Cadastrar motorista na hora (POST {REPORTS_API_URL}/drivers) —
@@ -1388,6 +1442,8 @@
       function _limparMotorista() {
         _relMotoristaSelecionado = null;
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").innerHTML = "";
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").value = "";
         document.getElementById("relMotoristaBusca").focus();
@@ -1491,6 +1547,9 @@
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relLinhaSelecionada").classList.add("hidden");
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").innerHTML = "";
+        document.getElementById("relTratativa").value = "REGISTRO";
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
         _renderEvidGrid(); // zera grid + contador + estado da zona (nova modal aberta)
@@ -1553,6 +1612,9 @@
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relLinhaSelecionada").classList.add("hidden");
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").classList.add("hidden");
+        document.getElementById("relMotoristaPerfil").innerHTML = "";
+        document.getElementById("relTratativa").value = "REGISTRO";
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
         _renderEvidGrid();
@@ -1635,6 +1697,14 @@
       // evidências já escolhidas no modal. O webhook da API já grava a
       // aba "Histórico" sozinho (ver comentário no topo deste bloco) —
       // não precisamos chamar addOcorrencia aqui.
+      // Tratativa escolhida no select #relTratativa (Registro/Advertência/
+      // Vale/Suspensão) — com base no perfil do motorista (ver
+      // _carregarPerfilMotorista), em vez de tudo sair fixo como "Registro".
+      function _obterTratativaSelecionada() {
+        var el = document.getElementById("relTratativa");
+        return (el && el.value) || "REGISTRO";
+      }
+
       function _criarOcorrenciaParada(item) {
         var entradaP = _dataHoraPartes(item.entrada);
         var saidaP = _dataHoraPartes(item.saida);
@@ -1666,7 +1736,7 @@
             showSectionTripulacao: true,
             showSectionPassageiros: false,
             devolutivaBeforeEvidences: false,
-            tratativa: "REGISTRO",
+            tratativa: _obterTratativaSelecionada(),
             analisadoPor: _obterUsuarioAtual(),
             analisadoPorUserId: _obterUsuarioIdAtual(),
           };
@@ -1748,7 +1818,7 @@
             showSectionTripulacao: true,
             showSectionPassageiros: false,
             devolutivaBeforeEvidences: false,
-            tratativa: "REGISTRO",
+            tratativa: _obterTratativaSelecionada(),
             analisadoPor: _obterUsuarioAtual(),
             analisadoPorUserId: _obterUsuarioIdAtual(),
           };
@@ -3592,6 +3662,20 @@
             <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
             <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
             <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
+            <!-- Perfil resumido do motorista (recorrência no mês) — carregado
+                 assim que um motorista é selecionado, ver
+                 _carregarPerfilMotorista()/_aplicarMotoristaSelecionado(). -->
+            <div class="oc-motorista-perfil hidden" id="relMotoristaPerfil"></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Tratativa</label>
+            <select id="relTratativa">
+              <option value="REGISTRO">Só registro</option>
+              <option value="ADVERTENCIA">Advertência</option>
+              <option value="VALE">Vale</option>
+              <option value="SUSPEICAO">Suspensão</option>
+            </select>
           </div>
 
           <div class="oc-field">
