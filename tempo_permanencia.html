@@ -524,13 +524,11 @@
       /* ── Card "Motivos de análise" no dashboard ────────────────
          Grid fixo (em vez de flex-wrap solto) pra veículo/ponto/data/tag
          ficarem sempre alinhados em coluna, mesmo com nomes de ponto de
-         tamanhos bem diferentes — e uma faixa lateral colorida (mesma cor
-         do motivo) pra escanear a lista mais rápido. ── */
+         tamanhos bem diferentes. ── */
       .just-tabela-wrap { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
       .just-tabela-row {
         display: grid; grid-template-columns: 58px 1fr 88px auto; align-items: center; gap: 14px;
         padding: 10px 12px; border-radius: var(--radius-sm);
-        border-left: 3px solid var(--just-cor, var(--cinza2));
         background: var(--just-fundo, rgba(255,255,255,0.02));
         font-size: 12px; transition: background 0.15s;
       }
@@ -1798,7 +1796,7 @@
           if (r.observacao) detalhe += (detalhe ? "<br>" : "") + r.observacao;
 
           var cor = MOTIVO_CORES[r.motivo] || "#888";
-          return '<div class="just-tabela-row" style="--just-cor:' + cor + ';--just-fundo:' + cor + '0d" title="' + (r.ponto || "").replace(/"/g, "&quot;") + '">' +
+          return '<div class="just-tabela-row" style="--just-fundo:' + cor + '0d" title="' + (r.ponto || "").replace(/"/g, "&quot;") + '">' +
             '<div class="just-tabela-linha1">' +
               '<span class="just-tabela-veiculo">' + (r.veiculo || "—") + '</span>' +
               '<span class="just-tabela-ponto">' + (r.ponto || "—") + '</span>' +
