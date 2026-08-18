@@ -470,6 +470,21 @@
       .oc-autocomplete-item .oc-ac-sub { display: block; font-size: 10px; color: var(--texto3); }
       .oc-autocomplete-item:hover .oc-ac-sub, .oc-autocomplete-item.ativo .oc-ac-sub { color: var(--laranja); opacity: 0.75; }
       .oc-autocomplete-empty { padding: 10px; font-size: 12px; color: var(--texto3); text-align: center; }
+      .oc-ac-criar-btn {
+        display: block; margin: 8px auto 0; font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600;
+        color: var(--laranja); background: var(--laranja4); border: 1px solid var(--borda-l); border-radius: 6px;
+        padding: 5px 12px; cursor: pointer; transition: background 0.15s;
+      }
+      .oc-ac-criar-btn:hover { background: var(--laranja3); }
+      /* Mini-form de cadastro de motorista, inline no dropdown de busca —
+         aparece quando a busca não acha ninguém (ver _abrirFormNovoMotorista). */
+      .oc-ac-criar { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .oc-ac-criar .oc-field { gap: 3px; }
+      .oc-ac-criar-status { font-size: 11px; min-height: 14px; }
+      .oc-ac-criar-status.err { color: var(--vermelho); }
+      .oc-ac-criar-status.ok { color: var(--verde); }
+      .oc-ac-criar-acoes { display: flex; gap: 8px; }
+      .oc-ac-criar-acoes .btn { padding: 6px 10px; font-size: 12px; }
       .oc-selecionado { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--laranja4); border: 1px solid var(--borda-l); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; color: var(--laranja); }
       .oc-selecionado button { background: none; border: none; color: var(--laranja); cursor: pointer; font-size: 14px; line-height: 1; }
 
@@ -3747,9 +3762,9 @@
             if (seq !== _relBuscaMotoristaSeq) return;
             var itens = (json && json.data) || [];
             if (!itens.length) {
-              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado. ' +
-                '<a href="#" onclick="event.preventDefault();_abrirCadastroMotorista(\'' + termo.replace(/'/g, "") + '\')" ' +
-                'style="color:var(--laranja)">Cadastrar motorista</a></div>';
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado.' +
+                '<button type="button" class="oc-ac-criar-btn" onclick="_abrirFormNovoMotorista()">+ Cadastrar novo motorista</button>' +
+              '</div>';
               lista.classList.remove("hidden");
               return;
             }
@@ -3768,17 +3783,16 @@
           });
       }
 
-      // Abre a tela de cadastro de motoristas (motoristas.html) em outra
-      // aba, com a matrícula digitada já preenchida — pra não perder o que
-      // o usuário já tinha digitado quando a busca não encontra ninguém.
-      function _abrirCadastroMotorista(termo) {
-        var url = (webAppBaseUrl || "") + "?view=motoristas" + (termo ? "&novo=" + encodeURIComponent(termo) : "");
-        window.open(url, "_blank");
-      }
-
       function _selecionarMotorista(i) {
         var d = window._relMotoristaOpcoes[i];
         if (!d) return;
+        _aplicarMotoristaSelecionado(d);
+      }
+
+      // Compartilhado entre selecionar da lista e cadastrar um novo (ver
+      // _criarMotoristaInline) — mesma UX final: campo "selecionado" com
+      // botão de trocar, dropdown fechado.
+      function _aplicarMotoristaSelecionado(d) {
         _relMotoristaSelecionado = d;
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relMotoristaBusca").classList.add("hidden");
@@ -3786,6 +3800,67 @@
         sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
           '<button type="button" onclick="_limparMotorista()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
+      }
+
+      // ── Cadastrar motorista na hora (POST {REPORTS_API_URL}/drivers) —
+      //    aparece quando a busca não encontra ninguém, pra não precisar
+      //    sair da modal de "Gerar Relatório" pra cadastrar o motorista em
+      //    outro lugar antes de continuar (mesmo padrão do index.html). ──
+      function _abrirFormNovoMotorista() {
+        var termoAtual = (document.getElementById("relMotoristaBusca").value || "").trim();
+        var pareceMatricula = /^\d+$/.test(termoAtual);
+        var lista = document.getElementById("relMotoristaLista");
+        lista.innerHTML =
+          '<div class="oc-ac-criar">' +
+            '<div class="oc-field"><label>Matrícula *</label><input type="text" id="acNovoMotoristaCodigo" placeholder="Ex.: 5793" value="' +
+              (pareceMatricula ? termoAtual.replace(/"/g, "&quot;") : "") + '" /></div>' +
+            '<div class="oc-field"><label>Nome completo *</label><input type="text" id="acNovoMotoristaNome" placeholder="Nome do motorista" value="' +
+              (!pareceMatricula ? termoAtual.replace(/"/g, "&quot;") : "") + '" /></div>' +
+            '<div class="oc-field"><label>Base (opcional)</label><input type="text" id="acNovoMotoristaBase" placeholder="Ex.: GOIANIA" /></div>' +
+            '<div class="oc-ac-criar-status" id="acNovoMotoristaStatus"></div>' +
+            '<div class="oc-ac-criar-acoes">' +
+              '<button type="button" class="btn btn-ghost" style="flex:1" onclick="_buscarMotorista(document.getElementById(\'relMotoristaBusca\').value)">Cancelar</button>' +
+              '<button type="button" class="btn btn-primary" id="acNovoMotoristaSalvarBtn" style="flex:1" onclick="_criarMotoristaInline()">Cadastrar</button>' +
+            '</div>' +
+          '</div>';
+        lista.classList.remove("hidden");
+        document.getElementById(pareceMatricula ? "acNovoMotoristaNome" : "acNovoMotoristaCodigo").focus();
+      }
+
+      function _criarMotoristaInline() {
+        var codigo = document.getElementById("acNovoMotoristaCodigo").value.trim();
+        var nome = document.getElementById("acNovoMotoristaNome").value.trim();
+        var base = document.getElementById("acNovoMotoristaBase").value.trim();
+        var statusEl = document.getElementById("acNovoMotoristaStatus");
+        statusEl.textContent = "";
+        statusEl.className = "oc-ac-criar-status";
+
+        if (!codigo || !nome) {
+          statusEl.textContent = "Preencha matrícula e nome.";
+          statusEl.className = "oc-ac-criar-status err";
+          return;
+        }
+
+        var btn = document.getElementById("acNovoMotoristaSalvarBtn");
+        btn.disabled = true;
+        btn.textContent = "Cadastrando...";
+
+        fetch(REPORTS_API_URL + "/drivers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: codigo, name: nome, base: base || null }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+          .then(function (res) {
+            if (!res.ok) throw new Error((res.json && res.json.error && res.json.error.message) || "Falha ao cadastrar motorista");
+            _aplicarMotoristaSelecionado(res.json);
+          })
+          .catch(function (err) {
+            statusEl.textContent = err.message || "Erro ao cadastrar motorista";
+            statusEl.className = "oc-ac-criar-status err";
+            btn.disabled = false;
+            btn.textContent = "Cadastrar";
+          });
       }
 
       function _limparMotorista() {
