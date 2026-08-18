@@ -3285,6 +3285,8 @@
         document.getElementById("relHorarios").textContent = _fmtHM(item.entrada) + " – " + _fmtHM(item.saida);
         document.getElementById("relExcedente").textContent = "+" + _fmtMin(Math.round(item.excedenteSeg / 60));
         document.getElementById("relVeiculo").textContent = item.veiculo || "—";
+        document.getElementById("relData").value = _dataHoraPartes(item.entrada).data || "";
+        document.getElementById("relDataWrap").classList.remove("hidden");
 
         var token = _resetModalRelatorioComum();
         _carregarTrips(function () { _tentarAutoSelecionarLinhaAtual(token); });
@@ -3315,6 +3317,10 @@
 
         document.getElementById("relVeiculo").textContent = _relatorioItens[idxs[0]].veiculo || "—";
         document.getElementById("relHorarios").textContent = "—";
+        // Cada ocorrência do grupo vira 1 relatório à parte com a própria
+        // data (ver _criarOcorrencia) — não existe "a data do grupo" pra
+        // editar aqui, diferente do modo individual.
+        document.getElementById("relDataWrap").classList.add("hidden");
         _renderResumoListaGrupo();
 
         var token = _resetModalRelatorioComum();
@@ -4156,6 +4162,15 @@
       // (que só gera 1 PDF combinado depois de criar todas as ocorrências).
       function _criarOcorrencia(item) {
         var entradaP = _dataHoraPartes(item.entrada);
+        // Data de início da viagem — editável só no modo individual
+        // (input#relData). No modo grupo/massa cada ocorrência vira 1
+        // relatório à parte pra um veículo que pode ter passado por vários
+        // pontos em dias diferentes — forçar uma data única quebraria o
+        // cálculo de excedente de cada ponto, então ali sempre usa a data
+        // real daquele item (ver abrirModalRelatorioGrupo, que esconde
+        // #relDataWrap).
+        var relDataEl = !_relModoGrupo ? document.getElementById("relData") : null;
+        var dataViagem = (relDataEl && relDataEl.value) || entradaP.data;
 
         // Garante um access_token fresco (renova via refresh_token se tiver
         // vencido) antes de montar o payload, pra "analisadoPor" sair
@@ -4164,8 +4179,8 @@
         return _authGarantirTokenValido().then(function () {
         var payload = {
           typeCode: "EXCESSO_PERMANENCIA",
-          eventDate: entradaP.data,
-          tripDate: entradaP.data,
+          eventDate: dataViagem,
+          tripDate: dataViagem,
           startTime: entradaP.hora,
           endTime: _calcularHoraSaida(item),
           vehicleNumber: item.veiculo,
@@ -4590,6 +4605,13 @@
               <div class="oc-field"><label>Ponto</label><span id="relPonto">—</span></div>
               <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
               <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
+            </div>
+            <!-- Só aparece no modo individual — no modo grupo/massa cada
+                 ocorrência vira 1 relatório à parte com a própria data
+                 (ver _criarOcorrencia), então não existe "a data do grupo". -->
+            <div class="oc-field hidden" id="relDataWrap">
+              <label>Data de início da viagem</label>
+              <input type="date" id="relData" style="max-width:180px" title="Corrija se a viagem começou em outro dia (ex.: parada de madrugada de uma viagem iniciada no dia anterior)" />
             </div>
             <div class="oc-resumo-lista hidden" id="relResumoLista"></div>
 
