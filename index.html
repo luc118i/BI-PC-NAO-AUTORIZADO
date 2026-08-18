@@ -552,30 +552,18 @@
           <input type="date" id="fDataFim" />
         </div>
         <div class="filter-group">
-          <label>Região</label>
-          <select id="fRegiao">
-            <option value="">Todas as regiões</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>UF</label>
-          <select id="fUF">
-            <option value="">Todos os estados</option>
-          </select>
-        </div>
-        <div class="filter-group">
           <label>Base</label>
-          <select id="fBase">
+          <select id="fBase" onchange="aplicarFiltrosLocais()">
             <option value="">Todas as bases</option>
           </select>
         </div>
         <div class="filter-group">
           <label>Local (PC)</label>
-          <input type="text" id="fLocal" placeholder="Buscar local..." />
+          <input type="text" id="fLocal" placeholder="Buscar local..." oninput="aplicarFiltrosLocais()" />
         </div>
         <div class="filter-group">
           <label>Motorista</label>
-          <input type="text" id="fMotorista" placeholder="Buscar motorista..." />
+          <input type="text" id="fMotorista" placeholder="Buscar motorista..." oninput="aplicarFiltrosLocais()" />
         </div>
         <div class="btn-group">
           <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
@@ -1880,16 +1868,11 @@
       }
 
       // ─────────────────────────────────────────────────────────
-      //  Popular filtros dinâmicos (região, UF, base)
+      //  Popular filtro dinâmico (base)
       // ─────────────────────────────────────────────────────────
       function popularFiltrosDinamicos() {
-        const regioes = [...new Set(todosRegistros.map(r => r.regiao).filter(Boolean))].sort();
-        const ufs     = [...new Set(todosRegistros.map(r => r.uf).filter(Boolean))].sort();
-        const bases   = [...new Set(todosRegistros.map(r => r.base).filter(Boolean))].sort();
-
-        popularSelect("fRegiao", regioes, "Todas as regiões");
-        popularSelect("fUF",     ufs,     "Todos os estados");
-        popularSelect("fBase",   bases,   "Todas as bases");
+        const bases = [...new Set(todosRegistros.map(r => r.base).filter(Boolean))].sort();
+        popularSelect("fBase", bases, "Todas as bases");
       }
 
       function popularSelect(id, valores, placeholderTxt) {
@@ -1921,8 +1904,6 @@
         const mes  = String(hoje.getMonth() + 1).padStart(2, "0");
         document.getElementById("fDataIni").value = ano + "-" + mes + "-01";
         document.getElementById("fDataFim").value = ano + "-" + mes + "-" + String(hoje.getDate()).padStart(2, "0");
-        document.getElementById("fRegiao").value   = "";
-        document.getElementById("fUF").value       = "";
         document.getElementById("fBase").value     = "";
         document.getElementById("fLocal").value    = "";
         document.getElementById("fMotorista").value = "";
@@ -1930,18 +1911,14 @@
       }
 
       function aplicarFiltrosLocais() {
-        const regiao   = document.getElementById("fRegiao").value.toLowerCase();
-        const uf       = document.getElementById("fUF").value.toLowerCase();
         const base     = document.getElementById("fBase").value.toLowerCase();
         const local    = document.getElementById("fLocal").value.toLowerCase();
         const motorista = document.getElementById("fMotorista").value.toLowerCase();
 
         registrosFiltrados = todosRegistros.filter(function (r) {
-          if (regiao   && !r.regiao.toLowerCase().includes(regiao))     return false;
-          if (uf       && !r.uf.toLowerCase().includes(uf))             return false;
-          if (base     && !r.base.toLowerCase().includes(base))         return false;
-          if (local    && !r.local.toLowerCase().includes(local))       return false;
-          if (motorista && !r.motorista.toLowerCase().includes(motorista)) return false;
+          if (base     && !(r.base || "").toLowerCase().includes(base))         return false;
+          if (local    && !(r.local || "").toLowerCase().includes(local))       return false;
+          if (motorista && !(r.motorista || "").toLowerCase().includes(motorista)) return false;
           return true;
         });
 
