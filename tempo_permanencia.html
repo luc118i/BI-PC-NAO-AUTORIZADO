@@ -168,9 +168,22 @@
          só que maior aqui (o card ocupa a largura toda sozinho desde que
          o Mapa foi removido, então os meses crescem pra preencher o
          espaço em vez de sobrar vazio). */
-      .bical-months { display: flex; flex-wrap: wrap; gap: 28px; }
+      .bical-months { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px; }
       .bical-month { width: 280px; }
-      .bical-month-title { text-align: center; font-size: 13px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+      .bical-month-title { text-align: center; font-size: 13px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+      /* Mês atual — vem em destaque entre os 3 meses fixos exibidos
+         (atual + 2 anteriores) pra ficar fácil de achar de cara. */
+      .bical-month.atual {
+        width: 300px; box-sizing: border-box; padding: 12px 12px 8px;
+        border: 1px solid var(--borda-l); border-radius: var(--radius-sm);
+        background: rgba(244,121,32,0.05);
+        box-shadow: 0 8px 24px rgba(244,121,32,0.10);
+      }
+      .bical-month.atual .bical-month-title { color: var(--laranja); }
+      .bical-mes-atual-tag {
+        font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        color: #1a1208; background: var(--laranja); border-radius: 10px; padding: 2px 8px;
+      }
       .bical-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
       .bical-dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--texto3); }
       .bical-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
@@ -1963,18 +1976,27 @@
         var posicaoPorData = {}; // "YYYY-MM-DD" -> 1, 2 ou 3
         top3.forEach(function (k, i) { posicaoPorData[k] = i + 1; });
 
-        var meses = [];
-        var mc = new Date(ini.getFullYear(), ini.getMonth(), 1);
-        var mFim = new Date(fim.getFullYear(), fim.getMonth(), 1);
-        while (mc <= mFim) { meses.push(new Date(mc)); mc.setMonth(mc.getMonth() + 1); }
+        // Sempre 3 meses fixos — mês atual + os 2 anteriores — independente
+        // do período filtrado no dashboard (que só controla quais dias
+        // dentro desses meses aparecem "preenchidos" vs. "fora"). O mês
+        // atual vem em destaque (borda/selo), por último (mais recente).
+        var hoje = new Date();
+        var mesAtualRef = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        var meses = [
+          new Date(mesAtualRef.getFullYear(), mesAtualRef.getMonth() - 2, 1),
+          new Date(mesAtualRef.getFullYear(), mesAtualRef.getMonth() - 1, 1),
+          mesAtualRef,
+        ];
 
         var html = '<div class="bical-months">';
         meses.forEach(function (m) {
           var ano = m.getFullYear(), mes = m.getMonth();
+          var ehAtual = ano === mesAtualRef.getFullYear() && mes === mesAtualRef.getMonth();
           var primeiroDow = new Date(ano, mes, 1).getDay();
           var diasNoMes = new Date(ano, mes + 1, 0).getDate();
-          html += '<div class="bical-month">';
-          html += '<div class="bical-month-title">' + MESES_PT[mes] + " " + ano + "</div>";
+          html += '<div class="bical-month' + (ehAtual ? ' atual' : '') + '">';
+          html += '<div class="bical-month-title">' + MESES_PT[mes] + " " + ano +
+            (ehAtual ? ' <span class="bical-mes-atual-tag">Mês atual</span>' : '') + "</div>";
           html += '<div class="bical-dow">' + DOW_PT.map(function (d) { return "<span>" + d + "</span>"; }).join("") + "</div>";
           html += '<div class="bical-grid">';
           for (var b = 0; b < primeiroDow; b++) html += '<span class="bical-day vazio"></span>';
