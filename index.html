@@ -1391,7 +1391,7 @@
         document.getElementById("relVeiculo").textContent = r.veiculo || "—";
         document.getElementById("relPonto").textContent = r.descResumida || r.ponto || "—";
         document.getElementById("relRegiao").textContent = (r.regiao || "—") + (r.uf ? " · " + r.uf : "");
-        document.getElementById("relData").textContent = _fmtData(r.entrada) || "—";
+        document.getElementById("relData").value = _dataHoraPartes(r.entrada).data || "";
         document.getElementById("relEntrada").textContent = _fmtHM(r.entrada);
         document.getElementById("relSaida").textContent = _fmtHM(r.saida);
         document.getElementById("relDuracao").textContent = r.parada || "—";
@@ -1543,12 +1543,18 @@
       function _criarOcorrenciaParada(item) {
         var entradaP = _dataHoraPartes(item.entrada);
         var saidaP = _dataHoraPartes(item.saida);
+        // Data de início da viagem — editável no campo "Data" do resumo
+        // (input#relData), pra corrigir casos de parada de madrugada de
+        // uma viagem que começou no dia anterior. Cai pra data da própria
+        // parada se o campo estiver vazio (modo grupo não tem esse input).
+        var relDataEl = document.getElementById("relData");
+        var dataViagem = (relDataEl && relDataEl.value) || entradaP.data;
 
         return _authGarantirTokenValido().then(function () {
           var payload = {
             typeCode: "DESCUMP_OP_PARADA_FORA",
-            eventDate: entradaP.data,
-            tripDate: entradaP.data,
+            eventDate: dataViagem,
+            tripDate: dataViagem,
             startTime: entradaP.hora,
             endTime: saidaP.hora || entradaP.hora,
             vehicleNumber: item.veiculo,
@@ -3447,8 +3453,8 @@
               <strong id="relDuracao" style="color:var(--vermelho)">—</strong>
             </div>
             <div class="oc-field">
-              <label>Data</label>
-              <span id="relData">—</span>
+              <label>Data de início da viagem</label>
+              <input type="date" id="relData" title="Corrija se a viagem começou em outro dia (ex.: parada de madrugada de uma viagem iniciada no dia anterior)" />
             </div>
             <div class="oc-field">
               <label>Entrada</label>
