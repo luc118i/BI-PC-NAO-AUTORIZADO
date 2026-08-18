@@ -1513,10 +1513,17 @@
       // "cedo" = saiu antes (amarelo/alerta), "atraso" = saiu depois
       // (vermelho/urgente), null = no horário exato ou algo não
       // parseável (não destaca, pra não sugerir uma leitura errada).
+      // Tolerância de 5 min pra cima ou pra baixo do horário de sessão —
+      // dentro dela consideramos "no horário" (não marca cedo/atraso), só
+      // sinaliza quando a diferença passa disso de verdade.
+      var TOLERANCIA_SESSAO_MIN = 5;
+
       function _compararSaidaSessao(horaSaida, horaSessao) {
         var sa = _parseHMtoMin(horaSaida), s = _parseHMtoMin(horaSessao);
-        if (sa == null || s == null || sa === s) return null;
-        return sa < s ? "cedo" : "atraso";
+        if (sa == null || s == null) return null;
+        var diff = sa - s;
+        if (Math.abs(diff) <= TOLERANCIA_SESSAO_MIN) return null;
+        return diff < 0 ? "cedo" : "atraso";
       }
 
       function _htmlLinhaSessao(textoHtml, comparacao, estiloExtra) {
