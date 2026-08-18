@@ -419,20 +419,46 @@
       .oc-status.ok { color: var(--verde); }
       .oc-status.err { color: var(--vermelho); }
 
-      /* Perfil resumido do motorista — recorrência de tratativas no mês
-         corrente (GET /drivers/:id/stats), pra decidir a tratativa deste
-         relatório já sabendo o histórico, em vez de tudo virar "Registro"
-         por padrão. Ver _carregarPerfilMotorista(). */
-      .oc-motorista-perfil { margin-top: 8px; padding: 8px 10px; background: var(--preto3); border: 1px solid var(--borda2); border-radius: var(--radius-sm); font-size: 11px; }
-      .oc-motorista-perfil-head { display: flex; align-items: center; justify-content: space-between; color: var(--texto3); }
-      .oc-motorista-perfil-total { font-weight: 700; color: var(--texto2); }
-      .oc-motorista-perfil-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-      .oc-motorista-perfil-vazio { margin-top: 4px; color: var(--texto3); }
-      .tratativa-chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
-      .tratativa-chip.reg  { color: var(--texto2); border-color: var(--cinza2); background: rgba(255,255,255,0.03); }
-      .tratativa-chip.adv  { color: var(--amarelo); border-color: var(--amarelo); background: rgba(240,192,64,0.1); }
-      .tratativa-chip.vale { color: var(--vermelho); border-color: var(--vermelho); background: rgba(224,80,80,0.1); }
-      .tratativa-chip.susp { color: #a78bfa; border-color: #a78bfa; background: rgba(167,139,250,0.12); }
+      /* Card do motorista selecionado + recorrência de tratativas no mês
+         corrente (GET /drivers/:id/stats) — mesmo layout/lógica do card
+         "Motorista 01/02" do próprio Gerador de Relatórios (SecaoTripulacao/
+         DriverRecurrenceCard.tsx), portado pra cá pra decidir a tratativa
+         deste relatório já com o histórico à vista, em vez de tudo virar
+         "Registro" por padrão. Ver _renderMotoristaCard(). */
+      .motorista-card { margin-top: 6px; border-radius: var(--radius); border: 1px solid var(--borda2); background: var(--preto3); overflow: hidden; transition: border-color 0.15s, background 0.15s; }
+      .motorista-card.dirty { border-color: rgba(224,80,80,0.4); background: rgba(224,80,80,0.06); box-shadow: 0 0 0 1px rgba(224,80,80,0.12); }
+      .motorista-card-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--borda2); background: rgba(255,255,255,0.02); }
+      .motorista-card.dirty .motorista-card-head { border-color: rgba(224,80,80,0.25); background: rgba(224,80,80,0.08); }
+      .motorista-avatar { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: rgba(79,142,247,0.15); color: #4f8ef7; }
+      .motorista-card.dirty .motorista-avatar { background: rgba(224,80,80,0.15); color: var(--vermelho); }
+      .motorista-card-info { min-width: 0; flex: 1; }
+      .motorista-card-tags { display: flex; align-items: center; gap: 6px; }
+      .motorista-card-code { font-size: 12px; font-weight: 700; color: var(--texto); }
+      .motorista-card-base { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--cinza); color: var(--texto2); }
+      .motorista-card.dirty .motorista-card-base { background: rgba(224,80,80,0.18); color: var(--vermelho); }
+      .motorista-card-nome { font-size: 13px; font-weight: 700; color: var(--texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .motorista-card-trocar {
+        flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+        color: #4f8ef7; background: none; border: none; border-radius: 6px; padding: 5px 8px; cursor: pointer; transition: background 0.15s;
+      }
+      .motorista-card-trocar:hover { background: rgba(79,142,247,0.12); }
+      .motorista-card.dirty .motorista-card-trocar { color: var(--vermelho); }
+      .motorista-card.dirty .motorista-card-trocar:hover { background: rgba(224,80,80,0.12); }
+      .motorista-card-body { padding: 10px 12px; }
+      .motorista-card-periodo { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--texto3); margin-bottom: 8px; }
+      .motorista-card.dirty .motorista-card-periodo { color: rgba(224,80,80,0.85); }
+      .motorista-card-loading { font-size: 11px; color: var(--texto3); }
+      .motorista-card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .motorista-stat { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--cinza2); background: rgba(255,255,255,0.02); font-size: 11px; color: var(--texto3); }
+      .motorista-stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cinza2); flex-shrink: 0; }
+      .motorista-stat-label { font-weight: 600; }
+      .motorista-stat-valor { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .motorista-stat.ativo.adv  { border-color: rgba(240,192,64,0.4); background: rgba(240,192,64,0.1); color: var(--amarelo); }
+      .motorista-stat.ativo.adv .motorista-stat-dot  { background: var(--amarelo); }
+      .motorista-stat.ativo.vale { border-color: rgba(224,80,80,0.4); background: rgba(224,80,80,0.1); color: var(--vermelho); }
+      .motorista-stat.ativo.vale .motorista-stat-dot { background: var(--vermelho); }
+      .motorista-stat.ativo.susp { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.12); color: #a78bfa; }
+      .motorista-stat.ativo.susp .motorista-stat-dot { background: #a78bfa; }
 
       /* Dropdown de autocomplete (linha / motorista) — portado de
          tempo_permanencia.html pro fluxo "Gerar Relatório" desta tela. */
@@ -940,6 +966,8 @@
         user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
         mapPin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>',
         list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
+        clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+        refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -1328,53 +1356,84 @@
       }
 
       // Compartilhado entre selecionar da lista e cadastrar um novo (ver
-      // _criarMotoristaInline) — mesma UX final: campo "selecionado" com
-      // botão de trocar, dropdown fechado.
+      // _criarMotoristaInline) — mostra o card do motorista (mesmo layout
+      // do "Motorista 01/02" do próprio Gerador de Relatórios) e já busca
+      // o histórico de tratativas do mês.
       function _aplicarMotoristaSelecionado(d) {
         _relMotoristaSelecionado = d;
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relMotoristaBusca").classList.add("hidden");
-        var sel = document.getElementById("relMotoristaSelecionada");
-        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
-          '<button type="button" onclick="_limparMotorista()" title="Trocar">' + _icon("x") + '</button>';
-        sel.classList.remove("hidden");
-        _carregarPerfilMotorista(d);
+        _renderMotoristaCard(d, "carregando");
+        document.getElementById("relMotoristaSelecionada").classList.remove("hidden");
+        _carregarStatsMotorista(d);
       }
 
-      // ── Perfil resumido do motorista (GET {REPORTS_API_URL}/drivers/:id/stats) —
-      //    quantas tratativas ele já teve no mês corrente, pra decidir a
-      //    tratativa deste relatório com o histórico à vista em vez de
-      //    tudo virar "Registro" no automático. ──────────────────────────
-      function _carregarPerfilMotorista(d) {
-        var el = document.getElementById("relMotoristaPerfil");
-        if (!d || !d.id) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+      // Monta o card do motorista selecionado: identificação (avatar +
+      // matrícula + base + nome + "Alterar") em cima, recorrência de
+      // tratativas do mês embaixo. `stats` é "carregando", "erro", null
+      // (sem dados) ou { advertencia, vale, suspensao, periodLabel }.
+      // Fica vermelho ("dirty") quando o motorista já teve alguma
+      // advertência/vale/suspensão no mês — sinal visual de atenção antes
+      // de decidir a tratativa deste relatório.
+      function _renderMotoristaCard(d, stats) {
+        var dirty = stats && typeof stats === "object" &&
+          ((stats.advertencia || 0) + (stats.vale || 0) + (stats.suspensao || 0) > 0);
 
-        el.innerHTML = '<span style="color:var(--texto3)">Carregando histórico do motorista...</span>';
-        el.classList.remove("hidden");
+        var corpo;
+        if (stats === "carregando") {
+          corpo = '<div class="motorista-card-loading">Carregando histórico...</div>';
+        } else if (stats === "erro" || !stats) {
+          corpo = '<div class="motorista-card-loading">Histórico indisponível.</div>';
+        } else {
+          corpo =
+            '<div class="motorista-card-periodo">' + _icon("clock", 13) + ' Ocorrências' + (stats.periodLabel ? " · " + stats.periodLabel : " neste mês") + '</div>' +
+            '<div class="motorista-card-stats">' +
+              _statCounter("Advertência", stats.advertencia || 0, "adv") +
+              _statCounter("Vale", stats.vale || 0, "vale") +
+              _statCounter("Suspensão", stats.suspensao || 0, "susp") +
+            '</div>';
+        }
 
+        var el = document.getElementById("relMotoristaSelecionada");
+        el.className = "motorista-card" + (dirty ? " dirty" : "");
+        el.innerHTML =
+          '<div class="motorista-card-head">' +
+            '<div class="motorista-avatar">' + _icon("user", 17) + '</div>' +
+            '<div class="motorista-card-info">' +
+              '<div class="motorista-card-tags">' +
+                '<span class="motorista-card-code">' + d.code + '</span>' +
+                (d.base ? '<span class="motorista-card-base">' + d.base + '</span>' : '') +
+              '</div>' +
+              '<div class="motorista-card-nome">' + d.name + '</div>' +
+            '</div>' +
+            '<button type="button" class="motorista-card-trocar" onclick="_limparMotorista()" title="Trocar motorista">' + _icon("refresh", 13) + ' Alterar</button>' +
+          '</div>' +
+          '<div class="motorista-card-body">' + corpo + '</div>';
+      }
+
+      function _statCounter(label, valor, cls) {
+        return '<div class="motorista-stat ' + cls + (valor > 0 ? " ativo" : "") + '">' +
+          '<span class="motorista-stat-dot"></span>' +
+          '<span class="motorista-stat-label">' + label + '</span>' +
+          '<span class="motorista-stat-valor">' + valor + '</span>' +
+        '</div>';
+      }
+
+      // GET {REPORTS_API_URL}/drivers/:id/stats — quantas tratativas o
+      // motorista já teve no mês corrente, pra decidir a tratativa deste
+      // relatório com o histórico à vista em vez de tudo virar "Registro"
+      // no automático.
+      function _carregarStatsMotorista(d) {
+        if (!d || !d.id) return;
         fetch(REPORTS_API_URL + "/drivers/" + d.id + "/stats")
           .then(function (r) { return r.json(); })
           .then(function (json) {
             if (!_relMotoristaSelecionado || _relMotoristaSelecionado.id !== d.id) return; // trocou de motorista enquanto carregava
-            var s = (json && json.data) || {};
-            var registro = Math.max(0, (s.total || 0) - (s.advertencia || 0) - (s.vale || 0) - (s.suspensao || 0));
-            var chip = function (cls, qtd, singular, plural) {
-              return qtd ? '<span class="tratativa-chip ' + cls + '">' + qtd + ' ' + (qtd === 1 ? singular : plural) + '</span>' : '';
-            };
-            var badges = chip("susp", s.suspensao, "suspensão", "suspensões") +
-              chip("vale", s.vale, "vale", "vales") +
-              chip("adv", s.advertencia, "advertência", "advertências") +
-              chip("reg", registro, "registro", "registros");
-
-            el.innerHTML = '<div class="oc-motorista-perfil-head">' +
-                '<span>Histórico em ' + (s.periodLabel || "—") + '</span>' +
-                '<span class="oc-motorista-perfil-total">' + (s.total || 0) + ' ocorrência' + (s.total === 1 ? "" : "s") + '</span>' +
-              '</div>' +
-              (badges ? '<div class="oc-motorista-perfil-badges">' + badges + '</div>' : '<div class="oc-motorista-perfil-vazio">Nenhuma ocorrência neste mês.</div>');
+            _renderMotoristaCard(d, (json && json.data) || null);
           })
           .catch(function () {
             if (!_relMotoristaSelecionado || _relMotoristaSelecionado.id !== d.id) return;
-            el.innerHTML = '<span style="color:var(--vermelho)">Erro ao carregar histórico do motorista.</span>';
+            _renderMotoristaCard(d, "erro");
           });
       }
 
@@ -1441,9 +1500,9 @@
 
       function _limparMotorista() {
         _relMotoristaSelecionado = null;
-        document.getElementById("relMotoristaSelecionada").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").innerHTML = "";
+        var sel = document.getElementById("relMotoristaSelecionada");
+        sel.classList.add("hidden");
+        sel.innerHTML = "";
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").value = "";
         document.getElementById("relMotoristaBusca").focus();
@@ -1547,8 +1606,7 @@
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relLinhaSelecionada").classList.add("hidden");
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").innerHTML = "";
+        document.getElementById("relMotoristaSelecionada").innerHTML = "";
         document.getElementById("relTratativa").value = "REGISTRO";
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
@@ -1612,8 +1670,7 @@
         document.getElementById("relMotoristaLista").classList.add("hidden");
         document.getElementById("relLinhaSelecionada").classList.add("hidden");
         document.getElementById("relMotoristaSelecionada").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").classList.add("hidden");
-        document.getElementById("relMotoristaPerfil").innerHTML = "";
+        document.getElementById("relMotoristaSelecionada").innerHTML = "";
         document.getElementById("relTratativa").value = "REGISTRO";
         document.getElementById("relLinhaBusca").classList.remove("hidden");
         document.getElementById("relMotoristaBusca").classList.remove("hidden");
@@ -3661,11 +3718,10 @@
             <label>Motorista responsável *</label>
             <input type="text" id="relMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotorista(this.value)" />
             <div class="oc-autocomplete-list hidden" id="relMotoristaLista"></div>
-            <div class="oc-selecionado hidden" id="relMotoristaSelecionada"></div>
-            <!-- Perfil resumido do motorista (recorrência no mês) — carregado
-                 assim que um motorista é selecionado, ver
-                 _carregarPerfilMotorista()/_aplicarMotoristaSelecionado(). -->
-            <div class="oc-motorista-perfil hidden" id="relMotoristaPerfil"></div>
+            <!-- Card do motorista selecionado + recorrência de tratativas do
+                 mês — montado assim que um motorista é selecionado, ver
+                 _renderMotoristaCard()/_aplicarMotoristaSelecionado(). -->
+            <div class="hidden" id="relMotoristaSelecionada"></div>
           </div>
 
           <div class="oc-field">
