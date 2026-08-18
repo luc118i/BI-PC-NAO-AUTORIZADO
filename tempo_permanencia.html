@@ -201,6 +201,17 @@
       .rank-nome { flex: 1; font-size: 12px; color: var(--texto); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .rank-count { font-size: 12px; font-weight: 700; color: var(--laranja); flex-shrink: 0; }
 
+      /* ── FOOTER ──────────────────────────────────────────── */
+      footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 20px 28px; margin-top: 8px; }
+      .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+      .footer-left { font-size: 11px; color: var(--texto3); line-height: 1.7; }
+      .footer-left strong { color: var(--texto2); font-weight: 600; }
+      .footer-brand { font-family: "Barlow Condensed", sans-serif; font-size: 13px; font-weight: 700; color: var(--laranja); letter-spacing: 0.04em; text-transform: uppercase; }
+      .footer-right { font-size: 10px; color: var(--texto3); text-align: right; line-height: 1.6; }
+      .footer-divider { height: 1px; background: var(--borda); margin: 12px 0; }
+      .footer-copy { font-size: 10px; color: var(--texto3); text-align: center; }
+      .footer-copy span { color: var(--laranja); font-weight: 600; }
+
       /* ── UPLOAD ──────────────────────────────────────────── */
       .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-top: 14px; font-size: 13px; flex-wrap: wrap; }
       .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
@@ -724,7 +735,25 @@
         <div id="tpAccordions" style="margin-top:12px"></div>
       </div>
 
-    </div>
+    </div><!-- /main -->
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-left">
+          <div class="footer-brand">BI PC's Não Autorizados · Viação Catedral</div>
+          <div>Monitoramento de Locais Não Autorizados · Sistema de Análise Interna</div>
+          <div id="footerPeriodo" style="margin-top:2px"></div>
+        </div>
+        <div class="footer-right">
+          <div>Desenvolvido por</div>
+          <div style="color:var(--texto);font-weight:600;font-size:13px;margin:2px 0">Lucas Inácio</div>
+          <div>Analista de Dados · Viação Catedral</div>
+        </div>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-copy">© <span id="anoAtual"></span> <span>Lucas Inácio</span> · Uso exclusivo interno · Viação Catedral</div>
+    </footer>
 
     <script>
       // ── Trava o scroll do FUNDO da página quando alguma modal (.oc-overlay)
@@ -764,6 +793,7 @@
       _preAquecerEsquemas();
 
       window.onload = function () {
+        document.getElementById("anoAtual").textContent = new Date().getFullYear();
         if (window.google && google.script && google.script.run) {
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
@@ -1572,6 +1602,10 @@
       function _carregarDashboardPeriodo() {
         _carregarHistoricoExcesso();
         _carregarJustificativasPermanencia();
+        var ini = document.getElementById("dashDataIni").value;
+        var fim = document.getElementById("dashDataFim").value;
+        document.getElementById("footerPeriodo").textContent =
+          "Período: " + _fmtData(ini) + " a " + _fmtData(fim);
       }
 
       function _carregarHistoricoExcesso() {
