@@ -37,6 +37,15 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
       body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+
+      /* ── Scrollbar customizada (padrão em toda a página — barra do
+         navegador e qualquer painel/lista com overflow interno) ──── */
+      * { scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent; }
+      *::-webkit-scrollbar { width: 9px; height: 9px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb { background-color: var(--cinza2); border-radius: 8px; background-clip: padding-box; }
+      *::-webkit-scrollbar-thumb:hover { background-color: var(--laranja); }
+
       /* Offset das âncoras para não ficar sob o navbar fixo (~130px) */
       [id^="sec-"] { scroll-margin-top: 130px; }
 

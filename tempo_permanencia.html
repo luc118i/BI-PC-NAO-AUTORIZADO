@@ -40,6 +40,14 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
 
+      /* ── Scrollbar customizada (padrão em toda a página — barra do
+         navegador e qualquer painel/lista com overflow interno) ──── */
+      * { scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent; }
+      *::-webkit-scrollbar { width: 9px; height: 9px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb { background-color: var(--cinza2); border-radius: 8px; background-clip: padding-box; }
+      *::-webkit-scrollbar-thumb:hover { background-color: var(--laranja); }
+
       .topbar { background: var(--laranja); height: 4px; width: 100%; }
 
       .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
