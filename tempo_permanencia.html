@@ -541,6 +541,25 @@
         grid-column: 2 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);
         font-size: 11px; color: var(--texto3); line-height: 1.5;
       }
+      /* Controle "Agrupar por" — fica colado em cima da lista que ele
+         filtra (não perto do gráfico), com um select compacto próprio em
+         vez do padrão bruto de .filtro-bar. color-scheme:dark faz o
+         navegador desenhar o dropdown nativo (as opções) escuro também —
+         sem isso ele abre com fundo branco e item selecionado azul,
+         quebrando o tema em qualquer navegador baseado em Chromium/Firefox. */
+      .just-agrupar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+      .just-agrupar label { font-size: 11px; color: var(--texto3); }
+      .just-agrupar select {
+        color-scheme: dark;
+        appearance: none; -webkit-appearance: none;
+        background: var(--preto3) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="%23aaaaaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat right 10px center;
+        border: 1px solid var(--cinza2); border-radius: 20px;
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; font-weight: 600;
+        padding: 6px 30px 6px 14px; outline: none; cursor: pointer; transition: border-color 0.15s, background-color 0.15s;
+      }
+      .just-agrupar select:hover { border-color: var(--texto2); }
+      .just-agrupar select:focus { border-color: var(--laranja); }
+
       /* Cabeçalho de grupo — aparece quando #justAgruparSel não está em
          "Sem agrupamento" (ver _renderJustTabela()). */
       .just-grupo-titulo {
@@ -730,19 +749,20 @@
           </div>
         </div>
 
-        <div class="filtro-bar" style="margin-bottom:10px">
-          <label for="justAgruparSel" style="font-size:11px;color:var(--texto2)">Agrupar por</label>
-          <select id="justAgruparSel" onchange="_renderJustTabela()">
-            <option value="">Sem agrupamento</option>
-            <option value="motivo">Tipo</option>
-            <option value="ponto">Local</option>
-            <option value="veiculo">Veículo</option>
-          </select>
-        </div>
-
         <div class="dash-graficos" style="grid-template-columns:1fr 1.4fr">
           <div class="chart-wrap" style="height:220px"><canvas id="justChartMotivo"></canvas></div>
-          <div class="just-tabela-wrap" id="justTabela"></div>
+          <div>
+            <div class="just-agrupar">
+              <label for="justAgruparSel">Agrupar por</label>
+              <select id="justAgruparSel" onchange="_renderJustTabela()">
+                <option value="">Sem agrupamento</option>
+                <option value="motivo">Tipo</option>
+                <option value="ponto">Local</option>
+                <option value="veiculo">Veículo</option>
+              </select>
+            </div>
+            <div class="just-tabela-wrap" id="justTabela"></div>
+          </div>
         </div>
 
         <!-- Só aparece quando há pelo menos 1 descarte por "muito
