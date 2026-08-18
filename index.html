@@ -347,7 +347,10 @@
       .det-gerar-btn:hover { background: var(--laranja3); }
 
       /* ── MODAIS (Sua conta / Gerar Relatório) ─────────────────── */
-      .oc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+      .oc-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
       .oc-overlay.hidden { display: none; }
       .hidden { display: none !important; }
       .oc-panel {
@@ -3020,19 +3023,21 @@
           var veiculoAttr = veiculo.replace(/"/g,"");
           rows += '<tr data-grupo-header="' + veiculoAttr + '" style="background:rgba(244,121,32,0.07);border-top:1px solid rgba(244,121,32,0.18);cursor:pointer" onclick="_onClickGrupoHeader(this,\'' + veiculo.replace(/'/g,"") + '\')">' +
             '<td colspan="6" style="padding:7px 10px">' +
+            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">' +
               '<strong class="det-prefixo" style="color:var(--laranja);font-size:13px;letter-spacing:0.04em" ' +
                 'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + veiculo.replace(/'/g,"") + '\')" ' +
                 'title="Clique para copiar prefixo">' + veiculo + '</strong>' +
-              '<span style="color:var(--texto3);font-size:11px;margin-left:10px">' +
+              '<span style="color:var(--texto3);font-size:11px">' +
                 grupo.length + ' parada' + (grupo.length !== 1 ? 's' : '') +
               '</span>' +
               (grupo.length > 1
-                ? '<button type="button" class="det-relatorio-btn det-multiplo-btn" style="margin-left:10px" data-veiculo="' + veiculoAttr + '" ' +
+                ? '<button type="button" class="det-relatorio-btn det-multiplo-btn" data-veiculo="' + veiculoAttr + '" ' +
                     'title="Gerar 1 relat&#243;rio cobrindo as ' + grupo.length + ' paradas irregulares deste ve&#237;culo" ' +
                     'onclick="event.stopPropagation();abrirModalRelatorioParadaGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
                     _icon("file", 12) + ' Gerar M&#250;ltiplo</button>'
-                : '<span class="det-relatorio-btn ativo hidden" style="margin-left:10px" data-veiculo-status="' + veiculoAttr + '">' + _icon("check", 12) + ' Gerado</span>') +
-              '<span class="det-grupo-toggle hidden" data-veiculo-toggle="' + veiculoAttr + '" style="margin-left:8px;font-size:10px;color:var(--texto3)">▾ ver paradas</span>' +
+                : '<span class="det-relatorio-btn ativo hidden" data-veiculo-status="' + veiculoAttr + '">' + _icon("check", 12) + ' Gerado</span>') +
+              '<span class="det-grupo-toggle hidden" data-veiculo-toggle="' + veiculoAttr + '" style="font-size:10px;color:var(--texto3)">▾ ver paradas</span>' +
+            '</div>' +
             '</td></tr>';
           grupo.forEach(function(entry) {
             var r = entry.r; var idx = entry.idx;
