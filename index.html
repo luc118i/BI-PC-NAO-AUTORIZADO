@@ -455,6 +455,13 @@
       .det-multiplo-btn { border-color: var(--laranja); color: var(--laranja); }
       .det-multiplo-btn:hover { background: var(--laranja4); }
 
+      /* Grupo (prefixo) com todas as paradas já geradas — recolhe as
+         linhas de detalhe e deixa só o cabeçalho; clique no cabeçalho
+         reabre pra revisão (ver _onClickGrupoHeader/_aplicarStatusGeradoDeteccao). */
+      .det-linha-oculta { display: none; }
+      .det-grupo-toggle { cursor: pointer; }
+      .det-grupo-toggle:hover { color: var(--laranja); }
+
       /* Resumo do grupo na modal "Gerar Múltiplo" — lista das N paradas incluídas */
       .rel-grupo-lista { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
       .rel-grupo-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border: 1px solid var(--borda2); border-radius: 6px; background: var(--preto3); }
@@ -2831,19 +2838,36 @@
           if (linhaTr) linhaTr.classList.add("riscado");
         });
 
-        // "Gerar Múltiplo": marca como concluído quando todas as paradas
-        // do veículo já foram geradas (individualmente ou via múltiplo).
-        document.querySelectorAll(".det-multiplo-btn").forEach(function (btn) {
-          var veiculo = btn.getAttribute("data-veiculo");
-          if (!veiculo) return;
+        // Grupo (prefixo) inteiro concluído — quando TODAS as paradas do
+        // veículo já foram geradas (individualmente ou via "Gerar
+        // Múltiplo"): marca o botão/badge do cabeçalho como "✓ Gerado" e
+        // recolhe as linhas de detalhe, deixando só o cabeçalho (prefixo +
+        // nº de paradas + Gerado) — ver _onClickGrupoHeader() pra reabrir.
+        var veiculosUnicos = Array.from(new Set(_detLista.map(function (r) { return r.veiculo; })));
+        veiculosUnicos.forEach(function (veiculo) {
           var itensGrupo = _detLista.filter(function (r) { return r.veiculo === veiculo; });
           var todosGerados = itensGrupo.length > 0 && itensGrupo.every(function (r) {
             return r.chave && _statusGeradoCache.has(r.chave);
           });
           if (!todosGerados) return;
-          btn.classList.add("ativo");
-          btn.innerHTML = _icon("check", 12) + " Gerado";
-          btn.onclick = null;
+
+          var btnMultiplo = document.querySelector('.det-multiplo-btn[data-veiculo="' + veiculo + '"]');
+          if (btnMultiplo) {
+            btnMultiplo.classList.add("ativo");
+            btnMultiplo.innerHTML = _icon("check", 12) + " Gerado";
+            btnMultiplo.onclick = null;
+          } else {
+            var badge = document.querySelector('.det-relatorio-btn[data-veiculo-status="' + veiculo + '"]');
+            if (badge) badge.classList.remove("hidden");
+          }
+
+          var header = document.querySelector('tr[data-grupo-header="' + veiculo + '"]');
+          if (header) header.classList.add("grupo-concluido");
+          document.querySelectorAll('tr[data-grupo="' + veiculo + '"]').forEach(function (tr) {
+            tr.classList.add("det-linha-oculta");
+          });
+          var toggle = document.querySelector('.det-grupo-toggle[data-veiculo-toggle="' + veiculo + '"]');
+          if (toggle) toggle.classList.remove("hidden");
         });
       }
 
@@ -2902,7 +2926,8 @@
         var rows = "";
         ordemGrupos.forEach(function(veiculo) {
           var grupo = grupos[veiculo];
-          rows += '<tr style="background:rgba(244,121,32,0.07);border-top:1px solid rgba(244,121,32,0.18);cursor:pointer" onclick="_riscarGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
+          var veiculoAttr = veiculo.replace(/"/g,"");
+          rows += '<tr data-grupo-header="' + veiculoAttr + '" style="background:rgba(244,121,32,0.07);border-top:1px solid rgba(244,121,32,0.18);cursor:pointer" onclick="_onClickGrupoHeader(this,\'' + veiculo.replace(/'/g,"") + '\')">' +
             '<td colspan="6" style="padding:7px 10px">' +
               '<strong class="det-prefixo" style="color:var(--laranja);font-size:13px;letter-spacing:0.04em" ' +
                 'onclick="event.stopPropagation();_copiarPrefixo(this,\'' + veiculo.replace(/'/g,"") + '\')" ' +
@@ -2911,11 +2936,12 @@
                 grupo.length + ' parada' + (grupo.length !== 1 ? 's' : '') +
               '</span>' +
               (grupo.length > 1
-                ? '<button type="button" class="det-relatorio-btn det-multiplo-btn" style="margin-left:10px" data-veiculo="' + veiculo.replace(/"/g,"") + '" ' +
+                ? '<button type="button" class="det-relatorio-btn det-multiplo-btn" style="margin-left:10px" data-veiculo="' + veiculoAttr + '" ' +
                     'title="Gerar 1 relat&#243;rio cobrindo as ' + grupo.length + ' paradas irregulares deste ve&#237;culo" ' +
                     'onclick="event.stopPropagation();abrirModalRelatorioParadaGrupo(\'' + veiculo.replace(/'/g,"") + '\')">' +
                     _icon("file", 12) + ' Gerar M&#250;ltiplo</button>'
-                : '') +
+                : '<span class="det-relatorio-btn ativo hidden" style="margin-left:10px" data-veiculo-status="' + veiculoAttr + '">' + _icon("check", 12) + ' Gerado</span>') +
+              '<span class="det-grupo-toggle hidden" data-veiculo-toggle="' + veiculoAttr + '" style="margin-left:8px;font-size:10px;color:var(--texto3)">▾ ver paradas</span>' +
             '</td></tr>';
           grupo.forEach(function(entry) {
             var r = entry.r; var idx = entry.idx;
@@ -2971,6 +2997,23 @@
         var rows = document.querySelectorAll('[data-grupo="' + veiculo + '"]');
         var allRiscado = Array.from(rows).every(function(r) { return r.classList.contains('riscado'); });
         rows.forEach(function(r) { r.classList[allRiscado ? 'remove' : 'add']('riscado'); });
+      }
+
+      // Clique no cabeçalho do grupo (prefixo): enquanto o veículo ainda
+      // tem parada pendente, risca/desrisca o grupo inteiro manualmente
+      // (_riscarGrupo, comportamento de sempre). Depois que TODAS as
+      // paradas do veículo já têm relatório gerado (ver
+      // _aplicarStatusGeradoDeteccao), o grupo já nasce recolhido — o
+      // clique passa a só abrir/fechar as linhas pra revisão, sem
+      // precisar desmarcar nada.
+      function _onClickGrupoHeader(headerTr, veiculo) {
+        if (!headerTr.classList.contains("grupo-concluido")) { _riscarGrupo(veiculo); return; }
+        var expandido = headerTr.classList.toggle("grupo-expandido");
+        document.querySelectorAll('tr[data-grupo="' + veiculo + '"]').forEach(function (r) {
+          r.classList.toggle("det-linha-oculta", !expandido);
+        });
+        var toggle = headerTr.querySelector('.det-grupo-toggle[data-veiculo-toggle="' + veiculo + '"]');
+        if (toggle) toggle.textContent = expandido ? "▴ ocultar paradas" : "▾ ver paradas";
       }
 
       function _copiarPrefixo(el, prefixo) {
