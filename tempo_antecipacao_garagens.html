@@ -1,0 +1,2083 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Antecipação de Garagens · Viação Catedral</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* ── CATEDRAL DESIGN SYSTEM (mesma paleta do dashboard e do
+         Tempo de Permanência — ver tempo_permanencia.html) ──────── */
+      :root {
+        --preto: #0a0a0a;
+        --preto2: #111111;
+        --preto3: #1a1a1a;
+        --preto4: #242424;
+        --laranja: #f47920;
+        --laranja2: #e06510;
+        --laranja3: rgba(244, 121, 32, 0.15);
+        --laranja4: rgba(244, 121, 32, 0.08);
+        --cinza: #2e2e2e;
+        --cinza2: #3d3d3d;
+        --cinza3: #555555;
+        --borda: rgba(255, 255, 255, 0.07);
+        --borda2: rgba(255, 255, 255, 0.12);
+        --borda-l: rgba(244, 121, 32, 0.3);
+        --texto: #f0f0f0;
+        --texto2: #aaaaaa;
+        --texto3: #666666;
+        --verde: #22c97a;
+        --vermelho: #e05050;
+        --amarelo: #f0c040;
+        --radius: 10px;
+        --radius-sm: 6px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+      * { scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent; }
+      *::-webkit-scrollbar { width: 9px; height: 9px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb { background-color: var(--cinza2); border-radius: 8px; background-clip: padding-box; }
+      *::-webkit-scrollbar-thumb:hover { background-color: var(--laranja); }
+
+      .topbar { background: var(--laranja); height: 4px; width: 100%; }
+      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .header-logo { display: flex; align-items: center; gap: 16px; }
+      .logo-icon { width: 44px; height: 44px; background: var(--laranja); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .logo-icon svg { width: 26px; height: 26px; fill: #fff; }
+      .logo-text h1 { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto); line-height: 1; }
+      .logo-text h1 span { color: var(--laranja); }
+      .logo-text p { font-size: 11px; color: var(--texto3); margin-top: 3px; }
+      .header-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .btn { font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); }
+      .btn-primary:hover { background: var(--laranja2); }
+      .btn-ghost { background: transparent; color: var(--texto2); border-color: var(--cinza2); }
+      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); }
+      .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+      .main { padding: 24px 28px 60px; max-width: 1200px; margin: 0 auto; }
+
+      .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin: 14px 0; font-size: 13px; flex-wrap: wrap; }
+      .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--laranja3); color: var(--laranja); letter-spacing: 0.03em; }
+      .hidden { display: none !important; }
+
+      .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+      @media (max-width: 1100px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+      @media (max-width: 640px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+      .kpi-row-4 { grid-template-columns: repeat(4, 1fr); }
+      @media (max-width: 640px) { .kpi-row-4 { grid-template-columns: repeat(2, 1fr); } }
+      .kpi { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 16px 18px; position: relative; overflow: hidden; }
+      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kpi-c, var(--laranja)); }
+      .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 600; margin-bottom: 8px; }
+      .kpi-value { font-family: "Barlow Condensed", sans-serif; font-size: 28px; font-weight: 700; color: var(--kpi-c, var(--texto)); letter-spacing: -0.01em; line-height: 1; }
+      .kpi-sub { font-size: 11px; color: var(--texto3); margin-top: 6px; }
+
+      .card { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 10px; }
+      .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
+      .secao-hr { border: none; border-top: 1px solid var(--borda); margin: 26px 0; }
+
+      .estado-vazio { font-size: 13px; color: var(--texto3); text-align: center; padding: 24px 0; }
+
+      /* ── ABAS (Antecipação / Em Trânsito) ─────────────────── */
+      .ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
+      .ag-tab {
+        font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; color: var(--texto2);
+        background: transparent; border: none; border-bottom: 2px solid transparent; padding: 10px 4px;
+        margin-right: 20px; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.15s;
+      }
+      .ag-tab:hover { color: var(--texto); }
+      .ag-tab.ativa { color: var(--laranja); border-bottom-color: var(--laranja); }
+      .ag-tab-count { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--texto2); }
+      .ag-tab.ativa .ag-tab-count { background: var(--laranja3); color: var(--laranja); }
+
+      /* ── FILTROS ─────────────────────────────────────────── */
+      .filtro-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+      .filtro-bar input[type="text"], .filtro-bar select {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
+        padding: 9px 12px; outline: none; transition: border-color 0.15s;
+      }
+      .filtro-bar input[type="text"] { flex: 1; min-width: 200px; }
+      .filtro-bar input:focus, .filtro-bar select:focus { border-color: var(--laranja); background: var(--preto4); }
+
+      /* ── STATUS DA GARAGEM (badge no cabeçalho do accordion) ─ */
+      .gar-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; white-space: nowrap; margin-left: 4px; }
+      .gar-status.fora { background: rgba(224,80,80,0.14); color: var(--vermelho); }
+      .gar-status.regular { background: rgba(34,201,122,0.14); color: var(--verde); }
+
+      /* ── ACCORDION POR REGIÃO (mesmo padrão do Tempo de Permanência) ── */
+      .acc-group { border: 1px solid var(--borda-l); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; background: var(--preto2); }
+      .acc-summary { list-style: none; cursor: pointer; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; user-select: none; background: rgba(244,121,32,0.05); }
+      .acc-summary::-webkit-details-marker { display: none; }
+      .acc-summary:hover { background: var(--laranja4); }
+      .acc-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .acc-chevron { width: 9px; height: 9px; border-right: 2px solid var(--texto3); border-bottom: 2px solid var(--texto3); transform: rotate(-45deg); transition: transform 0.2s; flex-shrink: 0; }
+      details[open] > .acc-summary .acc-chevron { transform: rotate(45deg); }
+      .acc-regiao-nome { font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 700; color: var(--texto); text-transform: uppercase; letter-spacing: 0.05em; }
+      .acc-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .acc-count { font-size: 11px; color: var(--texto2); }
+      .acc-body { border-top: 1px solid var(--borda); padding: 8px 12px 4px; }
+
+      /* Nível 2 = garagem, aninhado dentro da região — recuado, mais
+         discreto, e com o botão "Gerar cobrança" já no cabeçalho. */
+      .acc-group.acc-garagem { border-color: var(--borda); margin: 0 0 6px; background: var(--preto3); }
+      .acc-group.acc-garagem > .acc-summary { padding: 10px 14px; background: transparent; }
+      .acc-group.acc-garagem > .acc-summary:hover { background: var(--laranja4); }
+      .acc-garagem-nome { font-family: "Barlow Condensed", sans-serif; font-size: 16px; font-weight: 700; color: var(--texto); letter-spacing: 0.02em; }
+      .acc-group.acc-garagem > .acc-body { padding: 6px 14px 12px; }
+      .acc-cobranca-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 12px;
+        border-radius: 6px; border: 1px solid var(--laranja); background: transparent; color: var(--laranja);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      }
+      .acc-cobranca-btn:hover { background: var(--laranja); color: #fff; }
+
+      /* ── "Ver esquema" — vínculo com a linha/OPTZ (mesmo padrão do
+         Tempo de Permanência) — usado no detalhe de cada ocorrência pra
+         checar se a antecipação insuficiente também atrasou a sessão/
+         partida real do veículo na rodoviária. ── */
+      .oco-esquema-btn {
+        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
+        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+      }
+      .oco-esquema-btn:hover { border-color: #4f8ef7; color: #4f8ef7; background: rgba(79,142,247,0.1); }
+      .oco-esquema-panel { flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto3); border: 1px solid var(--borda2); }
+      .oco-esquema-input { width: 100%; background: var(--preto2); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; border-radius: var(--radius-sm); }
+      .oco-esquema-input:focus { outline: none; border-color: var(--laranja); }
+      .oco-esquema-msg { font-size: 12px; color: var(--texto3); font-style: italic; padding: 8px 2px; }
+      .oco-esquema-lista { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+      .oco-esquema-item { padding: 7px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+      .oco-esquema-item:hover { border-color: var(--laranja); color: var(--texto); }
+      .oco-esquema-item b { color: var(--texto); }
+      .oco-esquema-item .esquema-sub { display: block; font-size: 11px; color: var(--texto3); margin-top: 2px; }
+      .oco-esquema-detalhe { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); }
+      .oco-esquema-detalhe b { color: var(--texto); }
+      .oco-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; margin-top: 6px; }
+      .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); }
+      .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); }
+      .esquema-sessao-linha.ok { background: rgba(34,201,122,0.10); border-left: 3px solid var(--verde); }
+      .esquema-sessao-linha .esquema-sessao-icone { flex-shrink: 0; }
+      .esquema-sessao-linha.cedo .esquema-sessao-icone { color: var(--amarelo); }
+      .esquema-sessao-linha.atraso .esquema-sessao-icone { color: var(--vermelho); }
+      .esquema-sessao-linha.ok .esquema-sessao-icone { color: var(--verde); }
+      .oco-esquema-editar-btn {
+        flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
+        color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;
+      }
+      .oco-esquema-editar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+
+      /* ── MODAL (mesmo padrão do Tempo de Permanência) ────── */
+      .oc-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      }
+      .oc-overlay.hidden { display: none; }
+      .oc-panel { position: relative; display: flex; flex-direction: column; background: var(--preto2); border: 1px solid var(--borda2); border-radius: var(--radius); width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.7); }
+      .oc-header { padding: 18px 22px; border-bottom: 1px solid var(--borda2); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--preto2); z-index: 1; }
+      .oc-header h3 { font-size: 15px; font-weight: 700; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+      .oc-close { background: none; border: none; color: var(--texto3); font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+      .oc-close:hover { color: var(--texto); background: var(--cinza); }
+      .oc-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+      .oc-footer { padding: 14px 22px; border-top: 1px solid var(--borda2); display: flex; align-items: center; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--preto2); }
+      .oc-status { font-size: 12px; color: var(--texto3); flex: 1; }
+      .oc-status.ok { color: var(--verde); }
+      .oc-status.err { color: var(--vermelho); }
+      .oc-field { display: flex; flex-direction: column; gap: 4px; }
+      .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
+      .oc-field input, .oc-field textarea { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); width: 100%; }
+      .oc-field textarea { resize: vertical; min-height: 160px; line-height: 1.5; }
+      .oc-field input:focus, .oc-field textarea:focus { outline: none; border-color: var(--laranja); }
+
+      /* Copiar pro clipboard (veículo/nome de ponto) — mesma UX de Paradas
+         Irregulares/Tempo de Permanência: sublinhado tracejado, laranja no
+         hover, "✓ Copiado" por 1,2s ao clicar. */
+      .oco-copy { cursor: pointer; border-bottom: 1px dashed var(--cinza2); transition: color 0.15s, border-color 0.15s; }
+      .oco-copy:hover { color: var(--laranja) !important; border-color: var(--laranja); }
+
+      /* Lista de ocorrências dentro do modal de detalhe da garagem */
+      .oco-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12.5px; }
+      .oco-item:last-child { border-bottom: none; }
+      .oco-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .oco-info b { color: var(--texto); }
+      .oco-info span { color: var(--texto3); font-size: 11px; }
+
+      .oco-cabecalho { display: flex; align-items: baseline; gap: 8px; }
+      .oco-cabecalho b { font-size: 14px; font-weight: 700; }
+      .oco-data { font-size: 11px; color: var(--texto3); }
+
+      /* Fluxo garagem → rodoviária — nome do ponto já diz "GARAGEM"/
+         "RODOVIÁRIA" sozinho, não precisa de rótulo repetindo. */
+      .oco-flow { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; font-size: 12px; color: var(--texto2); }
+      .oco-flow .oco-copy { color: var(--texto); font-weight: 600; }
+      .oco-flow-hora { font-size: 11px; color: var(--texto3); }
+      .oco-flow-seta { color: var(--texto3); margin: 0 1px; }
+
+      .oco-fonte { font-size: 10.5px; color: var(--texto3); }
+      .oco-fonte.sessao { color: #4f8ef7; }
+      .oco-fonte b { color: inherit; }
+      .oco-nums { text-align: right; flex-shrink: 0; }
+      .oco-nums .encontrado { font-weight: 700; }
+      .oco-nums .esperado { color: var(--texto3); font-size: 11px; }
+      .oco-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap; }
+      .oco-badge.fora { background: rgba(224,80,80,0.14); color: var(--vermelho); }
+      .oco-badge.dentro { background: rgba(34,201,122,0.14); color: var(--verde); }
+      .oco-badge.neutro { background: rgba(255,255,255,0.08); color: var(--texto2); }
+
+      .arte-preview { width: 100%; max-width: 220px; border-radius: var(--radius-sm); border: 1px solid var(--borda2); display: block; margin: 0 auto; }
+
+      footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 18px 28px; margin-top: 8px; }
+      .footer-copy { font-size: 10px; color: var(--texto3); text-align: center; }
+      .footer-copy span { color: var(--laranja); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <input type="file" id="agFileInput" accept=".csv" style="display:none" onchange="handleAGUpload(event)" />
+
+    <div class="topbar"></div>
+    <header class="header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 8h-1V6c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v9h2c0 1.66 1.34 3 3 3s3-1.34 3-3h4c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-4l-2.5-3.5A2 2 0 0 0 18 8zM8 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM17 8l1.96 2.5H15V8h2zm0 10.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Antecipação de <span>Garagens</span></h1>
+          <p>Cobrança de tempo de liberação garagem → rodoviária · Viação Catedral</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <button class="btn btn-primary" onclick="document.getElementById('agFileInput').click()">+ Importar CSV</button>
+        <button class="btn btn-ghost" onclick="voltarDashboard()">← Voltar ao dashboard</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="det-status" id="agStatus"></div>
+
+      <div class="ag-tabs hidden" id="agTabs">
+        <button type="button" class="ag-tab ativa" data-tab="antecipacao" onclick="_trocarAbaAG('antecipacao')">
+          Antecipação de Garagens <span class="ag-tab-count" id="agTabCountAntecipacao">0</span>
+        </button>
+        <button type="button" class="ag-tab" data-tab="transito" onclick="_trocarAbaAG('transito')">
+          Em Trânsito <span class="ag-tab-count" id="agTabCountTransito">0</span>
+        </button>
+      </div>
+
+      <div id="agAbaAntecipacao">
+        <!-- Só irregularidades entram aqui (antecipação respeitada é
+             descartada da análise) — os KPIs refletem isso: não existe
+             mais "dentro do prazo"/"% de cumprimento", é uma lista pura
+             do que precisa ser cobrado. -->
+        <div class="kpi-row kpi-row-4 hidden" id="agKpis">
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Garagens com irregularidades</div>
+            <div class="kpi-value" id="kGaragens">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Total de ocorrências</div>
+            <div class="kpi-value" id="kTotalOcorrencias">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--amarelo)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Média de antecipação encontrada</div>
+            <div class="kpi-value" id="kMediaAntecipacao">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Maior déficit</div>
+            <div class="kpi-value" id="kMaiorDeficit">—</div>
+          </div>
+        </div>
+
+        <div class="card hidden" id="agResultCard">
+          <div class="card-title">Garagens</div>
+          <div class="filtro-bar">
+            <input type="text" id="agBusca" placeholder="Buscar garagem..." oninput="_renderGaragensFiltrado()" />
+            <select id="agRegiaoSel" onchange="_renderGaragensFiltrado()">
+              <option value="">Todas as regiões</option>
+            </select>
+            <select id="agStatusSel" class="hidden" onchange="_renderGaragensFiltrado()">
+              <option value="">Todos os status</option>
+              <option value="Fora do prazo">Fora do prazo</option>
+            </select>
+          </div>
+          <div id="agAccordions"></div>
+          <p id="agSemDadosNota" class="estado-vazio hidden" style="text-align:left;padding:14px 0 0"></p>
+        </div>
+      </div>
+
+      <!-- ── ABA "Em Trânsito" — paradas de garagem no meio de uma
+           viagem já em andamento (não é sobre chegar a tempo na
+           rodoviária, é sobre não ficar tempo demais parado na garagem
+           durante o trajeto: troca de motorista/abastecimento/
+           manutenção). Cobrança e critério de fora do prazo são
+           diferentes da aba principal — ver Col E "Tempo Máximo Parada
+           Trânsito" na aba Garagens. ── -->
+      <div id="agAbaTransito" class="hidden">
+        <div class="kpi-row hidden" id="agKpisTransito">
+          <div class="kpi" style="--kpi-c: var(--laranja)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Garagens analisadas</div>
+            <div class="kpi-value" id="kGaragensT">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--verde)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Dentro do prazo</div>
+            <div class="kpi-value" id="kDentroPrazoT">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Com ocorrências</div>
+            <div class="kpi-value" id="kComOcorrenciasT">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Total de ocorrências</div>
+            <div class="kpi-value" id="kTotalOcorrenciasT">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--amarelo)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Média de parada</div>
+            <div class="kpi-value" id="kMediaDuracaoT">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--verde)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">% de cumprimento</div>
+            <div class="kpi-value" id="kPercentCumprimentoT">—</div>
+          </div>
+        </div>
+
+        <div class="card hidden" id="agResultCardTransito">
+          <div class="card-title">Garagens — paradas em trânsito</div>
+          <div class="filtro-bar">
+            <input type="text" id="agBuscaT" placeholder="Buscar garagem..." oninput="_renderTransitoFiltradoAG()" />
+            <select id="agRegiaoSelT" onchange="_renderTransitoFiltradoAG()">
+              <option value="">Todas as regiões</option>
+            </select>
+            <select id="agStatusSelT" onchange="_renderTransitoFiltradoAG()">
+              <option value="">Todos os status</option>
+              <option value="Fora do prazo">Fora do prazo</option>
+              <option value="Regular">Regular</option>
+            </select>
+          </div>
+          <div id="agAccordionsTransito"></div>
+          <p id="agSemRefTransitoNota" class="estado-vazio hidden" style="text-align:left;padding:14px 0 0"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODAL GERAR COBRANÇA (revisar/enviar — as viagens já ficam
+         visíveis inline no accordion da garagem, não aqui) ────── -->
+    <div class="oc-overlay hidden" id="garModal" onclick="if(event.target===this)fecharGarModal()">
+      <div class="oc-panel">
+        <div class="oc-header">
+          <h3 id="garModalTitulo">Gerar cobrança</h3>
+          <button class="oc-close" onclick="fecharGarModal()">✕</button>
+        </div>
+        <div class="oc-body">
+          <div style="display:flex;gap:18px;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px">
+              <div class="oc-field">
+                <label>Telefone / Grupo WhatsApp</label>
+                <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" />
+              </div>
+              <div class="oc-field">
+                <label>Mensagem</label>
+                <textarea id="garMensagem"></textarea>
+              </div>
+            </div>
+            <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px">
+              <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--texto3);font-weight:700">Arte anexada</label>
+              <img id="garArtePreview" class="arte-preview" src="" alt="Arte da garagem" />
+              <span id="garArteNome" style="font-size:11px;color:var(--texto3);text-align:center"></span>
+            </div>
+          </div>
+        </div>
+        <div class="oc-footer">
+          <span class="oc-status" id="garCobrancaStatus"></span>
+          <button class="btn btn-ghost hidden" id="garBtnConectarWpp" onclick="_abrirConexaoWhatsAppAG()">Conectar WhatsApp</button>
+          <button class="btn btn-primary" id="garBtnEnviar" onclick="_enviarCobranca()">Enviar pelo WhatsApp</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODAL CONECTAR WHATSAPP (QR code do RIZER Agent) ────── -->
+    <div class="oc-overlay hidden" id="whatsappQrModal" onclick="if(event.target===this)fecharConexaoWhatsAppAG()">
+      <div class="oc-panel" style="max-width:340px">
+        <div class="oc-header">
+          <h3>Conectar WhatsApp</h3>
+          <button class="oc-close" onclick="fecharConexaoWhatsAppAG()">✕</button>
+        </div>
+        <div class="oc-body" style="align-items:center;text-align:center">
+          <div id="whatsappQrConteudo" style="min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%">
+            <span class="det-spinner"></span>
+            <span style="font-size:12.5px;color:var(--texto2)">Conectando ao RIZER Agent...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODAL CONFIRMAR AÇÃO (genérico, mesmo padrão da tela irmã) ── -->
+    <div class="oc-overlay hidden" id="confirmModal" onclick="if(event.target===this)_confirmResponder(false)">
+      <div class="oc-panel" style="max-width:420px">
+        <div class="oc-header"><h3 id="confirmTitulo">⚠️ Confirmar ação</h3></div>
+        <div class="oc-body">
+          <p id="confirmMensagem" style="font-size:13px;color:var(--texto2);line-height:1.5;white-space:pre-line">—</p>
+        </div>
+        <div class="oc-footer">
+          <button class="btn btn-ghost" id="confirmBtnCancelar" onclick="_confirmResponder(false)">Cancelar</button>
+          <button class="btn btn-primary" id="confirmBtnOk" onclick="_confirmResponder(true)">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p class="footer-copy">Viação <span>Catedral</span> · BI PC's Não Autorizados</p>
+    </footer>
+
+    <script>
+      // ── Trava o scroll do FUNDO da página quando alguma modal
+      // (.oc-overlay) está aberta — mesmo padrão do tempo_permanencia.html:
+      // observa a troca da classe "hidden" nos overlays (garModal,
+      // confirmModal) e recalcula, sem precisar mexer em cada abrir/fechar
+      // nem em modais futuras. O painel (.oc-panel) continua rolando
+      // normalmente, só o fundo trava.
+      (function () {
+        function _atualizarBloqueioScrollModalAG() {
+          var algumaAberta = Array.prototype.some.call(
+            document.querySelectorAll(".oc-overlay"),
+            function (el) { return !el.classList.contains("hidden"); },
+          );
+          document.body.style.overflow = algumaAberta ? "hidden" : "";
+        }
+        function _observarModaisAG() {
+          var overlays = document.querySelectorAll(".oc-overlay");
+          if (!overlays.length) return;
+          var observer = new MutationObserver(_atualizarBloqueioScrollModalAG);
+          overlays.forEach(function (el) {
+            observer.observe(el, { attributes: true, attributeFilter: ["class"] });
+          });
+          _atualizarBloqueioScrollModalAG();
+        }
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", _observarModaisAG);
+        else _observarModaisAG();
+      })();
+
+      // ═══════════════════════════════════════════════════════════
+      //  CONFIG
+      // ═══════════════════════════════════════════════════════════
+      var RIZER_AGENT_URL = "http://127.0.0.1:3334";
+
+      var webAppBaseUrl = "";
+      window.onload = function () {
+        if (window.google && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
+        }
+        _carregarGaragens();
+      };
+
+      function voltarDashboard() {
+        if (webAppBaseUrl) window.location.href = webAppBaseUrl;
+        else window.history.back();
+      }
+
+      // ─── Modal "Confirmar ação" (substitui window.confirm nativo —
+      // mesmo motivo/padrão do tempo_permanencia.html) ──────────────
+      var _confirmResolve = null;
+      function _confirmarAcao(mensagem, opts) {
+        opts = opts || {};
+        document.getElementById("confirmTitulo").textContent = opts.titulo || "⚠️ Confirmar ação";
+        document.getElementById("confirmMensagem").textContent = mensagem;
+        var btnOk = document.getElementById("confirmBtnOk");
+        btnOk.textContent = opts.textoOk || "Confirmar";
+        document.getElementById("confirmBtnCancelar").classList.toggle("hidden", !!opts.ocultarCancelar);
+        document.getElementById("confirmModal").classList.remove("hidden");
+        return new Promise(function (resolve) { _confirmResolve = resolve; });
+      }
+      function _alertarAcao(mensagem, opts) {
+        opts = opts || {};
+        opts.ocultarCancelar = true;
+        opts.textoOk = opts.textoOk || "OK";
+        return _confirmarAcao(mensagem, opts);
+      }
+      function _confirmResponder(valor) {
+        document.getElementById("confirmModal").classList.add("hidden");
+        var resolve = _confirmResolve;
+        _confirmResolve = null;
+        if (resolve) resolve(valor);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Referência: aba "Garagens" (getGaragens() em BI_PC.js)
+      // ═══════════════════════════════════════════════════════════
+      var _garagensCache = null;
+
+      function _carregarGaragens(cb) {
+        if (_garagensCache) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) { _garagensCache = []; if (cb) cb(); return; }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _garagensCache = JSON.parse(json || "[]"); } catch (e) { _garagensCache = []; }
+            _garagensCache.forEach(function (g) { g.cidadeNorm = _normAG(g.cidade); g.apelidosNorm = (g.apelidos || []).map(_normAG); });
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _garagensCache = []; if (cb) cb(); })
+          .getGaragens();
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Upload + parsing do CSV de viagens
+      //  (mesma codificação windows-1252 do tempo_permanencia.html —
+      //   arquivos exportados do mesmo sistema de rastreamento)
+      // ═══════════════════════════════════════════════════════════
+      function handleAGUpload(evt) {
+        var file = evt.target.files[0];
+        evt.target.value = "";
+        if (!file) return;
+        var statusEl = document.getElementById("agStatus");
+        statusEl.innerHTML = '<span class="det-spinner"></span> Processando arquivo...';
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var rows = _parseCSVViagensAG(e.target.result);
+          _carregarGaragens(function () {
+            statusEl.innerHTML = '<span class="det-spinner"></span> Buscando horários de sessão das linhas — pode levar alguns segundos...';
+            _prefetchRoteirosAG().then(function () {
+              var resultado = _detectarOcorrenciasAG(rows);
+              _renderResultadoAG(resultado);
+            });
+          });
+        };
+        reader.onerror = function () {
+          statusEl.innerHTML = '<span style="color:var(--vermelho)">Falha ao ler o arquivo.</span>';
+        };
+        reader.readAsText(file, "windows-1252");
+      }
+
+      function _splitCSVAG(line) {
+        var fields = []; var f = ""; var q = false;
+        for (var i = 0; i < line.length; i++) {
+          var c = line[i];
+          if (c === '"') { q = !q; }
+          else if (c === ',' && !q) { fields.push(f.trim()); f = ""; }
+          else f += c;
+        }
+        fields.push(f.trim());
+        return fields;
+      }
+
+      function _normAG(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .toUpperCase().trim().replace(/\s+/g, " ");
+      }
+
+      function _parseCSVViagensAG(text) {
+        var lines = text.replace(/\r/g, "").split("\n").filter(function (l) { return l.trim(); });
+        if (lines.length < 2) return [];
+        var header = _splitCSVAG(lines[0]).map(_normAG);
+        var idx = function (terms) { return header.findIndex(function (h) { return terms.some(function (t) { return h.includes(t); }); }); };
+
+        var iUnidade = idx(["UNIDADE"]);
+        var iVeiculo = idx(["VEICULO", "VECULO", "PREFIXO"]);
+        var iPonto = idx(["PONTO", "CONTROLE"]);
+        var iEntrada = idx(["ENTRADA"]);
+        var iSaida = idx(["SAIDA", "SADA"]);
+        var iParada = idx(["PARADA"]);
+        var iInterv = idx(["INTERVALO"]);
+        var iFunc = idx(["FUNCIONARIO", "MOTORISTA"]);
+
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var f = _splitCSVAG(lines[i]);
+          if (!f[iPonto]) continue;
+          rows.push({
+            unidade: (f[iUnidade] || "").trim(),
+            veiculo: (f[iVeiculo] || "").trim(),
+            ponto: (f[iPonto] || "").trim(),
+            entrada: (f[iEntrada] || "").trim(),
+            saida: (f[iSaida] || "").trim(),
+            parada: (f[iParada] || "").trim(),
+            intervalo: (f[iInterv] || "").trim(),
+            funcionario: (f[iFunc] || "").trim(),
+          });
+        }
+        return rows;
+      }
+
+      function _parseDataHoraAG(s) {
+        s = String(s || "").trim();
+        if (!s) return null;
+        var d = new Date(s.replace(" ", "T"));
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      function _parseDuracaoMinAG(s) {
+        s = String(s || "").trim();
+        if (!s || s === "-") return null;
+        var partes = s.split(":").map(Number);
+        if (partes.some(isNaN)) return null;
+        if (partes.length === 3) return partes[0] * 60 + partes[1] + partes[2] / 60;
+        if (partes.length === 2) return partes[0] * 60 + partes[1];
+        return null;
+      }
+
+      function _fmtMinAG(min) {
+        if (min == null || isNaN(min)) return "—";
+        var m = Math.round(min);
+        return m + " min";
+      }
+
+      // Duração de permanência (ex.: quanto tempo o veículo ficou na
+      // garagem) — em horas+minutos quando passa de 1h, só minutos caso
+      // contrário. Usa Math.round no total de minutos antes de separar em
+      // h/min pra não descartar segundos residuais do cálculo de datas.
+      function _fmtDuracaoAG(min) {
+        if (min == null || isNaN(min)) return "—";
+        var total = Math.round(min);
+        var h = Math.floor(total / 60), m = total % 60;
+        return h > 0 ? (h + "h" + String(m).padStart(2, "0") + "min") : (m + " min");
+      }
+
+      // Trechinho de HTML mostrando se o atraso real de partida (quando
+      // conhecido) passou da tolerância — usado no card da ocorrência,
+      // logo depois da linha "Sessão ...".
+      function _htmlAtrasoPartidaAG(atrasoPartidaMin) {
+        if (atrasoPartidaMin == null) return "";
+        if (atrasoPartidaMin <= 0) return " · saiu no horário ou antes";
+        var cor = atrasoPartidaMin > TOLERANCIA_ATRASO_PARTIDA_MIN_AG ? "var(--vermelho)" : "var(--amarelo)";
+        return ' · <b style="color:' + cor + '">atrasou ' + atrasoPartidaMin + 'min a partida real</b>';
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Detecção — regra: pra cada rodoviária, olhar o ponto
+      //  imediatamente anterior; se for garagem, calcular o tempo de
+      //  antecipação (reaproveita o campo "Intervalo" do próprio CSV,
+      //  já calculado pelo sistema de rastreamento como o tempo entre
+      //  o fim da parada anterior e o início desta).
+      // ═══════════════════════════════════════════════════════════
+      function _ehGaragemAG(ponto) { return _normAG(ponto).includes("GARAGEM"); }
+      function _ehRodoviariaAG(ponto) { return _normAG(ponto).includes("RODOVI"); }
+
+      // Abaixo disso, a leitura na rodoviária é só o GPS passando perto do
+      // ponto cadastrado (ex.: o veículo atravessa perto da rodoviária
+      // antiga a caminho da garagem) — não chegou a parar de verdade pra
+      // embarque/desembarque, então não conta como "chegada na
+      // rodoviária" pra essa análise. Casos reais observados no CSV: pings
+      // de passagem ficam na casa de poucos segundos (3-7s); paradas de
+      // verdade passam de vários minutos — 30s dá margem confortável sem
+      // arriscar descartar uma parada real curta.
+      var MIN_PARADA_RODOVIARIA_MIN_AG = 0.5;
+
+      // Limite de permanência na garagem pra paradas EM TRÂNSITO (regra de
+      // negócio — fixo, igual pra todas as garagens, não depende de
+      // cadastro por garagem): até 30min é regular, acima disso é
+      // irregularidade.
+      var LIMITE_PERMANENCIA_TRANSITO_MIN_AG = 30;
+
+      // Soma a "Parada" de todas as leituras consecutivas do mesmo ponto a
+      // partir do índice i — cobre o caso de várias linhas seguidas pro
+      // mesmo ponto (pings do rastreamento), sem contar só a 1ª.
+      function _duracaoParadaAcumuladaAG(lista, i) {
+        var ref = _normAG(lista[i].ponto);
+        var total = 0;
+        for (var j = i; j < lista.length && _normAG(lista[j].ponto) === ref; j++) {
+          var p = _parseDuracaoMinAG(lista[j].parada);
+          if (p != null) total += p;
+        }
+        return total;
+      }
+
+      // Acha o índice da 1ª leitura do grupo de linhas consecutivas pro
+      // mesmo ponto que termina em idx (cada ping do rastreamento vira uma
+      // linha — um veículo parado gera várias leituras seguidas do mesmo
+      // ponto).
+      function _inicioGrupoAG(lista, idx) {
+        var ref = _normAG(lista[idx].ponto);
+        var j = idx;
+        while (j > 0 && _normAG(lista[j - 1].ponto) === ref) j--;
+        return j;
+      }
+
+      // Entrada da visita à garagem que termina no índice prevIdx — pra
+      // saber quando o veículo realmente chegou (não só quando saiu, que
+      // já tínhamos via prev.saida).
+      function _entradaGaragemAG(lista, prevIdx) {
+        return lista[_inicioGrupoAG(lista, prevIdx)].entrada;
+      }
+
+      // Acha o índice da ÚLTIMA leitura do grupo de linhas consecutivas
+      // pro mesmo ponto que começa em idx — o inverso de _inicioGrupoAG.
+      // Necessário pra achar a SAÍDA real de uma parada com vários pings
+      // (ex.: rodoviária com 5 leituras seguidas — a saída de verdade é a
+      // da ÚLTIMA leitura, não da 1ª, que é só quando o GPS "entrou" na
+      // área do ponto).
+      function _fimGrupoAG(lista, idx) {
+        var ref = _normAG(lista[idx].ponto);
+        var j = idx;
+        while (j < lista.length - 1 && _normAG(lista[j + 1].ponto) === ref) j++;
+        return j;
+      }
+
+      // Verifica se o veículo já teve uma parada REAL (não ping de
+      // passagem, ver MIN_PARADA_RODOVIARIA_MIN_AG) em alguma rodoviária
+      // ANTES do índice `ateIdx` (exclusive) — ou seja, se a viagem já
+      // estava em andamento quando o veículo chegou nessa garagem. Usado
+      // pra distinguir "início de viagem" (garagem é o 1º ponto relevante
+      // do dia pro veículo, ou só teve garagem/postos/restaurantes antes)
+      // de "parada intermediária em trânsito" (troca de motorista,
+      // manutenção, pernoite no meio de uma viagem que já tinha passado
+      // por uma rodoviária antes) — só o 1º caso deve gerar cobrança.
+      //
+      // Limitação conhecida: o CSV não tem um ID de viagem, então em dias
+      // com MAIS DE UMA viagem pelo mesmo veículo (viagem de ida E volta,
+      // por exemplo) essa regra pode marcar a 2ª viagem como "em trânsito"
+      // mesmo sendo um novo início legítimo. Sem uma coluna de viagem/
+      // linha no CSV não dá pra distinguir os dois casos com certeza — na
+      // dúvida, o sistema prefere NÃO cobrar (falso negativo) a cobrar
+      // errado (falso positivo).
+      function _teveRodoviariaAnteriorAG(lista, ateIdx) {
+        for (var j = 0; j < ateIdx; j++) {
+          if (!_ehRodoviariaAG(lista[j].ponto)) continue;
+          if (j > 0 && _normAG(lista[j].ponto) === _normAG(lista[j - 1].ponto)) continue; // não é a 1ª leitura desse ponto — já contamos no grupo anterior
+          if (_duracaoParadaAcumuladaAG(lista, j) >= MIN_PARADA_RODOVIARIA_MIN_AG) return true;
+        }
+        return false;
+      }
+
+      // UF → macrorregião (mesmo mapa do tempo_permanencia.html) — usado
+      // pra agrupar a tabela de garagens por região.
+      var UF_REGIAO_AG = {
+        AC: "Norte", AP: "Norte", AM: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
+        AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste", PE: "Nordeste",
+        PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
+        DF: "Centro-Oeste", GO: "Centro-Oeste", MT: "Centro-Oeste", MS: "Centro-Oeste",
+        ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
+        PR: "Sul", RS: "Sul", SC: "Sul",
+      };
+
+      // Casa o nome de um ponto (rodoviária OU garagem) contra a lista de
+      // ORIGEM cadastrados na aba Garagens — regex de fronteira de palavra,
+      // pega o casamento mais específico (nome de cidade mais longo) em
+      // caso de empate. Mesma técnica de _matchReferencia no
+      // tempo_permanencia.html.
+      function _matchOrigemAG(pontoNome) {
+        var norm = _normAG(pontoNome);
+        var melhor = null, melhorLen = -1;
+        (_garagensCache || []).forEach(function (g) {
+          var candidatos = [g.cidadeNorm].concat(g.apelidosNorm || []);
+          candidatos.forEach(function (cand) {
+            if (!cand) return;
+            var re = new RegExp("\\b" + cand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+            if (re.test(norm) && cand.length > melhorLen) { melhor = g; melhorLen = cand.length; }
+          });
+        });
+        return melhor;
+      }
+
+      function _detectarOcorrenciasAG(rows) {
+        var ocorrencias = [];
+        var semDados = [];
+        var emTransito = [];
+        var porVeiculo = {};
+        rows.forEach(function (r) { (porVeiculo[r.veiculo || "—"] = porVeiculo[r.veiculo || "—"] || []).push(r); });
+
+        Object.keys(porVeiculo).forEach(function (veiculo) {
+          var lista = porVeiculo[veiculo];
+          for (var i = 1; i < lista.length; i++) {
+            var cur = lista[i], prev = lista[i - 1];
+            if (_normAG(cur.ponto) === _normAG(prev.ponto)) continue; // ping repetido — não é parada nova
+            if (!_ehRodoviariaAG(cur.ponto)) continue;
+            if (!_ehGaragemAG(prev.ponto)) continue; // ponto anterior não é garagem — fora da regra
+            // Só GPS passando perto do ponto (ex.: rodoviária antiga a
+            // caminho da garagem) — não é uma chegada real, descarta sem
+            // gerar nem "Sem dados" (não é uma ocorrência analisável, é
+            // ruído de leitura).
+            if (_duracaoParadaAcumuladaAG(lista, i) < MIN_PARADA_RODOVIARIA_MIN_AG) continue;
+
+            var origem = _matchOrigemAG(cur.ponto) || _matchOrigemAG(prev.ponto);
+            var dataRef = _parseDataHoraAG(cur.entrada) || _parseDataHoraAG(prev.saida);
+
+            // Saída real do veículo da rodoviária — a do ÚLTIMO ping do
+            // grupo (a parada pode ter várias leituras seguidas do GPS
+            // até o veículo realmente sair da área); usar só cur.saida
+            // (1ª leitura) subestima a saída real, fazendo parecer que
+            // saiu bem mais cedo do que de fato saiu.
+            var rodoviariaFimIdx = _fimGrupoAG(lista, i);
+            var horaSaidaRodoviaria = lista[rodoviariaFimIdx].saida;
+
+            var garagemInicioIdx = _inicioGrupoAG(lista, i - 1);
+            var horaEntradaGaragem = lista[garagemInicioIdx].entrada;
+            var dEntGar = _parseDataHoraAG(horaEntradaGaragem), dSaiGar = _parseDataHoraAG(prev.saida);
+            var duracaoGaragemMin = (dEntGar && dSaiGar) ? (dSaiGar - dEntGar) / 60000 : null;
+
+            // Antecedência: prioriza o horário de SESSÃO (partida
+            // programada da linha) sobre o horário bruto de chegada do
+            // CSV — ver bloco "Pré-carregamento em massa dos roteiros"
+            // acima pra entender por quê (duas garagens perto do terminal
+            // "chegam rápido" mas isso não mede antecedência de verdade).
+            // Só usa a sessão quando acha uma linha com horário plausível
+            // pra essa ORIGEM (dentro de JANELA_MAX_MATCH_MIN_AG); fora
+            // isso, cai pro cálculo antigo (garagem → entrada bruta do
+            // CSV, via campo Intervalo já calculado pelo rastreamento).
+            var antecedenciaMin = null;
+            // Casa pela SAÍDA real (não a entrada/chegada) — horário de
+            // sessão é sobre PARTIDA, e o tempo que o veículo fica parado
+            // na rodoviária antes de sair de fato varia bastante (minutos
+            // a mais de uma hora), então casar pela chegada pode escolher
+            // uma linha errada que só coincide por acaso estar mais perto
+            // do horário de chegada, mesmo sem nenhum veículo real saindo
+            // naquele horário.
+            var esquemaMatch = origem ? _acharSessaoMaisProximaAG(origem.origemFull, horaSaidaRodoviaria) : null;
+            var fonteAntecedencia = "csv";
+            if (esquemaMatch) {
+              var dSessao = _dataComHoraAG(dataRef, esquemaMatch.horarioMin);
+              if (dSessao && dSaiGar) {
+                antecedenciaMin = (dSessao - dSaiGar) / 60000;
+                fonteAntecedencia = "sessao";
+              }
+            }
+            if (antecedenciaMin == null) {
+              antecedenciaMin = _parseDuracaoMinAG(cur.intervalo);
+              if (antecedenciaMin == null) {
+                var dEnt = _parseDataHoraAG(cur.entrada);
+                if (dEnt && dSaiGar) antecedenciaMin = (dEnt - dSaiGar) / 60000;
+              }
+            }
+
+            // Atraso real de partida — só dá pra saber quando achamos a
+            // sessão (dSessao acima): compara o horário em que o veículo
+            // REALMENTE saiu da rodoviária com o horário programado.
+            // Positivo = atrasou a partida de verdade; negativo/zero =
+            // saiu no horário ou antes. Usado pra decidir o tom da
+            // mensagem de cobrança (ver TOLERANCIA_ATRASO_PARTIDA_MIN_AG).
+            var atrasoPartidaMin = null;
+            if (fonteAntecedencia === "sessao") {
+              var dSaidaRodReal = _parseDataHoraAG(horaSaidaRodoviaria);
+              if (dSaidaRodReal && dSessao) atrasoPartidaMin = Math.round((dSaidaRodReal - dSessao) / 60000);
+            }
+
+            var base = {
+              veiculo: veiculo,
+              motorista: cur.funcionario || prev.funcionario || "Não Informado",
+              data: dataRef,
+              garagemPontoBruto: prev.ponto,
+              // Janela completa da visita à garagem (soma os pings
+              // consecutivos do mesmo ponto — ver _entradaGaragemAG): quando
+              // chegou, quando saiu e quanto tempo ficou parado lá.
+              horaEntradaGaragem: horaEntradaGaragem,
+              horaSaidaGaragem: prev.saida,
+              duracaoGaragemMin: duracaoGaragemMin,
+              rodoviariaPontoBruto: cur.ponto,
+              horaEntradaRodoviaria: cur.entrada,
+              // Saída real do veículo da rodoviária (não a chegada) — é o
+              // que se compara com o horário de sessão do esquema, pra
+              // checar se a antecipação insuficiente na garagem também
+              // atrasou a partida real (ver "Ver esquema" no modal).
+              horaSaidaRodoviaria: horaSaidaRodoviaria,
+              antecedenciaMin: antecedenciaMin,
+              fonteAntecedencia: fonteAntecedencia,
+              esquemaMatch: esquemaMatch,
+              atrasoPartidaMin: atrasoPartidaMin,
+            };
+
+            if (!origem || antecedenciaMin == null || antecedenciaMin < 0 || antecedenciaMin > 240) {
+              base.status = "Sem dados suficientes para análise";
+              semDados.push(base);
+              continue;
+            }
+
+            base.garagemOrigem = origem.origemFull;
+            base.garagemCidade = origem.cidade;
+
+            // Veículo já tinha parado numa rodoviária de verdade mais cedo
+            // no dia — essa garagem não é o início da viagem, é uma parada
+            // intermediária (troca de motorista, manutenção, pernoite) no
+            // meio de uma viagem que já estava em andamento. Não é falha
+            // da garagem em liberar a tempo pra uma partida programada, e
+            // por isso não entra na cobrança — mas fica registrada à parte
+            // pra transparência (ver _emTransitoAG / nota na tela).
+            if (_teveRodoviariaAnteriorAG(lista, garagemInicioIdx)) {
+              base.status = "Em trânsito (parada intermediária)";
+              // Ponto em trânsito: não avalia antecipação (não é início de
+              // viagem) — avalia só o tempo de permanência do veículo NA
+              // GARAGEM. Limite fixo de 30min pra todas as garagens (regra
+              // de negócio — não depende de cadastro por garagem).
+              base.tempoMaximoTransitoMin = LIMITE_PERMANENCIA_TRANSITO_MIN_AG;
+              base.statusTransito = duracaoGaragemMin == null
+                ? "Sem dados suficientes"
+                : (duracaoGaragemMin > LIMITE_PERMANENCIA_TRANSITO_MIN_AG ? "Fora do prazo" : "Dentro do prazo");
+              emTransito.push(base);
+              continue;
+            }
+
+            base.antecipacaoEsperadaMin = origem.antecipacaoMin;
+            base.diferencaMin = Math.round(antecedenciaMin - origem.antecipacaoMin);
+
+            // Antecipação respeitada — não é irregularidade, não há o que
+            // cobrar. Descarta completamente (não entra em nenhuma lista,
+            // nem conta em nenhuma estatística) — a tela só existe pra
+            // apontar quem está fora do prazo.
+            if (antecedenciaMin >= origem.antecipacaoMin) continue;
+
+            base.status = "Fora do prazo";
+            ocorrencias.push(base);
+          }
+        });
+
+        return { ocorrencias: ocorrencias, semDados: semDados, emTransito: emTransito };
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Agrupamento por garagem + render
+      // ═══════════════════════════════════════════════════════════
+      var _garagensAgrupadas = [];
+      var _garagensAgrupadasTransito = [];
+      var _ocorrenciasPorGaragem = {};
+      var _semDadosAG = [];
+      var _emTransitoAG = [];
+
+      function _agruparPorGaragemAG(resultado) {
+        var mapa = {};
+        resultado.ocorrencias.forEach(function (o) {
+          var g = (mapa[o.garagemOrigem] = mapa[o.garagemOrigem] || {
+            origemFull: o.garagemOrigem, cidade: o.garagemCidade,
+            viagensAnalisadas: 0, ocorrencias: 0, somaAntecedencia: 0, itens: [],
+          });
+          g.viagensAnalisadas++;
+          g.somaAntecedencia += o.antecedenciaMin;
+          g.itens.push(o);
+          if (o.status === "Fora do prazo") g.ocorrencias++;
+        });
+        var lista = Object.keys(mapa).map(function (k) {
+          var g = mapa[k];
+          g.mediaAntecipacao = g.somaAntecedencia / g.viagensAnalisadas;
+          g.status = g.ocorrencias > 0 ? "Fora do prazo" : "Regular";
+          g.itens.sort(function (a, b) { return (a.data || 0) - (b.data || 0); });
+          var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
+          g.regiao = (refGaragem && UF_REGIAO_AG[refGaragem.uf]) || "Não identificada";
+          return g;
+        });
+        lista.sort(function (a, b) { return b.ocorrencias - a.ocorrencias || b.mediaAntecipacao - a.mediaAntecipacao; });
+        return lista;
+      }
+
+      // Mesmo agrupamento, mas pras paradas "em trânsito" — critério de
+      // cobrança diferente (duração da parada na garagem vs. Col E da aba
+      // Garagens), não conta "sem referência cadastrada" como ocorrência.
+      function _agruparPorGaragemTransitoAG(resultado) {
+        var mapa = {};
+        resultado.emTransito.forEach(function (o) {
+          var g = (mapa[o.garagemOrigem] = mapa[o.garagemOrigem] || {
+            origemFull: o.garagemOrigem, cidade: o.garagemCidade,
+            paradasAnalisadas: 0, ocorrencias: 0, semReferencia: 0, somaDuracao: 0, qtdComDuracao: 0, itens: [],
+          });
+          g.paradasAnalisadas++;
+          g.itens.push(o);
+          if (o.duracaoGaragemMin != null) { g.somaDuracao += o.duracaoGaragemMin; g.qtdComDuracao++; }
+          if (o.statusTransito === "Fora do prazo") g.ocorrencias++;
+          if (o.statusTransito === "Sem referência cadastrada") g.semReferencia++;
+        });
+        var lista = Object.keys(mapa).map(function (k) {
+          var g = mapa[k];
+          g.mediaDuracao = g.qtdComDuracao ? g.somaDuracao / g.qtdComDuracao : null;
+          g.status = g.ocorrencias > 0 ? "Fora do prazo" : "Regular";
+          g.itens.sort(function (a, b) { return (a.data || 0) - (b.data || 0); });
+          var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
+          g.regiao = (refGaragem && UF_REGIAO_AG[refGaragem.uf]) || "Não identificada";
+          return g;
+        });
+        lista.sort(function (a, b) { return b.ocorrencias - a.ocorrencias || (b.mediaDuracao || 0) - (a.mediaDuracao || 0); });
+        return lista;
+      }
+
+      function _trocarAbaAG(nome) {
+        document.querySelectorAll(".ag-tab").forEach(function (b) { b.classList.toggle("ativa", b.getAttribute("data-tab") === nome); });
+        document.getElementById("agAbaAntecipacao").classList.toggle("hidden", nome !== "antecipacao");
+        document.getElementById("agAbaTransito").classList.toggle("hidden", nome !== "transito");
+      }
+
+      function _renderResultadoAG(resultado) {
+        var statusEl = document.getElementById("agStatus");
+        _semDadosAG = resultado.semDados;
+        _emTransitoAG = resultado.emTransito;
+        _garagensAgrupadas = _agruparPorGaragemAG(resultado);
+        _garagensAgrupadasTransito = _agruparPorGaragemTransitoAG(resultado);
+
+        var temAlgumResultado = _garagensAgrupadas.length || _garagensAgrupadasTransito.length;
+        document.getElementById("agTabs").classList.toggle("hidden", !temAlgumResultado);
+        document.getElementById("agTabCountAntecipacao").textContent = _garagensAgrupadas.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+        document.getElementById("agTabCountTransito").textContent = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+
+        if (!temAlgumResultado) {
+          statusEl.innerHTML = '<span style="color:var(--verde)">✔</span> Nenhuma ocorrência de garagem → rodoviária encontrada neste arquivo.' +
+            (resultado.semDados.length ? ' <span class="tag" style="background:rgba(240,192,64,0.14);color:var(--amarelo)">' + resultado.semDados.length + ' sem dados suficientes</span>' : "");
+          document.getElementById("agKpis").classList.add("hidden");
+          document.getElementById("agResultCard").classList.add("hidden");
+          document.getElementById("agKpisTransito").classList.add("hidden");
+          document.getElementById("agResultCardTransito").classList.add("hidden");
+          _mostrarNotaDescarteAG(resultado);
+          return;
+        }
+
+        statusEl.innerHTML = '<span style="color:var(--verde)">✔</span> Arquivo processado com sucesso. ' +
+          '<span class="tag">' + resultado.ocorrencias.length + ' ocorrência' + (resultado.ocorrencias.length !== 1 ? "s" : "") + ' fora do prazo</span>' +
+          (resultado.emTransito.length ? ' <span class="tag" style="background:rgba(79,142,247,0.14);color:#4f8ef7">' + resultado.emTransito.length + ' em trânsito</span>' : "") +
+          (resultado.semDados.length ? ' <span class="tag" style="background:rgba(240,192,64,0.14);color:var(--amarelo)">' + resultado.semDados.length + ' sem dados suficientes</span>' : "");
+
+        // ── Aba Antecipação — só irregularidades chegam aqui
+        // (antecipação respeitada é descartada em _detectarOcorrenciasAG,
+        // não existe "garagem dentro do prazo" nessa lista). ──────────
+        if (!_garagensAgrupadas.length) {
+          document.getElementById("agKpis").classList.add("hidden");
+          document.getElementById("agResultCard").classList.add("hidden");
+        } else {
+          var totalGaragens = _garagensAgrupadas.length;
+          var totalOcorrencias = _garagensAgrupadas.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+          var somaAntecedencia = _garagensAgrupadas.reduce(function (s, g) { return s + g.somaAntecedencia; }, 0);
+          var mediaGeral = totalOcorrencias ? somaAntecedencia / totalOcorrencias : 0;
+          var maiorDeficit = resultado.ocorrencias.reduce(function (m, o) { return Math.min(m, o.diferencaMin); }, 0);
+
+          document.getElementById("kGaragens").textContent = totalGaragens;
+          document.getElementById("kTotalOcorrencias").textContent = totalOcorrencias;
+          document.getElementById("kMediaAntecipacao").textContent = _fmtMinAG(mediaGeral);
+          document.getElementById("kMaiorDeficit").textContent = maiorDeficit < 0 ? (maiorDeficit + " min") : "—";
+          document.getElementById("agKpis").classList.remove("hidden");
+
+          document.getElementById("agResultCard").classList.remove("hidden");
+          document.getElementById("agBusca").value = "";
+          document.getElementById("agStatusSel").value = "";
+
+          var regioes = Array.from(new Set(_garagensAgrupadas.map(function (g) { return g.regiao; }))).sort();
+          var regiaoSel = document.getElementById("agRegiaoSel");
+          var regiaoAnterior = regiaoSel.value;
+          regiaoSel.innerHTML = '<option value="">Todas as regiões</option>' +
+            regioes.map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
+          regiaoSel.value = regioes.includes(regiaoAnterior) ? regiaoAnterior : "";
+
+          _renderGaragensFiltrado();
+        }
+
+        _renderResultadoTransitoAG(resultado);
+        _mostrarNotaDescarteAG(resultado);
+      }
+
+      function _renderResultadoTransitoAG(resultado) {
+        if (!_garagensAgrupadasTransito.length) {
+          document.getElementById("agKpisTransito").classList.add("hidden");
+          document.getElementById("agResultCardTransito").classList.add("hidden");
+          return;
+        }
+
+        var totalGaragens = _garagensAgrupadasTransito.length;
+        var dentroPrazo = _garagensAgrupadasTransito.filter(function (g) { return g.ocorrencias === 0; }).length;
+        var comOcorrencias = totalGaragens - dentroPrazo;
+        var totalOcorrencias = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+        var totalParadas = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.paradasAnalisadas; }, 0);
+        var somaDuracao = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.somaDuracao; }, 0);
+        var qtdComDuracao = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.qtdComDuracao; }, 0);
+        var mediaGeral = qtdComDuracao ? somaDuracao / qtdComDuracao : null;
+        var totalComReferencia = resultado.emTransito.filter(function (o) { return o.statusTransito !== "Sem referência cadastrada"; }).length;
+        var percCumprimento = totalComReferencia ? Math.round(((totalComReferencia - totalOcorrencias) / totalComReferencia) * 100) : 0;
+
+        document.getElementById("kGaragensT").textContent = totalGaragens;
+        document.getElementById("kDentroPrazoT").textContent = dentroPrazo;
+        document.getElementById("kComOcorrenciasT").textContent = comOcorrencias;
+        document.getElementById("kTotalOcorrenciasT").textContent = totalOcorrencias;
+        document.getElementById("kMediaDuracaoT").textContent = _fmtDuracaoAG(mediaGeral);
+        document.getElementById("kPercentCumprimentoT").textContent = percCumprimento + "%";
+        document.getElementById("agKpisTransito").classList.remove("hidden");
+
+        document.getElementById("agResultCardTransito").classList.remove("hidden");
+        document.getElementById("agBuscaT").value = "";
+        document.getElementById("agStatusSelT").value = "";
+
+        var regioes = Array.from(new Set(_garagensAgrupadasTransito.map(function (g) { return g.regiao; }))).sort();
+        var regiaoSel = document.getElementById("agRegiaoSelT");
+        var regiaoAnterior = regiaoSel.value;
+        regiaoSel.innerHTML = '<option value="">Todas as regiões</option>' +
+          regioes.map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
+        regiaoSel.value = regioes.includes(regiaoAnterior) ? regiaoAnterior : "";
+
+        var semReferenciaTotal = _garagensAgrupadasTransito.reduce(function (s, g) { return s + g.semReferencia; }, 0);
+        var notaRefEl = document.getElementById("agSemRefTransitoNota");
+        if (semReferenciaTotal) {
+          notaRefEl.textContent = semReferenciaTotal + " parada(s) intermediária(s) sem \"Tempo Máximo Parada Trânsito\" cadastrado pra essa garagem (Col E da aba Garagens) — não entram no cálculo de fora do prazo até isso ser preenchido.";
+          notaRefEl.classList.remove("hidden");
+        } else {
+          notaRefEl.classList.add("hidden");
+        }
+
+        _renderTransitoFiltradoAG();
+      }
+
+      function _tabelaTransitoAccordionHtml(lista) {
+        return lista.map(function (g) {
+          var statusCls = g.status === "Fora do prazo" ? "fora" : "regular";
+          var itensHtml = g.itens.map(_ocorrenciaTransitoItemHtml).join("");
+          var origemAttr = g.origemFull.replace(/'/g, "\\'");
+          var cidadeEsc = g.cidade.replace(/'/g, "\\'");
+          return '<details class="acc-group acc-garagem">' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left"><span class="acc-chevron"></span>' +
+              '<span class="acc-garagem-nome oco-copy" onclick="event.preventDefault();event.stopPropagation();_copiarTextoAG(this,\'' + cidadeEsc + '\')" title="Clique para copiar o nome da garagem">' + g.cidade + '</span>' +
+                '<span class="gar-status ' + statusCls + '">' + g.status + '</span></div>' +
+              '<div class="acc-right">' +
+                '<span class="acc-count">' + g.paradasAnalisadas + (g.paradasAnalisadas !== 1 ? " paradas" : " parada") + ' · ' + g.ocorrencias + ' ocorrência' + (g.ocorrencias !== 1 ? "s" : "") + ' · média ' + _fmtDuracaoAG(g.mediaDuracao) + '</span>' +
+                '<button type="button" class="acc-cobranca-btn" onclick="event.preventDefault();event.stopPropagation();_abrirCobrancaModalTransito(\'' + origemAttr + '\')">Gerar cobrança</button>' +
+              '</div>' +
+            '</summary>' +
+            '<div class="acc-body">' + itensHtml + '</div>' +
+          '</details>';
+        }).join("");
+      }
+
+      function _renderTransitoFiltradoAG() {
+        var termo = _normAG(document.getElementById("agBuscaT").value);
+        var regiaoFiltro = document.getElementById("agRegiaoSelT").value;
+        var statusFiltro = document.getElementById("agStatusSelT").value;
+        var lista = _garagensAgrupadasTransito.filter(function (g) {
+          if (termo && !_normAG(g.cidade).includes(termo)) return false;
+          if (regiaoFiltro && g.regiao !== regiaoFiltro) return false;
+          if (statusFiltro && g.status !== statusFiltro) return false;
+          return true;
+        });
+
+        var wrap = document.getElementById("agAccordionsTransito");
+        if (!lista.length) {
+          wrap.innerHTML = '<div class="estado-vazio">Nenhuma garagem encontrada com esse filtro.</div>';
+          return;
+        }
+
+        var porRegiao = {};
+        lista.forEach(function (g) { (porRegiao[g.regiao] = porRegiao[g.regiao] || []).push(g); });
+        var regioes = Object.keys(porRegiao).map(function (regiao) {
+          var itens = porRegiao[regiao];
+          itens.sort(function (a, b) { return b.ocorrencias - a.ocorrencias || (b.mediaDuracao || 0) - (a.mediaDuracao || 0); });
+          var ocorrenciasRegiao = itens.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+          return { regiao: regiao, itens: itens, ocorrencias: ocorrenciasRegiao };
+        });
+        regioes.sort(function (a, b) { return b.ocorrencias - a.ocorrencias; });
+
+        wrap.innerHTML = regioes.map(function (r) {
+          return '<details class="acc-group" open>' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left"><span class="acc-chevron"></span><span class="acc-regiao-nome">' + r.regiao + '</span></div>' +
+              '<div class="acc-right"><span class="acc-count">' + r.itens.length + ' garagem' + (r.itens.length !== 1 ? "s" : "") + ' · ' + r.ocorrencias + ' ocorrência' + (r.ocorrencias !== 1 ? "s" : "") + '</span></div>' +
+            '</summary>' +
+            '<div class="acc-body">' + _tabelaTransitoAccordionHtml(r.itens) + '</div>' +
+          '</details>';
+        }).join("");
+      }
+
+      // Nota explicando o que foi descartado da cobrança e por quê — junta
+      // os dois motivos possíveis (sem referência cadastrada / parada
+      // intermediária em trânsito) numa frase só quando os dois ocorrem.
+      function _mostrarNotaDescarteAG(resultado) {
+        var notaEl = document.getElementById("agSemDadosNota");
+        var partes = [];
+        if (resultado.semDados.length) {
+          partes.push(resultado.semDados.length + " parada(s) de rodoviária logo após uma garagem não puderam ser comparadas (rodoviária sem ORIGEM cadastrado na aba Garagens, ou dado de horário inconsistente)");
+        }
+        if (resultado.emTransito.length) {
+          partes.push(resultado.emTransito.length + " parada(s) de garagem identificadas como intermediárias — o veículo já tinha passado por uma rodoviária de verdade antes no mesmo dia, então não é o início da viagem (troca de motorista, manutenção, pernoite no meio de uma viagem já em andamento)");
+        }
+        if (partes.length) {
+          notaEl.textContent = partes.join("; ") + ". Nenhum dos dois casos entra na cobrança.";
+          notaEl.classList.remove("hidden");
+        } else {
+          notaEl.classList.add("hidden");
+        }
+      }
+
+      // Todas as ocorrências atualmente renderizadas em QUALQUER accordion
+      // de garagem aberto, num único array plano — os botões "Ver esquema"
+      // referenciam a ocorrência por esse índice global (várias garagens
+      // podem estar expandidas ao mesmo tempo, então não dá pra reiniciar
+      // o índice a cada garagem como fazia o antigo modal único).
+      var _ocoItensAG = [];
+
+      // Copia texto pro clipboard com o mesmo feedback visual de
+      // Paradas Irregulares/Tempo de Permanência (_copiarPrefixo/_copiarDesc
+      // em index.html e tempo_permanencia.html): "✓ Copiado" por 1,2s.
+      function _copiarTextoAG(el, texto) {
+        navigator.clipboard.writeText(texto).then(function () {
+          var orig = el.textContent;
+          el.textContent = "✓ Copiado";
+          el.style.color = "var(--verde)";
+          el.style.borderColor = "var(--verde)";
+          setTimeout(function () {
+            el.textContent = orig;
+            el.style.color = "";
+            el.style.borderColor = "";
+          }, 1200);
+        });
+      }
+
+      function _ocorrenciaItemHtml(o) {
+        var idx = _ocoItensAG.length;
+        _ocoItensAG.push(o);
+        var badgeCls = o.status === "Fora do prazo" ? "fora" : "dentro";
+        var dataFmt = o.data ? _fmtDataAG(o.data) : "—";
+        var veiculoEsc = String(o.veiculo || "").replace(/'/g, "\\'");
+        var garagemEsc = String(o.garagemPontoBruto || "").replace(/'/g, "\\'");
+        var rodoviariaEsc = String(o.rodoviariaPontoBruto || "").replace(/'/g, "\\'");
+        return '<div class="oco-item" style="flex-wrap:wrap">' +
+          '<div class="oco-info">' +
+            '<div class="oco-cabecalho">' +
+              '<b class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + veiculoEsc + '\')" title="Clique para copiar o veículo">' + o.veiculo + '</b>' +
+              '<span class="oco-data">' + dataFmt + '</span>' +
+            '</div>' +
+            '<div class="oco-flow">' +
+              '<span class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + garagemEsc + '\')" title="Clique para copiar o nome do ponto">' + o.garagemPontoBruto + '</span>' +
+              '<span class="oco-flow-hora">saída ' + _fmtHoraAG(o.horaSaidaGaragem) + ' · ' + _fmtDuracaoAG(o.duracaoGaragemMin) + '</span>' +
+              '<span class="oco-flow-seta">→</span>' +
+              '<span class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + rodoviariaEsc + '\')" title="Clique para copiar o nome do ponto">' + o.rodoviariaPontoBruto + '</span>' +
+              '<span class="oco-flow-hora">' + _fmtHoraAG(o.horaEntradaRodoviaria) + '</span>' +
+            '</div>' +
+            (o.esquemaMatch
+              ? '<span class="oco-fonte sessao">' + (o.fonteAntecedencia === "manual" ? "Sessão (confirmada manualmente) " : "Sessão ") +
+                  '<b>' + (o.esquemaMatch.codLinha || "—") + '</b> · ' + o.esquemaMatch.horarioComercial + _htmlAtrasoPartidaAG(o.atrasoPartidaMin) + '</span>'
+              : '<span class="oco-fonte">Sem linha correspondente — antecedência via horário do CSV</span>') +
+          '</div>' +
+          '<div class="oco-nums">' +
+            '<div class="encontrado">' + _fmtMinAG(o.antecedenciaMin) + '</div>' +
+            '<div class="esperado">esperado ' + _fmtMinAG(o.antecipacaoEsperadaMin) + '</div>' +
+          '</div>' +
+          '<span class="oco-badge ' + badgeCls + '">' + o.status + '</span>' +
+          '<button type="button" class="oco-esquema-btn" onclick="_verEsquemaAG(' + idx + ')" title="Ver se essa antecipação insuficiente também atrasou a sessão/partida do veículo">Ver esquema</button>' +
+          '<div class="oco-esquema-panel hidden" id="oco-esquema-' + idx + '"></div>' +
+        '</div>';
+      }
+
+      // Item da aba "Em Trânsito" — mesma estrutura visual do item normal,
+      // mas os números são sobre a DURAÇÃO da parada na garagem (não a
+      // antecedência pra rodoviária), comparada com o limite da Col E da
+      // aba Garagens. Sem "Ver esquema" aqui — o conceito de "sessão
+      // programada" é sobre o início da viagem, não se aplica a uma
+      // parada no meio do trajeto.
+      function _ocorrenciaTransitoItemHtml(o) {
+        var badgeCls = o.statusTransito === "Fora do prazo" ? "fora" : o.statusTransito === "Dentro do prazo" ? "dentro" : "neutro";
+        var dataFmt = o.data ? _fmtDataAG(o.data) : "—";
+        var veiculoEsc = String(o.veiculo || "").replace(/'/g, "\\'");
+        var garagemEsc = String(o.garagemPontoBruto || "").replace(/'/g, "\\'");
+        var rodoviariaEsc = String(o.rodoviariaPontoBruto || "").replace(/'/g, "\\'");
+        var limiteFmt = o.tempoMaximoTransitoMin != null ? _fmtDuracaoAG(o.tempoMaximoTransitoMin) : "sem referência";
+        return '<div class="oco-item" style="flex-wrap:wrap">' +
+          '<div class="oco-info">' +
+            '<div class="oco-cabecalho">' +
+              '<b class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + veiculoEsc + '\')" title="Clique para copiar o veículo">' + o.veiculo + '</b>' +
+              '<span class="oco-data">' + dataFmt + '</span>' +
+            '</div>' +
+            '<div class="oco-flow">' +
+              '<span class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + garagemEsc + '\')" title="Clique para copiar o nome do ponto">' + o.garagemPontoBruto + '</span>' +
+              '<span class="oco-flow-hora">saída ' + _fmtHoraAG(o.horaSaidaGaragem) + '</span>' +
+              '<span class="oco-flow-seta">→</span>' +
+              '<span class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + rodoviariaEsc + '\')" title="Clique para copiar o nome do ponto">' + o.rodoviariaPontoBruto + '</span>' +
+              '<span class="oco-flow-hora">' + _fmtHoraAG(o.horaEntradaRodoviaria) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="oco-nums">' +
+            '<div class="encontrado">' + _fmtDuracaoAG(o.duracaoGaragemMin) + '</div>' +
+            '<div class="esperado">limite ' + limiteFmt + '</div>' +
+          '</div>' +
+          '<span class="oco-badge ' + badgeCls + '">' + o.statusTransito + '</span>' +
+        '</div>';
+      }
+
+      // Nível 2 = garagem, aninhado dentro da região — cabeçalho já com o
+      // botão "Gerar cobrança" (o clique nele não deve abrir/fechar o
+      // accordion, daí o stopPropagation), corpo com a lista de viagens
+      // (analisadas de verdade, inline — sem precisar abrir modal).
+      function _garagensAccordionHtml(lista) {
+        return lista.map(function (g) {
+          var statusCls = g.status === "Fora do prazo" ? "fora" : "regular";
+          var itensHtml = g.itens.map(_ocorrenciaItemHtml).join("");
+          var origemAttr = g.origemFull.replace(/'/g, "\\'");
+          var cidadeEsc = g.cidade.replace(/'/g, "\\'");
+          return '<details class="acc-group acc-garagem">' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left"><span class="acc-chevron"></span>' +
+              '<span class="acc-garagem-nome oco-copy" onclick="event.preventDefault();event.stopPropagation();_copiarTextoAG(this,\'' + cidadeEsc + '\')" title="Clique para copiar o nome da garagem">' + g.cidade + '</span>' +
+                '<span class="gar-status ' + statusCls + '">' + g.status + '</span></div>' +
+              '<div class="acc-right">' +
+                '<span class="acc-count">' + g.viagensAnalisadas + (g.viagensAnalisadas !== 1 ? " viagens" : " viagem") + ' · ' + g.ocorrencias + ' ocorrência' + (g.ocorrencias !== 1 ? "s" : "") + ' · média ' + _fmtMinAG(g.mediaAntecipacao) + '</span>' +
+                '<button type="button" class="acc-cobranca-btn" onclick="event.preventDefault();event.stopPropagation();_abrirCobrancaModal(\'' + origemAttr + '\')">Gerar cobrança</button>' +
+              '</div>' +
+            '</summary>' +
+            '<div class="acc-body">' + itensHtml + '</div>' +
+          '</details>';
+        }).join("");
+      }
+
+      // Agrupa por região (nível 1) e, dentro de cada região, por garagem
+      // (nível 2) — mesmo padrão de accordion do Tempo de Permanência,
+      // ordenado pela região/garagem com mais ocorrências primeiro.
+      function _renderGaragensFiltrado() {
+        var termo = _normAG(document.getElementById("agBusca").value);
+        var regiaoFiltro = document.getElementById("agRegiaoSel").value;
+        var statusFiltro = document.getElementById("agStatusSel").value;
+        var lista = _garagensAgrupadas.filter(function (g) {
+          if (termo && !_normAG(g.cidade).includes(termo)) return false;
+          if (regiaoFiltro && g.regiao !== regiaoFiltro) return false;
+          if (statusFiltro && g.status !== statusFiltro) return false;
+          return true;
+        });
+
+        var wrap = document.getElementById("agAccordions");
+        _ocoItensAG = [];
+        if (!lista.length) {
+          wrap.innerHTML = '<div class="estado-vazio">Nenhuma garagem encontrada com esse filtro.</div>';
+          return;
+        }
+
+        var porRegiao = {};
+        lista.forEach(function (g) { (porRegiao[g.regiao] = porRegiao[g.regiao] || []).push(g); });
+
+        var regioes = Object.keys(porRegiao).map(function (regiao) {
+          var itens = porRegiao[regiao];
+          itens.sort(function (a, b) { return b.ocorrencias - a.ocorrencias || b.mediaAntecipacao - a.mediaAntecipacao; });
+          var ocorrenciasRegiao = itens.reduce(function (s, g) { return s + g.ocorrencias; }, 0);
+          return { regiao: regiao, itens: itens, ocorrencias: ocorrenciasRegiao };
+        });
+        regioes.sort(function (a, b) { return b.ocorrencias - a.ocorrencias; });
+
+        wrap.innerHTML = regioes.map(function (r) {
+          return '<details class="acc-group" open>' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left"><span class="acc-chevron"></span><span class="acc-regiao-nome">' + r.regiao + '</span></div>' +
+              '<div class="acc-right"><span class="acc-count">' + r.itens.length + ' garagem' + (r.itens.length !== 1 ? "s" : "") + ' · ' + r.ocorrencias + ' ocorrência' + (r.ocorrencias !== 1 ? "s" : "") + '</span></div>' +
+            '</summary>' +
+            '<div class="acc-body">' + _garagensAccordionHtml(r.itens) + '</div>' +
+          '</details>';
+        }).join("");
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Modal "Gerar cobrança" — só revisão/envio; as viagens já ficam
+      //  visíveis inline no accordion da garagem (ver
+      //  _garagensAccordionHtml), abertas pelo botão no cabeçalho do
+      //  grupo. Abrir o modal já monta a mensagem/telefone/arte prontos
+      //  pra revisar e enviar, sem passo intermediário.
+      // ═══════════════════════════════════════════════════════════
+      var _garSelecionada = null;
+
+      function _abrirCobrancaModal(origemFull) {
+        var g = _garagensAgrupadas.find(function (x) { return x.origemFull === origemFull; });
+        if (!g) return;
+        _garSelecionada = g;
+
+        document.getElementById("garModalTitulo").textContent = "Gerar cobrança — Garagem " + g.cidade;
+        document.getElementById("garCobrancaStatus").textContent = "";
+        document.getElementById("garCobrancaStatus").className = "oc-status";
+        document.getElementById("garBtnEnviar").disabled = false;
+        document.getElementById("garBtnConectarWpp").classList.add("hidden");
+
+        var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
+        document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
+
+        _montarMensagemCobranca(g, refGaragem);
+        document.getElementById("garModal").classList.remove("hidden");
+      }
+
+      // Mesmo modal, mas pra cobrança de paradas "Em Trânsito" — mensagem
+      // e critério diferentes (ver _montarMensagemCobrancaTransito).
+      function _abrirCobrancaModalTransito(origemFull) {
+        var g = _garagensAgrupadasTransito.find(function (x) { return x.origemFull === origemFull; });
+        if (!g) return;
+        _garSelecionada = g;
+
+        document.getElementById("garModalTitulo").textContent = "Gerar cobrança (em trânsito) — Garagem " + g.cidade;
+        document.getElementById("garCobrancaStatus").textContent = "";
+        document.getElementById("garCobrancaStatus").className = "oc-status";
+        document.getElementById("garBtnEnviar").disabled = false;
+        document.getElementById("garBtnConectarWpp").classList.add("hidden");
+
+        var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
+        document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
+
+        _montarMensagemCobrancaTransito(g, refGaragem);
+        document.getElementById("garModal").classList.remove("hidden");
+      }
+
+      function fecharGarModal() {
+        document.getElementById("garModal").classList.add("hidden");
+      }
+
+      function _fmtDataAG(d) {
+        return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+      }
+      function _fmtHoraAG(s) {
+        var d = _parseDataHoraAG(s);
+        if (!d) return "—";
+        return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      }
+
+      // Slug do nome da garagem/cidade → chave usada nos PNGs do bot de
+      // WhatsApp (rizer-agent/assets/garagens/<slug>.png). Mesma
+      // normalização usada nos outros pontos da tela, só que sem acento e
+      // com hífen no lugar de espaço.
+      function _slugGaragemAG(cidade) {
+        return _normAG(cidade).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      }
+
+      // Monta a mensagem em 2 tons, decidido pelo ATRASO REAL DE PARTIDA
+      // (não pela antecipação bruta) — ver TOLERANCIA_ATRASO_PARTIDA_MIN_AG:
+      //  - Até 15min de atraso real (ou sem dado de atraso pra nenhum
+      //    item, ex.: nenhuma linha casou): tom INFORMATIVO — a
+      //    antecipação foi insuficiente, mas não há impacto relevante
+      //    confirmado na partida real.
+      //  - Acima de 15min em pelo menos 1 item: tom COBRANÇA — junta o
+      //    aviso explícito do atraso encontrado com a cobrança sobre o
+      //    motivo da liberação em cima do horário.
+      function _montarMensagemCobranca(g, refGaragem) {
+        var esperadoFmt = _fmtMinAG(refGaragem ? refGaragem.antecipacaoMin : null);
+
+        var itensFora = g.itens.filter(function (o) { return o.status === "Fora do prazo"; });
+        var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
+        var dataMin = datas.length ? new Date(Math.min.apply(null, datas)) : null;
+        var dataMax = datas.length ? new Date(Math.max.apply(null, datas)) : null;
+
+        var piorAtraso = itensFora.reduce(function (m, o) { return o.atrasoPartidaMin != null ? Math.max(m, o.atrasoPartidaMin) : m; }, -Infinity);
+        var temAtrasoAcimaTolerancia = piorAtraso > TOLERANCIA_ATRASO_PARTIDA_MIN_AG;
+
+        // Formatação nativa do WhatsApp: *negrito*, _itálico_ — sem
+        // markdown de título/lista, então a hierarquia vem de negrito +
+        // emoji + quebra de linha em vez de "#"/"-". Cada ocorrência numa
+        // linha só (escaneável mesmo com várias), números em negrito pra
+        // pular aos olhos.
+        var LIMITE_ITENS = 15;
+        var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
+          var linha = "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") +
+            " · antecedência *" + _fmtMinAG(o.antecedenciaMin) + "* (faltou " + Math.abs(o.diferencaMin) + "min)";
+          if (o.atrasoPartidaMin != null) {
+            linha += o.atrasoPartidaMin > 0 ? " · atraso real *" + o.atrasoPartidaMin + "min*" : " · saiu no horário";
+          }
+          // Deixa explícito qual linha/horário de sessão embasou esse
+          // cálculo — sobretudo importante quando foi confirmada
+          // manualmente (ver "Usar esta linha" no Ver esquema), pra quem
+          // recebe a cobrança poder conferir a referência usada.
+          if (o.esquemaMatch) {
+            linha += "\n   _" + (o.fonteAntecedencia === "manual" ? "linha confirmada" : "linha") + ": " + o.esquemaMatch.codLinha + " · sessão " + o.esquemaMatch.horarioComercial + "_";
+          }
+          return linha;
+        }).join("\n");
+        if (itensFora.length > LIMITE_ITENS) {
+          linhasItens += "\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
+        }
+
+        var periodoTxt = (dataMin && dataMax ? "📅 Período: " + _fmtDataAG(dataMin) + " a " + _fmtDataAG(dataMax) + "\n\n" : "");
+        var rodape = "\n\n_Equipe de Monitoramento Operacional_";
+
+        var msg;
+        if (temAtrasoAcimaTolerancia) {
+          msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
+            "_Cobrança · Antecipação de Garagens_\n\n" +
+            "Identificamos *" + itensFora.length + " ocorrência" + (itensFora.length !== 1 ? "s" : "") +
+            "* de liberação abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*), com impacto direto no atraso real de partida.\n" +
+            periodoTxt +
+            linhasItens + "\n\n" +
+            "⚠️ Atraso máximo identificado: *" + piorAtraso + "min* no início da viagem.\n\n" +
+            "Solicitamos a verificação imediata do motivo da liberação em cima do horário nessa garagem, garantindo o cumprimento do tempo de antecipação exigido." +
+            rodape;
+        } else {
+          msg = "🔔 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
+            "_Informativo · Antecipação de Garagens_\n\n" +
+            "Identificamos *" + itensFora.length + " liberação" + (itensFora.length !== 1 ? "ões" : "") +
+            "* abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*).\n" +
+            periodoTxt +
+            linhasItens + "\n\n" +
+            "Fica o alerta para reforço na atenção ao tempo de antecipação exigido — sem impacto relevante confirmado até o momento na partida das viagens." +
+            rodape;
+        }
+
+        document.getElementById("garMensagem").value = msg;
+
+        var slug = _slugGaragemAG(g.cidade);
+        document.getElementById("garArtePreview").src = RIZER_AGENT_URL + "/assets/garagens/" + slug + ".png";
+        document.getElementById("garArteNome").textContent = slug + ".png";
+      }
+
+      // Mensagem de cobrança pra paradas "Em Trânsito" — foco em tempo de
+      // parada intermediária na garagem (troca de motorista/abastecimento/
+      // manutenção), não em antecipação pra rodoviária.
+      function _montarMensagemCobrancaTransito(g, refGaragem) {
+        var limiteFmt = refGaragem && refGaragem.tempoMaximoTransitoMin != null ? _fmtDuracaoAG(refGaragem.tempoMaximoTransitoMin) : "não cadastrado";
+
+        var itensFora = g.itens.filter(function (o) { return o.statusTransito === "Fora do prazo"; });
+        var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
+        var dataMin = datas.length ? new Date(Math.min.apply(null, datas)) : null;
+        var dataMax = datas.length ? new Date(Math.max.apply(null, datas)) : null;
+
+        var LIMITE_ITENS = 15;
+        var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
+          return "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") +
+            " · parada de *" + _fmtDuracaoAG(o.duracaoGaragemMin) + "* na garagem (limite " + limiteFmt + ")";
+        }).join("\n");
+        if (itensFora.length > LIMITE_ITENS) {
+          linhasItens += "\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
+        }
+
+        var msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
+          "_Cobrança · Paradas em Trânsito_\n\n" +
+          "Identificamos *" + itensFora.length + " parada" + (itensFora.length !== 1 ? "s" : "") +
+          " intermediária" + (itensFora.length !== 1 ? "s" : "") + "* (troca de motorista/abastecimento/manutenção) acima do tempo máximo permitido (*" + limiteFmt + "*).\n" +
+          (dataMin && dataMax ? "📅 Período: " + _fmtDataAG(dataMin) + " a " + _fmtDataAG(dataMax) + "\n\n" : "\n") +
+          linhasItens + "\n\n" +
+          "Solicitamos a verificação dos procedimentos de parada intermediária dessa garagem, reduzindo o tempo de permanência do veículo durante o trajeto." +
+          "\n\n_Equipe de Monitoramento Operacional_";
+
+        document.getElementById("garMensagem").value = msg;
+
+        var slug = _slugGaragemAG(g.cidade);
+        document.getElementById("garArtePreview").src = RIZER_AGENT_URL + "/assets/garagens/" + slug + ".png";
+        document.getElementById("garArteNome").textContent = slug + ".png";
+      }
+
+      // O RIZER Agent exige só dígitos com DDI (ex.: "5561996105726") — a
+      // aba Garagens costuma ter o telefone em formato "legível" ("61
+      // 9610-5726", com espaço/hífen e sem o 55). Normaliza antes de
+      // mandar: tira tudo que não é dígito e, se sobrar só DDD+número (10
+      // ou 11 dígitos, sem DDI), assume Brasil e prefixa "55".
+      function _normalizarTelefoneAG(str) {
+        var digitos = String(str || "").replace(/\D/g, "");
+        if (digitos.length === 10 || digitos.length === 11) digitos = "55" + digitos;
+        return digitos;
+      }
+
+      function _enviarCobranca() {
+        var g = _garSelecionada;
+        if (!g) return;
+        var phoneDigitado = (document.getElementById("garTelefone").value || "").trim();
+        var phone = _normalizarTelefoneAG(phoneDigitado);
+        var message = document.getElementById("garMensagem").value || "";
+        var statusEl = document.getElementById("garCobrancaStatus");
+
+        if (!phoneDigitado) { statusEl.className = "oc-status err"; statusEl.textContent = "Informe o telefone/grupo de destino."; return; }
+        if (!message.trim()) { statusEl.className = "oc-status err"; statusEl.textContent = "A mensagem não pode ficar vazia."; return; }
+
+        _confirmarAcao(
+          "Enviar a cobrança consolidada da Garagem " + g.cidade + " para " + phoneDigitado + " (" + phone + ") pelo WhatsApp?",
+          { titulo: "📤 Enviar cobrança", textoOk: "Enviar" }
+        ).then(function (ok) {
+          if (!ok) return;
+          var btn = document.getElementById("garBtnEnviar");
+          btn.disabled = true;
+          statusEl.className = "oc-status";
+          statusEl.textContent = "Enviando...";
+
+          fetch(RIZER_AGENT_URL + "/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: phone, message: message, banner: _slugGaragemAG(g.cidade) }),
+          })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+            .then(function (res) {
+              btn.disabled = false;
+              if (!res.ok) {
+                console.error("[whatsapp/send] resposta de erro:", res.body); // diagnóstico — ver console (F12) se a mensagem vier estranha de novo
+                throw new Error((res.body && res.body.error) || "Falha ao enviar (resposta sem detalhe — veja o console).");
+              }
+              statusEl.className = "oc-status ok";
+              statusEl.textContent = "✔ Cobrança enviada.";
+              document.getElementById("garBtnConectarWpp").classList.add("hidden");
+            })
+            .catch(function (err) {
+              btn.disabled = false;
+              statusEl.className = "oc-status err";
+              statusEl.textContent = "Erro ao enviar: " + err.message + " — confira se o RIZER Agent está aberto e o WhatsApp conectado.";
+              document.getElementById("garBtnConectarWpp").classList.remove("hidden");
+            });
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Conectar WhatsApp (QR code) — o RIZER Agent já expõe isso via
+      //  POST /whatsapp/connect (dispara a conexão) + GET /whatsapp/status
+      //  (poll, devolve o QR code em base64 enquanto status for
+      //  "connecting"/"qr", e "connected" quando terminar).
+      // ═══════════════════════════════════════════════════════════
+      var _whatsappQrPollTimer = null;
+
+      function _abrirConexaoWhatsAppAG() {
+        document.getElementById("whatsappQrModal").classList.remove("hidden");
+        document.getElementById("whatsappQrConteudo").innerHTML =
+          '<span class="det-spinner"></span><span style="font-size:12.5px;color:var(--texto2)">Conectando ao RIZER Agent...</span>';
+
+        fetch(RIZER_AGENT_URL + "/whatsapp/connect", { method: "POST" })
+          .then(function () { _pollStatusWhatsAppAG(); })
+          .catch(function () {
+            document.getElementById("whatsappQrConteudo").innerHTML =
+              '<span style="font-size:12.5px;color:var(--vermelho)">Não consegui falar com o RIZER Agent. Confira se ele está aberto (ícone na bandeja do Windows).</span>';
+          });
+      }
+
+      function _pollStatusWhatsAppAG() {
+        clearTimeout(_whatsappQrPollTimer);
+        fetch(RIZER_AGENT_URL + "/whatsapp/status")
+          .then(function (r) { return r.json(); })
+          .then(function (state) {
+            var conteudo = document.getElementById("whatsappQrConteudo");
+            if (!conteudo) return; // modal fechada nesse meio tempo
+            if (state.status === "connected") {
+              conteudo.innerHTML = '<span style="font-size: 32px">✅</span><span style="font-size:13px;color:var(--verde);font-weight:600">WhatsApp conectado!</span>';
+              document.getElementById("garCobrancaStatus").className = "oc-status";
+              document.getElementById("garCobrancaStatus").textContent = "";
+              document.getElementById("garBtnConectarWpp").classList.add("hidden");
+              setTimeout(fecharConexaoWhatsAppAG, 1200);
+              return;
+            }
+            if (state.qrDataUrl) {
+              conteudo.innerHTML =
+                '<img src="' + state.qrDataUrl + '" alt="QR Code WhatsApp" style="width:220px;height:220px;border-radius:8px;background:#fff;padding:8px" />' +
+                '<span style="font-size:12px;color:var(--texto2)">Abra o WhatsApp no celular → Aparelhos conectados → escaneie o código</span>';
+            } else if (state.status === "error") {
+              conteudo.innerHTML = '<span style="font-size:12.5px;color:var(--vermelho)">Erro ao conectar: ' + (state.error || "desconhecido") + '</span>';
+            } else {
+              conteudo.innerHTML = '<span class="det-spinner"></span><span style="font-size:12.5px;color:var(--texto2)">Gerando QR code...</span>';
+            }
+            _whatsappQrPollTimer = setTimeout(_pollStatusWhatsAppAG, 2000);
+          })
+          .catch(function () {
+            var conteudo = document.getElementById("whatsappQrConteudo");
+            if (conteudo) conteudo.innerHTML = '<span style="font-size:12.5px;color:var(--vermelho)">Não consegui falar com o RIZER Agent. Confira se ele está aberto.</span>';
+          });
+      }
+
+      function fecharConexaoWhatsAppAG() {
+        clearTimeout(_whatsappQrPollTimer);
+        document.getElementById("whatsappQrModal").classList.add("hidden");
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  "Ver esquema" — vínculo com a linha/OPTZ (mesma fonte e mesmo
+      //  padrão do tempo_permanencia.html). Objetivo aqui é diferente:
+      //  não estamos analisando excesso de permanência num ponto, e sim
+      //  checando se a antecipação insuficiente da garagem também
+      //  atrasou a SESSÃO (horário previsto de saída do veículo) na
+      //  rodoviária — ou seja, se o atraso na liberação da garagem
+      //  "vazou" pro início real da viagem, não ficou só na margem.
+      // ═══════════════════════════════════════════════════════════
+      var ESQUEMAS_API_URL = "https://script.google.com/macros/s/AKfycbxnnytktE4P5Ss2AlEY1cw1xUNVSGGxpKFl9I-yqLBTP9oR3KmhYAx1OkyZ7an32eCD/exec";
+      var _esquemasCacheAG = null;
+      var _esquemasCarregandoAG = null;
+      var _roteirosCacheAG = {};
+      var _esquemaQueryPorIdxAG = {};
+      var TOLERANCIA_SESSAO_MIN_AG = 5;
+
+      // Busca com 1 retentativa automática + timeout — mesmo motivo do
+      // _fetchComRetry em tempo_permanencia.html (Apps Script "esfria"
+      // quando fica sem uso).
+      function _fetchComRetryAG(url, tentativasRestantes, timeoutMs) {
+        timeoutMs = timeoutMs || 15000;
+        var controller = new AbortController();
+        var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+        return fetch(url, { signal: controller.signal }).then(function (r) {
+          clearTimeout(timer);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).catch(function (err) {
+          clearTimeout(timer);
+          if (tentativasRestantes <= 0) { console.error("[esquemas] falha ao buscar " + url + ":", err); throw err; }
+          return new Promise(function (resolve) { setTimeout(resolve, 700); })
+            .then(function () { return _fetchComRetryAG(url, tentativasRestantes - 1, timeoutMs); });
+        });
+      }
+
+      function _carregarEsquemasAG(cb) {
+        if (_esquemasCacheAG !== null) { cb(_esquemasCacheAG, null); return; }
+        if (!_esquemasCarregandoAG) {
+          _esquemasCarregandoAG = _fetchComRetryAG(ESQUEMAS_API_URL + "?action=getLinhas", 1)
+            .then(function (json) {
+              var esquemas = (json && json.esquemas) || [];
+              esquemas.forEach(function (e) {
+                e._nome = _normAG(e.nomeLinha);
+                e._cod = e.codLinha ? _normAG(e.codLinha) : "";
+                e._horario = String(e.horario || "");
+                e._horarioDigitos = e._horario.replace(/\D/g, "");
+                e._locais = (e.pontosNomes || []).map(function (p) { return _normAG(p); });
+              });
+              _esquemasCacheAG = esquemas;
+              return esquemas;
+            })
+            .catch(function (err) { _esquemasCarregandoAG = null; throw err; });
+        }
+        _esquemasCarregandoAG.then(function (esquemas) { _esquemasCarregandoAG = null; cb(esquemas, null); })
+          .catch(function (err) { cb([], err || true); });
+      }
+
+      function _carregarRoteiroAG(esquemaId, cb) {
+        if (_roteirosCacheAG[esquemaId]) { cb(_roteirosCacheAG[esquemaId], null); return; }
+        _fetchComRetryAG(ESQUEMAS_API_URL + "?action=getRoteiro&id=" + encodeURIComponent(esquemaId), 2)
+          .then(function (json) { _roteirosCacheAG[esquemaId] = json; cb(json, null); })
+          .catch(function (err) { cb(null, err || true); });
+      }
+
+      function _parseHMtoMinAG(str) {
+        var p = String(str || "").trim().split(":");
+        if (p.length < 2) return null;
+        var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+        if (!isFinite(h) || !isFinite(m)) return null;
+        return h * 60 + m;
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Pré-carregamento em massa dos roteiros — a "antecedência
+      //  encontrada" de cada ocorrência deveria ser medida contra o
+      //  horário de SESSÃO (partida programada da linha), não contra o
+      //  horário bruto em que o GPS cruzou a área da rodoviária — dois
+      //  garagens perto do terminal fazem o carro "chegar" rápido mesmo
+      //  quando a antecedência real de partida foi generosa (e vice-
+      //  versa). Só que o CSV de rastreamento não tem ID de linha, então
+      //  não dá pra saber de antemão qual das ~90 linhas cadastradas no
+      //  OPTZ é a que o veículo está rodando.
+      //
+      //  Estratégia: buscar o roteiro de TODAS as linhas uma vez (com um
+      //  limite de requisições em paralelo, pra não estourar o Apps
+      //  Script de esquemas) e indexar por ORIGEM (cidade) → lista de
+      //  {linha, ponto, horário de sessão}. Na hora de montar cada
+      //  ocorrência, escolhe a linha cujo horário de sessão está mais
+      //  perto do horário real de chegada do veículo na rodoviária —
+      //  assume que o motorista está rodando (ainda que atrasado) a
+      //  linha programada mais próxima daquele horário. Só usa o match
+      //  se a diferença for razoável (ver JANELA_MAX_MATCH_MIN_AG);
+      //  fora disso, ou se não achar nada, cai pro cálculo antigo
+      //  (garagem → horário bruto de entrada do CSV).
+      // ═══════════════════════════════════════════════════════════
+      var _indicePontosPorCidadeAG = null; // origemFull → [{esquemaId, codLinha, nomeLinha, ponto, horarioComercial, horarioMin}]
+      var JANELA_MAX_MATCH_MIN_AG = 180; // acima disso, o "match" mais próximo ainda é longe demais pra confiar
+
+      // Tolerância sobre o ATRASO REAL DE PARTIDA (não a antecedência
+      // bruta) — decide o tom da mensagem de cobrança por garagem. Até
+      // 15min de atraso real: mensagem com caráter informativo (a
+      // antecipação foi insuficiente, mas o impacto real na partida foi
+      // pequeno). Acima de 15min: cobrança cheia, com o atraso real
+      // destacado.
+      var TOLERANCIA_ATRASO_PARTIDA_MIN_AG = 15;
+
+      function _prefetchRoteirosAG() {
+        if (_indicePontosPorCidadeAG) return Promise.resolve();
+        return new Promise(function (resolve) {
+          _carregarEsquemasAG(function (esquemas, err) {
+            if (err || !esquemas || !esquemas.length) { _indicePontosPorCidadeAG = {}; resolve(); return; }
+
+            var indice = {};
+            function indexarRoteiro(esquemaMeta, json) {
+              if (!json || !json.pontos) return;
+              json.pontos.forEach(function (p) {
+                if (!p.horarioComercial) return;
+                var nomeNorm = _normAG(p.nome);
+                if (nomeNorm.includes("GARAGEM")) return; // só interessa ponto de rodoviária/embarque
+                (_garagensCache || []).forEach(function (g) {
+                  if (!g.cidadeNorm) return;
+                  var re = new RegExp("\\b" + g.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+                  if (!re.test(nomeNorm)) return;
+                  (indice[g.origemFull] = indice[g.origemFull] || []).push({
+                    esquemaId: esquemaMeta.id, codLinha: esquemaMeta.codLinha, nomeLinha: esquemaMeta.nomeLinha,
+                    ponto: p.nome, horarioComercial: p.horarioComercial, horarioMin: _parseHMtoMinAG(p.horarioComercial),
+                  });
+                });
+              });
+            }
+
+            var fila = esquemas.slice();
+            var CONCORRENCIA = 10;
+            var ativos = 0;
+            function processarProximo() {
+              if (!fila.length) { if (ativos === 0) { _indicePontosPorCidadeAG = indice; resolve(); } return; }
+              var e = fila.shift();
+              ativos++;
+              _carregarRoteiroAG(e.id, function (json) {
+                indexarRoteiro(e, json);
+                ativos--;
+                processarProximo();
+              });
+            }
+            for (var i = 0; i < CONCORRENCIA; i++) processarProximo();
+          });
+        });
+      }
+
+      // Acha, dentre as linhas que passam pela ORIGEM (cidade) informada,
+      // a que tem horário de sessão mais próximo de horaReferenciaCsv
+      // (string "YYYY-MM-DD HH:MM:SS" do CSV) — devolve null se não achar
+      // nenhuma candidata ou nenhuma dentro da janela de confiança.
+      function _acharSessaoMaisProximaAG(origemFull, horaReferenciaCsv) {
+        var candidatos = (_indicePontosPorCidadeAG && _indicePontosPorCidadeAG[origemFull]) || [];
+        var dRef = _parseDataHoraAG(horaReferenciaCsv);
+        if (!candidatos.length || !dRef) return null;
+        var refMin = dRef.getHours() * 60 + dRef.getMinutes();
+
+        var melhor = null, melhorDiff = Infinity;
+        candidatos.forEach(function (c) {
+          if (c.horarioMin == null) return;
+          var diff = Math.abs(c.horarioMin - refMin);
+          diff = Math.min(diff, 1440 - diff); // considera virada de meia-noite (23:55 vs 00:05 é 10min, não 1430)
+          if (diff < melhorDiff) { melhorDiff = diff; melhor = c; }
+        });
+        if (!melhor || melhorDiff > JANELA_MAX_MATCH_MIN_AG) return null;
+        return { esquemaId: melhor.esquemaId, codLinha: melhor.codLinha, nomeLinha: melhor.nomeLinha, ponto: melhor.ponto, horarioComercial: melhor.horarioComercial, horarioMin: melhor.horarioMin, diffMin: melhorDiff };
+      }
+
+      // Constrói o Date completo do horário de sessão, ancorado na mesma
+      // data de referência (dataRef, normalmente a entrada na rodoviária)
+      // — horarioComercial só tem HH:MM, sem data.
+      function _dataComHoraAG(dataRef, horarioMin) {
+        if (!dataRef || horarioMin == null) return null;
+        var d = new Date(dataRef.getTime());
+        d.setHours(Math.floor(horarioMin / 60), horarioMin % 60, 0, 0);
+        return d;
+      }
+
+      // Compara a SAÍDA real do veículo na rodoviária (não a chegada) com
+      // o horário de sessão do esquema (horário previsto de SAÍDA) —
+      // "cedo" = saiu antes do previsto, "atraso" = saiu depois (a
+      // antecipação insuficiente na garagem realmente atrasou a
+      // partida), "ok" = dentro da tolerância.
+      function _compararSaidaSessaoAG(horaSaida, horaSessao) {
+        var sa = _parseHMtoMinAG(horaSaida), s = _parseHMtoMinAG(horaSessao);
+        if (sa == null || s == null) return null;
+        var diff = sa - s;
+        if (Math.abs(diff) <= TOLERANCIA_SESSAO_MIN_AG) return "ok";
+        return diff < 0 ? "cedo" : "atraso";
+      }
+
+      function _htmlLinhaSessaoAG(textoHtml, comparacao) {
+        if (!comparacao) return '<div style="margin-top:6px">' + textoHtml + '</div>';
+        var icone = comparacao === "cedo" ? "⚠" : comparacao === "atraso" ? "⛔" : "✔";
+        return '<div class="esquema-sessao-linha ' + comparacao + '"><span class="esquema-sessao-icone">' + icone + '</span><span>' + textoHtml + '</span></div>';
+      }
+
+      function _verEsquemaAG(idx) {
+        var item = _ocoItensAG[idx];
+        var panel = document.getElementById("oco-esquema-" + idx);
+        if (!item || !panel) return;
+
+        if (!panel.classList.contains("hidden")) { panel.classList.add("hidden"); return; }
+        panel.classList.remove("hidden");
+        if (panel.getAttribute("data-init") === "1") return;
+        panel.setAttribute("data-init", "1");
+
+        panel.innerHTML = '<div id="oco-esquema-corpo-' + idx + '"></div>';
+        _esquemaQueryPorIdxAG[idx] = "";
+        _buscarEsquemaAG(idx, "");
+      }
+
+      function _buscarEsquemaAG(idx, termo) {
+        _esquemaQueryPorIdxAG[idx] = termo;
+        var corpo = document.getElementById("oco-esquema-corpo-" + idx);
+        if (!corpo) return;
+        corpo.innerHTML =
+          '<input type="text" class="oco-esquema-input" placeholder="Buscar por código, linha ou horário..." ' +
+            'value="' + String(termo || "").replace(/"/g, "&quot;") + '" ' +
+            'oninput="_filtrarEsquemaAG(' + idx + ', this.value)" onclick="event.stopPropagation()">' +
+          '<div class="oco-esquema-lista-wrap" id="oco-esquema-lista-' + idx + '"></div>';
+        _filtrarEsquemaAG(idx, termo);
+      }
+
+      function _filtrarEsquemaAG(idx, termo) {
+        _esquemaQueryPorIdxAG[idx] = termo;
+        var wrap = document.getElementById("oco-esquema-lista-" + idx);
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="oco-esquema-msg">Carregando esquemas...</div>';
+
+        _carregarEsquemasAG(function (esquemas, err) {
+          var termoAtual = _esquemaQueryPorIdxAG[idx];
+          var wrapAtual = document.getElementById("oco-esquema-lista-" + idx);
+          if (!wrapAtual) return;
+
+          if (err) {
+            wrapAtual.innerHTML = '<div class="oco-esquema-msg">Não foi possível carregar os esquemas (falha de conexão). ' +
+              '<a href="#" onclick="event.preventDefault();event.stopPropagation();_filtrarEsquemaAG(' + idx + ', _esquemaQueryPorIdxAG[' + idx + '])" style="color:var(--laranja)">Tentar novamente</a></div>';
+            return;
+          }
+          if (!esquemas.length) { wrapAtual.innerHTML = '<div class="oco-esquema-msg">Nenhum esquema cadastrado.</div>'; return; }
+
+          var tokens = _normAG(termoAtual).split(" ").filter(Boolean);
+          var itens = esquemas.filter(function (e) {
+            if (!tokens.length) return true;
+            return tokens.every(function (t) {
+              var tDigitos = t.replace(/\D/g, "");
+              return e._nome.includes(t) || e._cod.includes(t) || e._horario.includes(t) ||
+                (tDigitos.length >= 3 && e._horarioDigitos.includes(tDigitos)) ||
+                e._locais.some(function (l) { return l.includes(t); });
+            });
+          });
+
+          if (!itens.length) { wrapAtual.innerHTML = '<div class="oco-esquema-msg">Nenhum esquema encontrado.</div>'; return; }
+
+          wrapAtual.innerHTML = '<div class="oco-esquema-lista">' + itens.slice(0, 30).map(function (e) {
+            return '<div class="oco-esquema-item" onclick="event.stopPropagation();_verDetalheEsquemaAG(' + idx + ',' + e.id + ')">' +
+              '<b>' + (e.codLinha || "—") + '</b> — ' + e.nomeLinha +
+              '<span class="esquema-sub">' + (e.horario || "—") + (e.sentido ? " · " + e.sentido : "") + '</span>' +
+            '</div>';
+          }).join("") + '</div>';
+        });
+      }
+
+      function _verDetalheEsquemaAG(idx, esquemaId) {
+        var item = _ocoItensAG[idx];
+        var corpo = document.getElementById("oco-esquema-corpo-" + idx);
+        if (!item || !corpo) return;
+        corpo.innerHTML = '<div class="oco-esquema-msg">Carregando roteiro...</div>';
+
+        _carregarRoteiroAG(esquemaId, function (json, err) {
+          var corpoAtual = document.getElementById("oco-esquema-corpo-" + idx);
+          if (!corpoAtual) return;
+          if (err || !json || !json.esquema) {
+            corpoAtual.innerHTML = '<div class="oco-esquema-msg">Não foi possível carregar o roteiro. ' +
+              '<a href="#" onclick="event.preventDefault();event.stopPropagation();_verDetalheEsquemaAG(' + idx + ',' + esquemaId + ')" style="color:var(--laranja)">Tentar novamente</a></div>';
+            return;
+          }
+
+          var alterarBtn = '<button type="button" class="oco-esquema-editar-btn" title="Alterar busca" ' +
+            'onclick="event.stopPropagation();_buscarEsquemaAG(' + idx + ', _esquemaQueryPorIdxAG[' + idx + '] || \'\')">✎</button>';
+
+          // Acha o ponto do roteiro que corresponde à RODOVIÁRIA da
+          // ocorrência (não a garagem) — é lá que se compara a saída real
+          // com o horário de sessão previsto.
+          //
+          // O nome bruto do ponto no CSV de rastreamento ("RODOVIARIA DE
+          // SALVADOR - BA") raramente bate por inclusão direta com o nome
+          // do ponto no roteiro do esquema ("SALVADOR - BA / NOVO
+          // TERMINAL") — nenhum é substring literal do outro, mesmo sendo
+          // claramente o mesmo lugar (confirmado contra a API real:
+          // getRoteiro devolve exatamente esse texto pra Salvador). Por
+          // isso casamos em 2 passos:
+          //  1) filtra os pontos do roteiro pela CIDADE já resolvida na
+          //     detecção (item.garagemOrigem, ex. "SALVADOR - BA" — vem
+          //     de _matchOrigemAG contra a aba Garagens), com fronteira
+          //     de palavra;
+          //  2) entre os candidatos, prioriza o que a própria API já
+          //     marca como `rodoviaria: true` (a linha pode passar pela
+          //     garagem da mesma cidade também, ver "GARAGEM SALVADOR
+          //     BA" no roteiro — não é o ponto que queremos aqui).
+          // Só cai pro match por inclusão direta (mais frágil) se não
+          // tivermos origem resolvida pra essa ocorrência.
+          var origemRef = (_garagensCache || []).find(function (x) { return x.origemFull === item.garagemOrigem; });
+          var pontoMatch = null;
+          if (origemRef && origemRef.cidadeNorm) {
+            var reCidade = new RegExp("\\b" + origemRef.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+            var candidatos = (json.pontos || []).filter(function (p) { return reCidade.test(_normAG(p.nome)); });
+            pontoMatch = candidatos.find(function (p) { return p.rodoviaria === true; }) || candidatos[0] || null;
+          }
+          if (!pontoMatch) {
+            var pontoNorm = _normAG(item.rodoviariaPontoBruto);
+            pontoMatch = (json.pontos || []).find(function (p) {
+              var nomeNorm = _normAG(p.nome);
+              return nomeNorm.includes(pontoNorm) || pontoNorm.includes(nomeNorm);
+            });
+          }
+
+          var html = '<div class="oco-esquema-detalhe">' +
+            '<div class="oco-esquema-detalhe-head">' +
+              '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
+                (json.esquema.sentido ? ' (' + json.esquema.sentido + ')' : '') + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
+              '<div>' + alterarBtn + '</div>' +
+            '</div>';
+
+          if (pontoMatch) {
+            var horaSaidaReal = _fmtHoraAG(item.horaSaidaRodoviaria);
+            var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+              ' · saída real do veículo: <b>' + horaSaidaReal + '</b>';
+            var cmp = pontoMatch.horarioComercial ? _compararSaidaSessaoAG(horaSaidaReal, pontoMatch.horarioComercial) : null;
+            if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão (a antecipação insuficiente na garagem não chegou a atrasar a partida)';
+            if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão (a antecipação insuficiente na garagem <b>atrasou</b> a partida real)';
+            if (cmp === "ok") textoSessao += ' — saiu <b>no horário</b> de sessão';
+            html += _htmlLinhaSessaoAG(textoSessao, cmp);
+
+            // Confirmar essa linha manualmente — sobrescreve o auto-match
+            // (que escolhe pela hora mais próxima, mas com várias linhas
+            // reais passando perto do mesmo horário pode não ser a
+            // correta) e passa a valer pro card E pra mensagem de
+            // cobrança dessa ocorrência daqui pra frente.
+            if (pontoMatch.horarioComercial) {
+              var jaEhEsseManual = item.fonteAntecedencia === "manual" && item.esquemaMatch && item.esquemaMatch.esquemaId === esquemaId;
+              html += '<button type="button" class="oco-esquema-btn" style="margin-top:8px" ' +
+                (jaEhEsseManual ? 'disabled' : 'onclick="event.stopPropagation();_confirmarEsquemaManualAG(' + idx + ',' + esquemaId + ')"') + '>' +
+                (jaEhEsseManual ? '✓ Linha confirmada' : 'Usar esta linha') + '</button>';
+            }
+          } else {
+            html += '<div style="margin-top:6px" class="oco-esquema-msg">Local "' + item.rodoviariaPontoBruto + '" não encontrado no roteiro deste esquema.</div>';
+          }
+
+          html += '</div>';
+          corpoAtual.innerHTML = html;
+        });
+      }
+
+      // Sobrescreve o auto-match dessa ocorrência com a linha que o
+      // usuário confirmou manualmente em "Ver esquema" — recalcula
+      // antecedência/diferença/atraso com base nela, atualiza o card na
+      // hora e passa a valer pra mensagem de cobrança também (o "Gerar
+      // cobrança" lê os mesmos campos do item). Só mexe nessa 1
+      // ocorrência — as outras continuam usando o auto-match normal.
+      function _confirmarEsquemaManualAG(idx, esquemaId) {
+        var item = _ocoItensAG[idx];
+        if (!item) return;
+
+        _carregarRoteiroAG(esquemaId, function (json, err) {
+          if (err || !json || !json.esquema) return;
+          var origemRef = (_garagensCache || []).find(function (x) { return x.origemFull === item.garagemOrigem; });
+          var pontoMatch = null;
+          if (origemRef && origemRef.cidadeNorm) {
+            var reCidade = new RegExp("\\b" + origemRef.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+            var candidatos = (json.pontos || []).filter(function (p) { return reCidade.test(_normAG(p.nome)); });
+            pontoMatch = candidatos.find(function (p) { return p.rodoviaria === true; }) || candidatos[0] || null;
+          }
+          if (!pontoMatch || !pontoMatch.horarioComercial) return;
+
+          var horarioMin = _parseHMtoMinAG(pontoMatch.horarioComercial);
+          var dSessao = _dataComHoraAG(item.data, horarioMin);
+          var dSaiGar = _parseDataHoraAG(item.horaSaidaGaragem);
+          var dSaidaRodReal = _parseDataHoraAG(item.horaSaidaRodoviaria);
+          if (!dSessao || !dSaiGar) return;
+
+          item.antecedenciaMin = (dSessao - dSaiGar) / 60000;
+          item.diferencaMin = Math.round(item.antecedenciaMin - item.antecipacaoEsperadaMin);
+          item.status = item.antecedenciaMin >= item.antecipacaoEsperadaMin ? "Dentro do prazo" : "Fora do prazo";
+          item.fonteAntecedencia = "manual";
+          item.esquemaMatch = { esquemaId: esquemaId, codLinha: json.esquema.codLinha, nomeLinha: json.esquema.nomeLinha, horarioComercial: pontoMatch.horarioComercial, horarioMin: horarioMin };
+          item.atrasoPartidaMin = dSaidaRodReal ? Math.round((dSaidaRodReal - dSessao) / 60000) : null;
+
+          _atualizarCardOcorrenciaAG(idx);
+          _verDetalheEsquemaAG(idx, esquemaId); // reabre o painel já mostrando "✓ Linha confirmada"
+        });
+      }
+
+      // Redesenha só os números/badge/fonte do card de UMA ocorrência
+      // depois de uma confirmação manual — sem re-renderizar o accordion
+      // inteiro (evita perder o estado aberto/fechado dos outros).
+      function _atualizarCardOcorrenciaAG(idx) {
+        var item = _ocoItensAG[idx];
+        var painel = document.getElementById("oco-esquema-" + idx);
+        if (!item || !painel) return;
+        var card = painel.closest(".oco-item");
+        if (!card) return;
+
+        var fonteEl = card.querySelector(".oco-fonte");
+        if (fonteEl) {
+          fonteEl.className = "oco-fonte sessao";
+          fonteEl.innerHTML = (item.fonteAntecedencia === "manual" ? "Sessão (confirmada manualmente) " : "Sessão ") +
+            "<b>" + (item.esquemaMatch.codLinha || "—") + "</b> · " + item.esquemaMatch.horarioComercial + _htmlAtrasoPartidaAG(item.atrasoPartidaMin);
+        }
+        var encontradoEl = card.querySelector(".oco-nums .encontrado");
+        if (encontradoEl) encontradoEl.textContent = _fmtMinAG(item.antecedenciaMin);
+        var badgeEl = card.querySelector(".oco-badge");
+        if (badgeEl) {
+          badgeEl.textContent = item.status;
+          badgeEl.className = "oco-badge " + (item.status === "Fora do prazo" ? "fora" : "dentro");
+        }
+      }
+    </script>
+  </body>
+</html>

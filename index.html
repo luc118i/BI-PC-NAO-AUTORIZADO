@@ -653,6 +653,7 @@
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
           <button class="btn btn-ghost" onclick="abrirModalGerenciarLocais()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg> Locais de Parada Irregular</button>
           <button class="btn btn-ghost" onclick="abrirTempoPermanencia()">⏱ Tempo de Permanência</button>
+          <button class="btn btn-ghost" onclick="abrirAntecipacaoGaragens()">🚏 Antecipação de Garagens</button>
         </div>
       </div>
     </div>
@@ -2047,6 +2048,11 @@
 
       function abrirTempoPermanencia() {
         var url = (webAppBaseUrl || window.location.href.split("?")[0]) + "?view=tempo-permanencia";
+        window.open(url, "_blank");
+      }
+
+      function abrirAntecipacaoGaragens() {
+        var url = (webAppBaseUrl || window.location.href.split("?")[0]) + "?view=tempo-antecipacao-garagens";
         window.open(url, "_blank");
       }
 

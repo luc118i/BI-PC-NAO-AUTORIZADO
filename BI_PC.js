@@ -27,6 +27,12 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (view === "tempo-antecipacao-garagens") {
+    return HtmlService.createHtmlOutputFromFile("tempo_antecipacao_garagens")
+      .setTitle("Antecipação de Garagens · Viação Catedral")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService.createHtmlOutputFromFile("index")
     .setTitle("BI PC's Não Autorizados · Viação Catedral")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -179,6 +185,92 @@ function getPontosControle() {
     }));
 
   return JSON.stringify(pontos);
+}
+
+// ── 4c. getGaragens() ─────────────────────────────────────────
+// Base de referência usada pela tela "Antecipação de Garagens" (cobrança
+// de tempo de liberação garagem → rodoviária). Aba "Garagens":
+// Col A (índice 0) → ORIGEM ("CIDADE - UF", nome da rodoviária de
+//                    referência — é contra essa cidade que o ponto de
+//                    rodoviária do CSV de rastreamento é comparado)
+// Col B (índice 1) → Horário Partida — na verdade uma DURAÇÃO "HH:MM"
+//                    (tempo mínimo de antecipação exigido pra aquele
+//                    ORIGEM), não um horário de relógio
+// Col C (índice 2) → Apelidos/Pontos de Garagem — termos extras
+//                    (separados por vírgula) que também devem casar com
+//                    esse ORIGEM quando aparecerem no nome bruto do
+//                    ponto de garagem/rodoviária (ex.: "GUARULHOS" pro
+//                    ORIGEM "SAO PAULO - SP"). Coluna opcional/nova.
+// Col D (índice 3) → Telefone/Grupo WhatsApp — dígitos com DDI (ex.:
+//                    "5511999999999"), pré-preenche o campo de envio da
+//                    cobrança. Coluna opcional/nova.
+// Col E (índice 4) → Tempo Máximo Parada Trânsito — duração "HH:MM"
+//                    (tempo máximo tolerado pra uma parada INTERMEDIÁRIA
+//                    nessa garagem, no meio de uma viagem já em
+//                    andamento — troca de motorista/abastecimento/
+//                    manutenção. Diferente da Col B, que é sobre
+//                    antecipação pra chegar na rodoviária no início da
+//                    viagem). Vazio = sem referência cadastrada, essas
+//                    paradas ficam "sem dados" na aba Em Trânsito.
+//                    Coluna opcional/nova.
+function getGaragens() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("Garagens");
+  if (!aba) throw new Error('Aba "Garagens" não encontrada.');
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, 5).getValues();
+
+  const garagens = data
+    .filter((r) => String(r[0] || "").trim() !== "")
+    .map((r) => {
+      const origemFull = String(r[0] || "").trim();
+      const partes = origemFull.split("-").map((s) => s.trim());
+      const cidade = partes[0] || origemFull;
+      const uf = partes.length > 1 ? partes[partes.length - 1] : "";
+      const apelidos = String(r[2] || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "");
+      return {
+        origemFull: origemFull,
+        cidade: cidade,
+        uf: uf,
+        antecipacaoMin: _parseDuracaoMinGar(r[1]),
+        apelidos: apelidos,
+        telefone: String(r[3] || "").trim(),
+        tempoMaximoTransitoMin: _parseDuracaoMinGar(r[4]),
+      };
+    });
+
+  return JSON.stringify(garagens);
+}
+
+// "HH:MM" ou "HH:MM:SS" (texto ou objeto Date, se a planilha formatar a
+// célula como hora) → minutos. Retorna null se vazio/inválido.
+//
+// Célula de hora formatada como Date pelo Sheets vem ancorada em
+// 30/12/1899 — NÃO usar valor.getHours()/getMinutes() direto: esses
+// métodos leem a data usando o fuso padrão do runtime do Apps Script, e
+// pra uma data tão antiga o fuso "America/Sao_Paulo" pode resolver pra
+// uma definição histórica diferente da moderna (bug clássico do Apps
+// Script — foi o que causava o "60min" virar "354min" na tela de
+// Antecipação de Garagens). Utilities.formatDate() com o fuso da própria
+// planilha lê certinho, batendo com o que a célula mostra na tela.
+function _parseDuracaoMinGar(valor) {
+  if (valor instanceof Date) {
+    const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    valor = Utilities.formatDate(valor, tz, "HH:mm:ss");
+  }
+  const s = String(valor || "").trim();
+  if (!s || s === "-") return null;
+  const partes = s.split(":").map(Number);
+  if (partes.some((n) => isNaN(n))) return null;
+  if (partes.length === 3) return partes[0] * 60 + partes[1] + partes[2] / 60;
+  if (partes.length === 2) return partes[0] * 60 + partes[1];
+  return null;
 }
 
 // ── 5. getDadosBI(dataIni, dataFim) ──────────────────────────
