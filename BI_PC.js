@@ -971,6 +971,18 @@ var HISTORICO_ANTECIPACAO_HEADER = [
   "JUSTIFICATIVA",
 ];
 
+// Defensivo: linhas gravadas ANTES da correção do setNumberFormat("@") em
+// registrarHistoricoAntecipacao podem ter DATA_VIAGEM/HORARIO_* como
+// objeto Date de verdade (o Sheets converteu sozinho), em vez do texto
+// "dd/MM/yyyy"/"HH:mm" que foi enviado originalmente. Formata de volta
+// pro texto esperado nesses casos; se já for string, devolve como está.
+function _celulaHistoricoParaTexto(valor, formato) {
+  if (valor instanceof Date) {
+    return Utilities.formatDate(valor, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), formato);
+  }
+  return valor || "";
+}
+
 function _abaHistoricoAntecipacao(ss) {
   var aba = ss.getSheetByName("Historico_antecipacao");
   if (!aba) {
@@ -1021,6 +1033,17 @@ function registrarHistoricoAntecipacao(registros) {
   ]);
 
   const primeiraLinha = aba.getLastRow() + 1;
+  // Força texto puro nas colunas B em diante (DATA_VIAGEM, HORARIO_SESSAO,
+  // HORARIO_LIBERACAO_GARAGEM, HORARIO_CHEGADA_RODOVIARIA etc.) ANTES de
+  // gravar — sem isso, o Sheets "detecta" strings como "18/08/2026" ou
+  // "16:43" e converte a célula pra Data/Hora sozinho, mesmo vindo de
+  // Apps Script. Isso quebrava a exibição (virava ISO tipo
+  // "2026-08-18T07:00:00.000Z" na tela) e o match por
+  // buscarHistoricoAntecipacaoLinha (comparava string com objeto Date e
+  // nunca batia). Só a coluna A (DATA_ENVIO) fica como Date de verdade —
+  // ela é lida de volta com Utilities.formatDate, então não sofre com
+  // isso.
+  aba.getRange(primeiraLinha, 2, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length - 1).setNumberFormat("@");
   aba.getRange(primeiraLinha, 1, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length).setValues(linhas);
   return linhas.map((_, i) => primeiraLinha + i);
 }
@@ -1074,7 +1097,7 @@ function buscarHistoricoAntecipacaoLinha(chave) {
   for (let i = dados.length - 1; i >= 0; i--) {
     const row = dados[i];
     if (
-      String(row[idxData] || "") === String(chave.dataViagem || "") &&
+      _celulaHistoricoParaTexto(row[idxData], "dd/MM/yyyy") === String(chave.dataViagem || "") &&
       String(row[idxGaragem] || "") === String(chave.garagem || "") &&
       String(row[idxVeiculo] || "") === String(chave.veiculo || "") &&
       String(row[idxTipo] || "") === String(chave.tipoAnalise || "")
@@ -1101,15 +1124,15 @@ function getHistoricoAntecipacao() {
 
   const registros = dados.map((row) => ({
     dataEnvio: row[0] instanceof Date ? Utilities.formatDate(row[0], tz, "dd/MM/yyyy HH:mm") : String(row[0] || ""),
-    dataViagem: row[1] || "",
+    dataViagem: _celulaHistoricoParaTexto(row[1], "dd/MM/yyyy"),
     garagem: row[2] || "",
     veiculo: row[3] || "",
     tipoAnalise: row[4] || "",
     linhaCod: row[5] || "",
     linhaNome: row[6] || "",
-    horarioSessao: row[7] || "",
-    horaLiberacaoGaragem: row[8] || "",
-    horaChegadaRodoviaria: row[9] || "",
+    horarioSessao: _celulaHistoricoParaTexto(row[7], "HH:mm"),
+    horaLiberacaoGaragem: _celulaHistoricoParaTexto(row[8], "HH:mm"),
+    horaChegadaRodoviaria: _celulaHistoricoParaTexto(row[9], "HH:mm"),
     antecedenciaEncontradaMin: row[10],
     antecedenciaEsperadaMin: row[11],
     diferencaMin: row[12],
