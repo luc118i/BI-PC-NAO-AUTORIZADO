@@ -155,6 +155,7 @@ function getPCs() {
 // getPCs() (que é a "PC'S NÃO AUTORIZADO", usada por index.html e
 // apresentacao.html) — não mexer em getPCs() pra não afetar as outras
 // telas.
+// Col C (índice 2)  → Desc. Resumida (nome curto, usado só pra exibir/copiar)
 // Col D (índice 3)  → nome/descrição do ponto (usado pro match)
 // Col Y (índice 24) → Latitude
 // Col Z (índice 25) → Longitude
@@ -171,6 +172,7 @@ function getPontosControle() {
   const pontos = data
     .filter((r) => String(r[3] || "").trim() !== "")
     .map((r) => ({
+      descResumida: String(r[2] || "").trim(),
       descCompleta: String(r[3] || "").trim(),
       lat: _coordOuNull(r[24], 90),
       lng: _coordOuNull(r[25], 180),
