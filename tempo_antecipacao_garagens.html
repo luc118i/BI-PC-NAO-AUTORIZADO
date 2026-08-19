@@ -33,7 +33,15 @@
         --radius-sm: 6px;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+      /* min-height:100vh sozinho não gruda o rodapé no fim da tela — só
+         garante que o BODY tem essa altura, o <footer> continua vindo
+         logo depois do conteúdo, onde quer que ele termine. Com pouco
+         conteúdo (ex.: o aviso de "Carregando...", antes de qualquer CSV
+         importado) isso deixava o rodapé flutuando no meio da tela, com
+         um vão preto enorme embaixo. Rodapé fixo no fim = padrão clássico
+         de sticky footer: BODY vira coluna flex, .main cresce (flex:1)
+         pra empurrar o footer pra baixo mesmo quando o conteúdo é curto. */
+      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; display: flex; flex-direction: column; }
       * { scrollbar-width: thin; scrollbar-color: var(--cinza2) transparent; }
       *::-webkit-scrollbar { width: 9px; height: 9px; }
       *::-webkit-scrollbar-track { background: transparent; }
@@ -57,7 +65,7 @@
       .btn:disabled { opacity: 0.55; cursor: not-allowed; }
       .btn-sm { padding: 6px 12px; font-size: 12px; }
 
-      .main { padding: 24px 28px 60px; max-width: 1200px; margin: 0 auto; }
+      .main { padding: 24px 28px 60px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
 
       .det-status { display: flex; align-items: center; gap: 10px; min-height: 30px; margin: 14px 0; font-size: 13px; flex-wrap: wrap; }
       .det-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--cinza2); border-top-color: var(--laranja); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
