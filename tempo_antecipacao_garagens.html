@@ -203,6 +203,10 @@
       .oc-field input, .oc-field textarea { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); width: 100%; }
       .oc-field textarea { resize: vertical; min-height: 160px; line-height: 1.5; }
       .oc-field input:focus, .oc-field textarea:focus { outline: none; border-color: var(--laranja); }
+      .oc-field input[readonly] { color: var(--texto2); background: var(--preto4); cursor: default; }
+      .oc-field input[readonly]:focus { border-color: var(--cinza2); }
+      .oc-tel-row { display: flex; align-items: center; gap: 6px; }
+      .oc-tel-row input { flex: 1; min-width: 0; }
 
       /* Copiar pro clipboard (veículo/nome de ponto) — mesma UX de Paradas
          Irregulares/Tempo de Permanência: sublinhado tracejado, laranja no
@@ -420,11 +424,19 @@
               <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <div class="oc-field" style="flex:1;min-width:180px">
                   <label>Telefone Tráfego/Garagem</label>
-                  <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" />
+                  <div class="oc-tel-row">
+                    <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" readonly />
+                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefone')">✏️</button>
+                    <button type="button" class="oco-esquema-editar-btn" title="Enviar só para Tráfego/Garagem" onclick="_enviarIndividualAG('trafego')">➤</button>
+                  </div>
                 </div>
                 <div class="oc-field" style="flex:1;min-width:180px">
                   <label>Telefone Gestor</label>
-                  <input type="text" id="garTelefoneGestor" placeholder="Ex.: 5511999999999 (opcional)" />
+                  <div class="oc-tel-row">
+                    <input type="text" id="garTelefoneGestor" placeholder="Ex.: 5511999999999 (opcional)" readonly />
+                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneGestorEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefoneGestor')">✏️</button>
+                    <button type="button" class="oco-esquema-editar-btn" title="Enviar só para o Gestor" onclick="_enviarIndividualAG('gestor')">➤</button>
+                  </div>
                 </div>
               </div>
               <div class="oc-field">
@@ -1538,6 +1550,7 @@
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
         document.getElementById("garTelefoneGestor").value = refGaragem ? (refGaragem.telefoneGestor || "") : "";
+        _travarTelefonesAG();
 
         _montarMensagemCobranca(g, refGaragem);
         document.getElementById("garModal").classList.remove("hidden");
@@ -1559,6 +1572,7 @@
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
         document.getElementById("garTelefoneGestor").value = refGaragem ? (refGaragem.telefoneGestor || "") : "";
+        _travarTelefonesAG();
 
         _montarMensagemCobrancaTransito(g, refGaragem);
         document.getElementById("garModal").classList.remove("hidden");
@@ -1718,6 +1732,33 @@
         document.getElementById("garArteNome").textContent = slug + ".png";
       }
 
+      // Os campos de telefone abrem travados (readonly) — evita edição
+      // acidental do número já cadastrado. O ícone de lápis destrava pra
+      // edição; ao reabrir o modal (garagem nova ou o mesmo de novo) volta
+      // tudo pro estado travado.
+      function _travarTelefonesAG() {
+        ["garTelefone", "garTelefoneGestor"].forEach(function (id) {
+          var input = document.getElementById(id);
+          input.setAttribute("readonly", "readonly");
+          var btn = document.getElementById(id + "EditBtn");
+          if (btn) { btn.textContent = "✏️"; btn.title = "Editar número"; }
+        });
+      }
+
+      function _toggleEditarTelefoneAG(inputId) {
+        var input = document.getElementById(inputId);
+        var btn = document.getElementById(inputId + "EditBtn");
+        if (input.hasAttribute("readonly")) {
+          input.removeAttribute("readonly");
+          input.focus();
+          input.select();
+          if (btn) { btn.textContent = "🔒"; btn.title = "Travar número"; }
+        } else {
+          input.setAttribute("readonly", "readonly");
+          if (btn) { btn.textContent = "✏️"; btn.title = "Editar número"; }
+        }
+      }
+
       // O RIZER Agent exige só dígitos com DDI (ex.: "5561996105726") — a
       // aba Garagens costuma ter o telefone em formato "legível" ("61
       // 9610-5726", com espaço/hífen e sem o 55). Normaliza antes de
@@ -1749,26 +1790,59 @@
           .catch(function (err) { return { ok: false, error: err.message }; });
       }
 
+      var _NOME_DESTINATARIO_AG = { trafego: "Tráfego/Garagem", gestor: "Gestor" };
+
       // Manda a cobrança pros 2 contatos possíveis da garagem — Tráfego/
       // Garagem (obrigatório) e Gestor (opcional, só se preenchido) — os
-      // dois recebem a mesma mensagem/arte. Cada um só é salvo de volta
-      // na planilha se o envio PRA ELE deu certo (não salva um número que
-      // acabou de falhar, como se tivesse sido validado).
+      // dois recebem a mesma mensagem/arte.
       function _enviarCobranca() {
-        var g = _garSelecionada;
-        if (!g) return;
         var trafegoDigitado = (document.getElementById("garTelefone").value || "").trim();
         var gestorDigitado = (document.getElementById("garTelefoneGestor").value || "").trim();
-        var trafego = _normalizarTelefoneAG(trafegoDigitado);
-        var gestor = gestorDigitado ? _normalizarTelefoneAG(gestorDigitado) : "";
+        var statusEl = document.getElementById("garCobrancaStatus");
+
+        if (!trafegoDigitado) { statusEl.className = "oc-status err"; statusEl.textContent = "Informe ao menos o telefone de Tráfego/Garagem."; return; }
+
+        var solicitados = [{ chave: "trafego", digitado: trafegoDigitado }];
+        if (gestorDigitado) solicitados.push({ chave: "gestor", digitado: gestorDigitado });
+        _executarEnvioCobrancaAG(solicitados);
+      }
+
+      // Manda a MESMA cobrança só pra 1 dos contatos (botão ➤ individual ao
+      // lado de cada telefone) — mesmo template de mensagem/arte, só muda
+      // quem recebe.
+      function _enviarIndividualAG(chave) {
+        var inputId = chave === "trafego" ? "garTelefone" : "garTelefoneGestor";
+        var digitado = (document.getElementById(inputId).value || "").trim();
+        var statusEl = document.getElementById("garCobrancaStatus");
+        if (!digitado) {
+          statusEl.className = "oc-status err";
+          statusEl.textContent = "Informe o telefone de " + _NOME_DESTINATARIO_AG[chave] + " antes de enviar.";
+          return;
+        }
+        _executarEnvioCobrancaAG([{ chave: chave, digitado: digitado }]);
+      }
+
+      // Núcleo do envio, compartilhado pelo botão consolidado e pelos
+      // botões individuais — confirma, dispara pra cada destinatário da
+      // lista em paralelo, salva na planilha só o(s) número(s) que deram
+      // certo (não sobrescreve um número que acabou de falhar, como se
+      // tivesse sido validado) e grava no Historico_antecipacao se pelo
+      // menos 1 envio teve sucesso.
+      function _executarEnvioCobrancaAG(solicitados) {
+        var g = _garSelecionada;
+        if (!g) return;
         var message = document.getElementById("garMensagem").value || "";
         var statusEl = document.getElementById("garCobrancaStatus");
         var banner = _slugGaragemAG(g.cidade);
-
-        if (!trafegoDigitado) { statusEl.className = "oc-status err"; statusEl.textContent = "Informe ao menos o telefone de Tráfego/Garagem."; return; }
         if (!message.trim()) { statusEl.className = "oc-status err"; statusEl.textContent = "A mensagem não pode ficar vazia."; return; }
 
-        var destinatarios = "Tráfego/Garagem (" + trafegoDigitado + ")" + (gestorDigitado ? " e Gestor (" + gestorDigitado + ")" : "");
+        var envios = solicitados.map(function (e) {
+          return { chave: e.chave, digitado: e.digitado, phone: _normalizarTelefoneAG(e.digitado) };
+        });
+        var destinatarios = envios.map(function (e) {
+          return _NOME_DESTINATARIO_AG[e.chave] + " (" + e.digitado + ")";
+        }).join(" e ");
+
         _confirmarAcao(
           "Enviar a cobrança consolidada da Garagem " + g.cidade + " para " + destinatarios + " pelo WhatsApp?",
           { titulo: "📤 Enviar cobrança", textoOk: "Enviar" }
@@ -1779,32 +1853,31 @@
           statusEl.className = "oc-status";
           statusEl.textContent = "Enviando...";
 
-          var envios = [{ chave: "trafego", phone: trafego }];
-          if (gestor) envios.push({ chave: "gestor", phone: gestor });
-
           Promise.all(envios.map(function (e) { return _enviarWhatsAppUmAG(e.phone, message, banner); }))
             .then(function (resultados) {
               btn.disabled = false;
               var falhas = [];
               var trafegoParaSalvar = null, gestorParaSalvar = null;
+              var trafegoDigitadoOk = "", gestorDigitadoOk = "";
               resultados.forEach(function (res, i) {
                 if (res.ok) {
-                  if (envios[i].chave === "trafego") trafegoParaSalvar = trafego;
-                  else gestorParaSalvar = gestor;
+                  if (envios[i].chave === "trafego") { trafegoParaSalvar = envios[i].phone; trafegoDigitadoOk = envios[i].digitado; }
+                  else { gestorParaSalvar = envios[i].phone; gestorDigitadoOk = envios[i].digitado; }
                 } else {
-                  falhas.push((envios[i].chave === "trafego" ? "Tráfego/Garagem" : "Gestor") + ": " + res.error);
+                  falhas.push(_NOME_DESTINATARIO_AG[envios[i].chave] + ": " + res.error);
                 }
               });
               if (trafegoParaSalvar != null || gestorParaSalvar != null) {
                 _salvarTelefoneGaragemAG(g.origemFull, trafegoParaSalvar, gestorParaSalvar);
                 // Pelo menos 1 envio deu certo — registra no
-                // Historico_antecipacao (marca o que foi cobrado).
-                _registrarHistoricoAntecipacaoAG(_ultimoTomCobrancaAG, trafegoDigitado, gestorDigitado);
+                // Historico_antecipacao (marca o que foi cobrado e pra
+                // quem, mesmo que tenha sido só 1 dos 2 contatos).
+                _registrarHistoricoAntecipacaoAG(_ultimoTomCobrancaAG, trafegoDigitadoOk, gestorDigitadoOk);
               }
 
               if (!falhas.length) {
                 statusEl.className = "oc-status ok";
-                statusEl.textContent = "✔ Cobrança enviada" + (envios.length > 1 ? " pros 2 contatos." : ".");
+                statusEl.textContent = "✔ Cobrança enviada" + (envios.length > 1 ? " pros " + envios.length + " contatos." : " para " + _NOME_DESTINATARIO_AG[envios[0].chave] + ".");
                 document.getElementById("garBtnConectarWpp").classList.add("hidden");
               } else if (falhas.length < envios.length) {
                 statusEl.className = "oc-status err";
