@@ -927,6 +927,7 @@
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
         _carregarPCs();
+        _carregarPcsResumido();
         // Corre em paralelo com o carregamento do CSV (que o usuário dispara
         // manualmente). Se o accordion já tiver renderizado antes desta
         // chamada voltar, a 1ª tentativa de _aplicarStatusPersistido (feita
@@ -1037,6 +1038,45 @@
           })
           .withFailureHandler(function () { _pcsCache = []; if (cb) cb(); })
           .getPontosControle();
+      }
+
+      // ── Nome resumido do local (pra "copiar nome do local") ────
+      // getPontosControle() (acima) só traz descCompleta+lat/lng — a aba
+      // "PONTOS_CONTROLE" não tem coluna de nome resumido. Quem tem é
+      // getPCs() (aba "PC'S NÃO AUTORIZADO", mesma base usada pelo
+      // Gerador de Relatórios em index.html) — carregamos à parte, só
+      // pra resolver o nome resumido no clique de copiar, sem tocar no
+      // matching de região/lat-lng que já funciona via _pcsCache.
+      var _pcsResumidoCache = null;
+
+      function _carregarPcsResumido(cb) {
+        if (_pcsResumidoCache) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) {
+          _pcsResumidoCache = [];
+          if (cb) cb();
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _pcsResumidoCache = JSON.parse(json || "[]"); } catch (e) { _pcsResumidoCache = []; }
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _pcsResumidoCache = []; if (cb) cb(); })
+          .getPCs();
+      }
+
+      function _matchDescResumida(pontoNome) {
+        if (!_pcsResumidoCache || !pontoNome) return "";
+        var normPonto = _normTP(pontoNome);
+        for (var i = 0; i < _pcsResumidoCache.length; i++) {
+          var p = _pcsResumidoCache[i];
+          var nd = _normTP(p.descCompleta || p.descResumida || "");
+          if (!nd) continue;
+          if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) {
+            return p.descResumida || p.descCompleta || "";
+          }
+        }
+        return "";
       }
 
       // ─────────────────────────────────────────────────────────
@@ -2182,8 +2222,10 @@
           try {
             var rows = _parseCSVRastrTP(e.target.result);
             _carregarPCs(function () {
-              var excedencias = _detectarExcedencias(rows);
-              _renderTP(excedencias);
+              _carregarPcsResumido(function () {
+                var excedencias = _detectarExcedencias(rows);
+                _renderTP(excedencias);
+              });
             });
           } catch (ex) {
             statusEl.innerHTML = '<span style="color:var(--vermelho)">' + _icon("x") + ' Erro ao processar arquivo: ' + ex.message + '</span>';
@@ -2267,7 +2309,7 @@
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
-            descResumida: pcMatch ? (pcMatch.descResumida || pcMatch.descCompleta || "") : "",
+            descResumida: _matchDescResumida(r.ponto),
             cidade: ref.cidade,
             uf: ref.uf,
             regiao: _resolverRegiao(r.ponto, ref.uf),
