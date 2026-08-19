@@ -2261,6 +2261,7 @@
             veiculo: r.veiculo || "—",
             linha: r.linha || "—",
             ponto: r.ponto,
+            descResumida: pcMatch ? (pcMatch.descResumida || pcMatch.descCompleta || "") : "",
             cidade: ref.cidade,
             uf: ref.uf,
             regiao: _resolverRegiao(r.ponto, ref.uf),
@@ -2346,7 +2347,7 @@
         var idx = _relatorioItens.length;
         _relatorioItens.push(r);
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
-        var pontoEsc = String(r.ponto || "").replace(/'/g, "\\'");
+        var pontoEsc = String(r.descResumida || r.ponto || "").replace(/'/g, "\\'");
         return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para justificar e marcar como analisado (ou reverter, se já analisado)">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' +
@@ -2806,7 +2807,7 @@
                 painelItem.setAttribute("data-init", "1");
               }
 
-              var pontoEscLinha = String(item.ponto || "").replace(/'/g, "\\'");
+              var pontoEscLinha = String(item.descResumida || item.ponto || "").replace(/'/g, "\\'");
               var textoLinha = '<b><span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span></b>: ' +
                 (pontoMatch
                   ? ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
