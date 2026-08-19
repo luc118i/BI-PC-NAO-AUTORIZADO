@@ -3296,6 +3296,7 @@
         document.getElementById("relVeiculo").textContent = item.veiculo || "—";
         document.getElementById("relData").value = _dataHoraPartes(item.entrada).data || "";
         document.getElementById("relDataWrap").classList.remove("hidden");
+        document.getElementById("relDataGrupoWrap").classList.add("hidden");
 
         var token = _resetModalRelatorioComum();
         _carregarTrips(function () { _tentarAutoSelecionarLinhaAtual(token); });
@@ -3326,10 +3327,13 @@
 
         document.getElementById("relVeiculo").textContent = _relatorioItens[idxs[0]].veiculo || "—";
         document.getElementById("relHorarios").textContent = "—";
-        // Cada ocorrência do grupo vira 1 relatório à parte com a própria
-        // data (ver _criarOcorrencia) — não existe "a data do grupo" pra
-        // editar aqui, diferente do modo individual.
+        // Cada ocorrência do grupo ainda vira 1 relatório à parte (ver
+        // _criarOcorrencia), mas é 1 viagem só passando por vários pontos —
+        // sugere a data da 1ª ocorrência, editável, e essa data vale pra
+        // todas (ver #relDataGrupo em _criarOcorrencia).
         document.getElementById("relDataWrap").classList.add("hidden");
+        document.getElementById("relDataGrupo").value = _dataHoraPartes(_relatorioItens[idxs[0]].entrada).data || "";
+        document.getElementById("relDataGrupoWrap").classList.remove("hidden");
         _renderResumoListaGrupo();
 
         var token = _resetModalRelatorioComum();
@@ -4171,14 +4175,14 @@
       // (que só gera 1 PDF combinado depois de criar todas as ocorrências).
       function _criarOcorrencia(item) {
         var entradaP = _dataHoraPartes(item.entrada);
-        // Data de início da viagem — editável só no modo individual
-        // (input#relData). No modo grupo/massa cada ocorrência vira 1
-        // relatório à parte pra um veículo que pode ter passado por vários
-        // pontos em dias diferentes — forçar uma data única quebraria o
-        // cálculo de excedente de cada ponto, então ali sempre usa a data
-        // real daquele item (ver abrirModalRelatorioGrupo, que esconde
-        // #relDataWrap).
-        var relDataEl = !_relModoGrupo ? document.getElementById("relData") : null;
+        // Data de início da viagem — no modo individual vem do #relData; no
+        // modo grupo/massa vale a mesma data (#relDataGrupo) pra todos os
+        // pontos incluídos (é 1 viagem só passando por vários pontos, ver
+        // abrirModalRelatorioGrupo). O excedente de cada ponto já foi
+        // calculado antes (permanenciaMin/permitidoMin abaixo), então
+        // corrigir a data aqui não afeta esse cálculo. Cai pra data real do
+        // item se o campo estiver vazio.
+        var relDataEl = document.getElementById(_relModoGrupo ? "relDataGrupo" : "relData");
         var dataViagem = (relDataEl && relDataEl.value) || entradaP.data;
 
         // Garante um access_token fresco (renova via refresh_token se tiver
@@ -4615,14 +4619,21 @@
               <div class="oc-field"><label>Chegada / Saída</label><span id="relHorarios">—</span></div>
               <div class="oc-field"><label>Excedente</label><strong id="relExcedente" style="color:var(--vermelho)">—</strong></div>
             </div>
-            <!-- Só aparece no modo individual — no modo grupo/massa cada
-                 ocorrência vira 1 relatório à parte com a própria data
-                 (ver _criarOcorrencia), então não existe "a data do grupo". -->
+            <!-- Só aparece no modo individual — no modo grupo/massa usa
+                 #relDataGrupo logo abaixo (ver abrirModalRelatorioGrupo). -->
             <div class="oc-field hidden" id="relDataWrap">
               <label>Data de início da viagem</label>
               <input type="date" id="relData" style="max-width:180px" title="Corrija se a viagem começou em outro dia (ex.: parada de madrugada de uma viagem iniciada no dia anterior)" />
             </div>
             <div class="oc-resumo-lista hidden" id="relResumoLista"></div>
+
+            <!-- Modo grupo/massa — mesma data vale pra todos os pontos
+                 incluídos neste relatório (é 1 viagem só passando por
+                 vários pontos, ver _criarOcorrencia/abrirModalRelatorioGrupo). -->
+            <div class="oc-field hidden" id="relDataGrupoWrap">
+              <label>Data de início da viagem</label>
+              <input type="date" id="relDataGrupo" style="max-width:180px" title="Data usada em todos os pontos deste relatório (é 1 viagem só) — corrija se a viagem começou em outro dia" />
+            </div>
 
             <div class="oc-field">
               <label>Linha (itinerário) *</label>
