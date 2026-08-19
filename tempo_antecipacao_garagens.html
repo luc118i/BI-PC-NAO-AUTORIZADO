@@ -426,7 +426,7 @@
                   <label>Telefone Tráfego/Garagem</label>
                   <div class="oc-tel-row">
                     <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" readonly />
-                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefone')">✏️</button>
+                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefone')">✎</button>
                     <button type="button" class="oco-esquema-editar-btn" title="Enviar só para Tráfego/Garagem" onclick="_enviarIndividualAG('trafego')">➤</button>
                   </div>
                 </div>
@@ -434,7 +434,7 @@
                   <label>Telefone Gestor</label>
                   <div class="oc-tel-row">
                     <input type="text" id="garTelefoneGestor" placeholder="Ex.: 5511999999999 (opcional)" readonly />
-                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneGestorEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefoneGestor')">✏️</button>
+                    <button type="button" class="oco-esquema-editar-btn" id="garTelefoneGestorEditBtn" title="Editar número" onclick="_toggleEditarTelefoneAG('garTelefoneGestor')">✎</button>
                     <button type="button" class="oco-esquema-editar-btn" title="Enviar só para o Gestor" onclick="_enviarIndividualAG('gestor')">➤</button>
                   </div>
                 </div>
@@ -484,7 +484,7 @@
     <!-- ── MODAL CONFIRMAR AÇÃO (genérico, mesmo padrão da tela irmã) ── -->
     <div class="oc-overlay hidden" id="confirmModal" onclick="if(event.target===this)_confirmResponder(false)">
       <div class="oc-panel" style="max-width:420px">
-        <div class="oc-header"><h3 id="confirmTitulo">⚠️ Confirmar ação</h3></div>
+        <div class="oc-header"><h3 id="confirmTitulo">Confirmar ação</h3></div>
         <div class="oc-body">
           <p id="confirmMensagem" style="font-size:13px;color:var(--texto2);line-height:1.5;white-space:pre-line">—</p>
         </div>
@@ -550,7 +550,7 @@
       var _confirmResolve = null;
       function _confirmarAcao(mensagem, opts) {
         opts = opts || {};
-        document.getElementById("confirmTitulo").textContent = opts.titulo || "⚠️ Confirmar ação";
+        document.getElementById("confirmTitulo").textContent = opts.titulo || "Confirmar ação";
         document.getElementById("confirmMensagem").textContent = mensagem;
         var btnOk = document.getElementById("confirmBtnOk");
         btnOk.textContent = opts.textoOk || "Confirmar";
@@ -1636,14 +1636,14 @@
         // introdução (esperado) de outro jeito.
         var LIMITE_ITENS = 15;
         var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
-          var linha = "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") + "\n" +
+          var linha = "• *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") + "\n" +
             "Liberação: *" + _fmtHoraAG(o.horaSaidaGaragem) + "* → chegada na rodoviária: *" + _fmtHoraAG(o.horaEntradaRodoviaria) + "*";
 
           if (o.esquemaMatch) {
-            linha += "\n❌ Não liberou a tempo — precisava de *" + esperadoFmt + "* antes da sessão *" +
+            linha += "\n✕ Não liberou a tempo — precisava de *" + esperadoFmt + "* antes da sessão *" +
               o.esquemaMatch.horarioComercial + "* (linha " + o.esquemaMatch.codLinha + ")";
           } else {
-            linha += "\n❌ Não liberou com os *" + esperadoFmt + "* de antecedência exigidos";
+            linha += "\n✕ Não liberou com os *" + esperadoFmt + "* de antecedência exigidos";
           }
 
           if (o.atrasoPartidaMin != null) {
@@ -1657,21 +1657,21 @@
           linhasItens += "\n\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
         }
 
-        var dataTxt = dataMin ? "📅 " + _fmtDataAG(dataMin) + (dataMax && dataMax.getTime() !== dataMin.getTime() ? " a " + _fmtDataAG(dataMax) : "") + "\n\n" : "";
+        var dataTxt = dataMin ? "Período: " + _fmtDataAG(dataMin) + (dataMax && dataMax.getTime() !== dataMin.getTime() ? " a " + _fmtDataAG(dataMax) : "") + "\n\n" : "";
         var rodape = "\n\n_Equipe de Monitoramento Operacional_";
 
         var msg;
         if (temAtrasoAcimaTolerancia) {
-          msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
+          msg = "*GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
             "Identificamos *" + itensFora.length + " ocorrência" + (itensFora.length !== 1 ? "s" : "") +
             "* de liberação abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*), com impacto direto no atraso real de partida.\n" +
             dataTxt +
             linhasItens + "\n\n" +
-            "⚠️ Atraso máximo identificado: *" + piorAtraso + "min* no início da viagem.\n\n" +
+            "Atraso máximo identificado: *" + piorAtraso + "min* no início da viagem.\n\n" +
             "Solicitamos a verificação imediata do motivo da liberação em cima do horário nessa garagem, garantindo o cumprimento do tempo de antecipação exigido." +
             rodape;
         } else {
-          msg = "🔔 *GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
+          msg = "*GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
             "Identificamos *" + itensFora.length + " liberação" + (itensFora.length !== 1 ? "ões" : "") +
             "* abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*).\n" +
             dataTxt +
@@ -1708,18 +1708,18 @@
 
         var LIMITE_ITENS = 15;
         var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
-          return "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") +
+          return "• *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") +
             " · parada de *" + _fmtDuracaoAG(o.duracaoGaragemMin) + "* na garagem (limite " + limiteFmt + ")";
         }).join("\n");
         if (itensFora.length > LIMITE_ITENS) {
           linhasItens += "\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
         }
 
-        var msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
+        var msg = "*GARAGEM " + g.cidade.toUpperCase() + "*\n" +
           "_Cobrança · Paradas em Trânsito_\n\n" +
           "Identificamos *" + itensFora.length + " parada" + (itensFora.length !== 1 ? "s" : "") +
           " intermediária" + (itensFora.length !== 1 ? "s" : "") + "* (troca de motorista/abastecimento/manutenção) acima do tempo máximo permitido (*" + limiteFmt + "*).\n" +
-          (dataMin && dataMax ? "📅 Período: " + _fmtDataAG(dataMin) + " a " + _fmtDataAG(dataMax) + "\n\n" : "\n") +
+          (dataMin && dataMax ? "Período: " + _fmtDataAG(dataMin) + " a " + _fmtDataAG(dataMax) + "\n\n" : "\n") +
           linhasItens + "\n\n" +
           "Solicitamos a verificação dos procedimentos de parada intermediária dessa garagem, reduzindo o tempo de permanência do veículo durante o trajeto." +
           "\n\n_Equipe de Monitoramento Operacional_";
@@ -1741,7 +1741,7 @@
           var input = document.getElementById(id);
           input.setAttribute("readonly", "readonly");
           var btn = document.getElementById(id + "EditBtn");
-          if (btn) { btn.textContent = "✏️"; btn.title = "Editar número"; }
+          if (btn) btn.title = "Editar número";
         });
       }
 
@@ -1752,10 +1752,10 @@
           input.removeAttribute("readonly");
           input.focus();
           input.select();
-          if (btn) { btn.textContent = "🔒"; btn.title = "Travar número"; }
+          if (btn) btn.title = "Travar número";
         } else {
           input.setAttribute("readonly", "readonly");
-          if (btn) { btn.textContent = "✏️"; btn.title = "Editar número"; }
+          if (btn) btn.title = "Editar número";
         }
       }
 
@@ -1845,7 +1845,7 @@
 
         _confirmarAcao(
           "Enviar a cobrança consolidada da Garagem " + g.cidade + " para " + destinatarios + " pelo WhatsApp?",
-          { titulo: "📤 Enviar cobrança", textoOk: "Enviar" }
+          { titulo: "Enviar cobrança", textoOk: "Enviar" }
         ).then(function (ok) {
           if (!ok) return;
           var btn = document.getElementById("garBtnEnviar");
@@ -1921,7 +1921,7 @@
             var conteudo = document.getElementById("whatsappQrConteudo");
             if (!conteudo) return; // modal fechada nesse meio tempo
             if (state.status === "connected") {
-              conteudo.innerHTML = '<span style="font-size: 32px">✅</span><span style="font-size:13px;color:var(--verde);font-weight:600">WhatsApp conectado!</span>';
+              conteudo.innerHTML = '<span style="font-size: 32px;color:var(--verde)">✓</span><span style="font-size:13px;color:var(--verde);font-weight:600">WhatsApp conectado!</span>';
               document.getElementById("garCobrancaStatus").className = "oc-status";
               document.getElementById("garCobrancaStatus").textContent = "";
               document.getElementById("garBtnConectarWpp").classList.add("hidden");
@@ -2145,7 +2145,7 @@
 
       function _htmlLinhaSessaoAG(textoHtml, comparacao) {
         if (!comparacao) return '<div style="margin-top:6px">' + textoHtml + '</div>';
-        var icone = comparacao === "cedo" ? "⚠" : comparacao === "atraso" ? "⛔" : "✔";
+        var icone = comparacao === "cedo" ? "⚠" : comparacao === "atraso" ? "✕" : "✔";
         return '<div class="esquema-sessao-linha ' + comparacao + '"><span class="esquema-sessao-icone">' + icone + '</span><span>' + textoHtml + '</span></div>';
       }
 
