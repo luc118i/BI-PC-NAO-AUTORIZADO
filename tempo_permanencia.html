@@ -674,7 +674,7 @@
           <input type="date" id="dashDataIni" onchange="_carregarDashboardPeriodo()" />
           <label for="dashDataFim">até</label>
           <input type="date" id="dashDataFim" onchange="_carregarDashboardPeriodo()" />
-          <button class="btn btn-ghost" id="btnRelatorioGeralTP" onclick="_gerarRelatorioGeralTP(this)" title="Gera 1 PDF com todo o BI do período filtrado (KPIs, gráficos, rankings, motivos) e salva no Drive">📊 Relatório Geral</button>
+          <button class="btn btn-ghost" id="btnRelatorioGeralTP" onclick="_gerarRelatorioGeralTP(this)" title="Gera 1 PDF com todo o BI do período filtrado (KPIs, gráficos, rankings, motivos) e salva no Drive">Relatório Geral</button>
         </div>
       </div>
 
@@ -3646,7 +3646,7 @@
       function _gerarRelatorioGeralTP(btnEl) {
         var lista = _dashListaAtual;
         if (!lista.length) {
-          _alertarAcao("Nenhum relatório de excesso de permanência no período selecionado — ajuste o filtro de data acima.", { titulo: "📊 Relatório Geral" });
+          _alertarAcao("Nenhum relatório de excesso de permanência no período selecionado — ajuste o filtro de data acima.", { titulo: "Relatório Geral" });
           return;
         }
 
