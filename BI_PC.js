@@ -987,9 +987,13 @@ function _abaHistoricoAntecipacao(ss) {
 // registros: array de objetos montados no front (ver
 // _montarRegistroHistoricoAG em tempo_antecipacao_garagens.html) — grava
 // todas as linhas de uma vez (1 cobrança pode cobrir várias ocorrências
-// da mesma garagem). Devolve quantas linhas gravou.
+// da mesma garagem). JUSTIFICATIVA nasce vazia aqui — o fluxo é enviar a
+// cobrança primeiro e só depois, quando o motivo for apurado, preencher
+// via atualizarJustificativaHistorico (ver função abaixo). Devolve o
+// número da linha gravada de cada registro, na mesma ordem de entrada —
+// o front usa isso pra saber em qual linha salvar a justificativa depois.
 function registrarHistoricoAntecipacao(registros) {
-  if (!registros || !registros.length) return 0;
+  if (!registros || !registros.length) return [];
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = _abaHistoricoAntecipacao(ss);
   const agora = new Date();
@@ -1013,9 +1017,30 @@ function registrarHistoricoAntecipacao(registros) {
     r.tomMensagem || "",
     r.telefoneTrafego || "",
     r.telefoneGestor || "",
-    r.justificativa || "",
+    "", // JUSTIFICATIVA — preenchida depois, ver atualizarJustificativaHistorico
   ]);
 
-  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length).setValues(linhas);
-  return linhas.length;
+  const primeiraLinha = aba.getLastRow() + 1;
+  aba.getRange(primeiraLinha, 1, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length).setValues(linhas);
+  return linhas.map((_, i) => primeiraLinha + i);
+}
+
+// Preenche a JUSTIFICATIVA (última coluna) de 1 ou mais linhas já
+// gravadas no Historico_antecipacao — chamada bem depois do envio, quando
+// o usuário já apurou o motivo da ocorrência (ver botão "Justificativa"
+// no card da ocorrência, em tempo_antecipacao_garagens.html). `linhas` é
+// a lista de números de linha devolvida por registrarHistoricoAntecipacao.
+function atualizarJustificativaHistorico(linhas, justificativa) {
+  if (!linhas || !linhas.length) return false;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("Historico_antecipacao");
+  if (!aba) throw new Error('Aba "Historico_antecipacao" não encontrada.');
+  const colJustificativa = HISTORICO_ANTECIPACAO_HEADER.indexOf("JUSTIFICATIVA") + 1;
+  const lastRow = aba.getLastRow();
+  linhas.forEach((linha) => {
+    if (linha >= 2 && linha <= lastRow) {
+      aba.getRange(linha, colJustificativa).setValue(String(justificativa || ""));
+    }
+  });
+  return true;
 }

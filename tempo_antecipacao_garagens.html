@@ -150,6 +150,9 @@
       .oco-esquema-panel { flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto3); border: 1px solid var(--borda2); }
       .oco-esquema-input { width: 100%; background: var(--preto2); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; border-radius: var(--radius-sm); }
       .oco-esquema-input:focus { outline: none; border-color: var(--laranja); }
+      .oco-justif-status { font-size: 11px; color: var(--texto3); }
+      .oco-justif-status.ok { color: var(--verde); }
+      .oco-justif-status.err { color: var(--vermelho); }
       .oco-esquema-msg { font-size: 12px; color: var(--texto3); font-style: italic; padding: 8px 2px; }
       .oco-esquema-lista { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
       .oco-esquema-item { padding: 7px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
@@ -449,10 +452,6 @@
                 <summary>Mensagem (texto bruto) — editar</summary>
                 <textarea id="garMensagem" oninput="_renderWhatsAppPreviewAG()"></textarea>
               </details>
-              <div class="oc-field">
-                <label>Justificativa (interna — não é enviada no WhatsApp)</label>
-                <textarea id="garJustificativa" placeholder="Ex.: motivo já apurado, combinado com a garagem, reincidência conhecida etc. — fica registrado no Historico_antecipacao pra relatório." style="min-height:60px"></textarea>
-              </div>
             </div>
             <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px">
               <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--texto3);font-weight:700">Arte anexada</label>
@@ -625,7 +624,7 @@
       // ocorrência (o) — cobre os dois tipos de análise, já que os campos
       // relevantes têm nomes diferentes num e noutro (ex.: antecedenciaMin
       // vs duracaoGaragemMin).
-      function _montarRegistroHistoricoAG(o, tipoAnalise, tomMensagem, telefoneTrafego, telefoneGestor, justificativa) {
+      function _montarRegistroHistoricoAG(o, tipoAnalise, tomMensagem, telefoneTrafego, telefoneGestor) {
         var ehTransito = tipoAnalise === "Em Trânsito";
         return {
           dataViagem: o.data ? _fmtDataAG(o.data) : "",
@@ -645,25 +644,94 @@
           tomMensagem: tomMensagem,
           telefoneTrafego: telefoneTrafego,
           telefoneGestor: telefoneGestor,
-          justificativa: justificativa || "",
         };
       }
 
       // Grava no Historico_antecipacao — chamada só depois de pelo menos 1
       // envio bem-sucedido (não registra tentativa que falhou por
-      // completo). Silenciosa: se a gravação falhar, só loga no console,
-      // não atrapalha o fluxo (o envio real já aconteceu).
+      // completo). A JUSTIFICATIVA nasce vazia aqui de propósito: o fluxo
+      // é enviar a cobrança primeiro e só depois, quando o motivo já foi
+      // apurado, preencher — ver botão "Justificativa" em cada card de
+      // ocorrência (_toggleJustificativaAG). Por isso guardamos o número
+      // da linha gravada de volta em cada ocorrência (o.historicoLinha),
+      // devolvido pelo backend na mesma ordem dos registros enviados.
       function _registrarHistoricoAntecipacaoAG(tomMensagem, telefoneTrafego, telefoneGestor) {
         if (!(window.google && google.script && google.script.run)) return;
-        var justificativa = (document.getElementById("garJustificativa").value || "").trim();
-        var registros = (_ultimosItensCobrancaAG || []).map(function (o) {
-          return _montarRegistroHistoricoAG(o, _ultimoTipoAnaliseAG, tomMensagem, telefoneTrafego, telefoneGestor, justificativa);
+        var itens = _ultimosItensCobrancaAG || [];
+        var registros = itens.map(function (o) {
+          return _montarRegistroHistoricoAG(o, _ultimoTipoAnaliseAG, tomMensagem, telefoneTrafego, telefoneGestor);
         });
         if (!registros.length) return;
         google.script.run
+          .withSuccessHandler(function (linhas) {
+            (linhas || []).forEach(function (linha, i) { if (itens[i]) itens[i].historicoLinha = linha; });
+          })
           .withFailureHandler(function (err) { console.error("[registrarHistoricoAntecipacao] falhou:", err); })
           .registrarHistoricoAntecipacao(registros);
       }
+
+      // Grava a justificativa de 1 ocorrência já cobrada — chamada pelo
+      // botão "Justificativa" no card (ver _toggleJustificativaAG). Só
+      // funciona se a ocorrência já tiver sido cobrada com sucesso alguma
+      // vez (o.historicoLinha setado por _registrarHistoricoAntecipacaoAG).
+      // Núcleo compartilhado entre as ocorrências de Antecipação e as de Em
+      // Trânsito — só muda o array de itens e o prefixo do id do painel
+      // (espaços de índice diferentes, ver _ocoItensAG/_ocoItensTransitoAG).
+      function _salvarJustificativaCoreAG(itens, idPrefixo, idx) {
+        var o = itens[idx];
+        if (!o || !o.historicoLinha) return;
+        var painel = document.getElementById(idPrefixo + idx);
+        var textarea = painel.querySelector("textarea");
+        var texto = (textarea.value || "").trim();
+        var statusEl = painel.querySelector(".oco-justif-status");
+        statusEl.textContent = "Salvando...";
+        statusEl.className = "oco-justif-status";
+        google.script.run
+          .withSuccessHandler(function () {
+            o.justificativaAtual = texto;
+            statusEl.className = "oco-justif-status ok";
+            statusEl.textContent = "✓ Justificativa salva.";
+          })
+          .withFailureHandler(function (err) {
+            console.error("[atualizarJustificativaHistorico] falhou:", err);
+            statusEl.className = "oco-justif-status err";
+            statusEl.textContent = "Erro ao salvar: " + (err && err.message ? err.message : err);
+          })
+          .atualizarJustificativaHistorico([o.historicoLinha], texto);
+      }
+
+      // Abre/fecha o painel de justificativa do card de ocorrência (mesmo
+      // padrão do "Ver esquema" — conteúdo montado na hora do clique, não
+      // no render inicial da lista, pra refletir se a ocorrência já foi
+      // cobrada ou não sem precisar re-renderizar o accordion inteiro
+      // — o que fecharia todos os grupos abertos).
+      function _toggleJustificativaCoreAG(itens, idPrefixo, botaoSalvar, idx) {
+        var painel = document.getElementById(idPrefixo + idx);
+        if (!painel) return;
+        var abrindo = painel.classList.contains("hidden");
+        if (!abrindo) { painel.classList.add("hidden"); return; }
+
+        var o = itens[idx];
+        if (!o.historicoLinha) {
+          painel.innerHTML = '<p class="oco-esquema-msg">Essa ocorrência ainda não foi cobrada — envie a cobrança da garagem (botão "Gerar cobrança") pra poder registrar a justificativa aqui depois.</p>';
+        } else {
+          var valorAtual = (o.justificativaAtual || "").replace(/"/g, "&quot;");
+          painel.innerHTML =
+            '<div class="oc-field" style="gap:6px">' +
+              '<textarea class="oco-esquema-input" style="min-height:60px" placeholder="Motivo já apurado, combinado com a garagem, reincidência conhecida etc.">' + valorAtual + '</textarea>' +
+              '<div style="display:flex;align-items:center;gap:10px">' +
+                '<button type="button" class="acc-cobranca-btn" onclick="' + botaoSalvar + '(' + idx + ')">Salvar justificativa</button>' +
+                '<span class="oco-justif-status"></span>' +
+              '</div>' +
+            '</div>';
+        }
+        painel.classList.remove("hidden");
+      }
+
+      function _salvarJustificativaAG(idx) { _salvarJustificativaCoreAG(_ocoItensAG, "oco-justif-", idx); }
+      function _toggleJustificativaAG(idx) { _toggleJustificativaCoreAG(_ocoItensAG, "oco-justif-", "_salvarJustificativaAG", idx); }
+      function _salvarJustificativaTransitoAG(idx) { _salvarJustificativaCoreAG(_ocoItensTransitoAG, "oco-justif-t-", idx); }
+      function _toggleJustificativaTransitoAG(idx) { _toggleJustificativaCoreAG(_ocoItensTransitoAG, "oco-justif-t-", "_salvarJustificativaTransitoAG", idx); }
 
       // ═══════════════════════════════════════════════════════════
       //  Upload + parsing do CSV de viagens
@@ -1317,6 +1385,7 @@
         });
 
         var wrap = document.getElementById("agAccordionsTransito");
+        _ocoItensTransitoAG = [];
         if (!lista.length) {
           wrap.innerHTML = '<div class="estado-vazio">Nenhuma garagem encontrada com esse filtro.</div>';
           return;
@@ -1369,6 +1438,10 @@
       // podem estar expandidas ao mesmo tempo, então não dá pra reiniciar
       // o índice a cada garagem como fazia o antigo modal único).
       var _ocoItensAG = [];
+      // Mesma ideia, mas pro array de ocorrências "Em Trânsito" — espaço de
+      // índices separado (não é o mesmo array/aba do _ocoItensAG), zerado
+      // em _renderTransitoFiltradoAG.
+      var _ocoItensTransitoAG = [];
 
       // Copia texto pro clipboard com o mesmo feedback visual de
       // Paradas Irregulares/Tempo de Permanência (_copiarPrefixo/_copiarDesc
@@ -1419,7 +1492,9 @@
           '</div>' +
           '<span class="oco-badge ' + badgeCls + '">' + o.status + '</span>' +
           '<button type="button" class="oco-esquema-btn" onclick="_verEsquemaAG(' + idx + ')" title="Ver se essa antecipação insuficiente também atrasou a sessão/partida do veículo">Ver esquema</button>' +
+          '<button type="button" class="oco-esquema-btn" onclick="_toggleJustificativaAG(' + idx + ')" title="Registrar o motivo apurado pra essa ocorrência (depois de cobrada)">Justificativa</button>' +
           '<div class="oco-esquema-panel hidden" id="oco-esquema-' + idx + '"></div>' +
+          '<div class="oco-esquema-panel hidden" id="oco-justif-' + idx + '"></div>' +
         '</div>';
       }
 
@@ -1430,6 +1505,8 @@
       // programada" é sobre o início da viagem, não se aplica a uma
       // parada no meio do trajeto.
       function _ocorrenciaTransitoItemHtml(o) {
+        var idx = _ocoItensTransitoAG.length;
+        _ocoItensTransitoAG.push(o);
         var badgeCls = o.statusTransito === "Fora do prazo" ? "fora" : o.statusTransito === "Dentro do prazo" ? "dentro" : "neutro";
         var dataFmt = o.data ? _fmtDataAG(o.data) : "—";
         var veiculoEsc = String(o.veiculo || "").replace(/'/g, "\\'");
@@ -1455,6 +1532,8 @@
             '<div class="esperado">limite ' + limiteFmt + '</div>' +
           '</div>' +
           '<span class="oco-badge ' + badgeCls + '">' + o.statusTransito + '</span>' +
+          '<button type="button" class="oco-esquema-btn" onclick="_toggleJustificativaTransitoAG(' + idx + ')" title="Registrar o motivo apurado pra essa ocorrência (depois de cobrada)">Justificativa</button>' +
+          '<div class="oco-esquema-panel hidden" id="oco-justif-t-' + idx + '"></div>' +
         '</div>';
       }
 
@@ -1552,7 +1631,6 @@
         document.getElementById("garCobrancaStatus").className = "oc-status";
         document.getElementById("garBtnEnviar").disabled = false;
         document.getElementById("garBtnConectarWpp").classList.add("hidden");
-        document.getElementById("garJustificativa").value = "";
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
@@ -1575,7 +1653,6 @@
         document.getElementById("garCobrancaStatus").className = "oc-status";
         document.getElementById("garBtnEnviar").disabled = false;
         document.getElementById("garBtnConectarWpp").classList.add("hidden");
-        document.getElementById("garJustificativa").value = "";
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
