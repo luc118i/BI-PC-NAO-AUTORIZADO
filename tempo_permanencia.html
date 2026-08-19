@@ -674,6 +674,7 @@
           <input type="date" id="dashDataIni" onchange="_carregarDashboardPeriodo()" />
           <label for="dashDataFim">até</label>
           <input type="date" id="dashDataFim" onchange="_carregarDashboardPeriodo()" />
+          <button class="btn btn-ghost" id="btnRelatorioGeralTP" onclick="_gerarRelatorioGeralTP(this)" title="Gera 1 PDF com todo o BI do período filtrado (KPIs, gráficos, rankings, motivos) e salva no Drive">📊 Relatório Geral</button>
         </div>
       </div>
 
@@ -1956,7 +1957,10 @@
         }).join("");
       }
 
+      var _dashListaAtual = []; // cache da última _renderDashboard(lista) — ver _gerarRelatorioGeralTP()
+
       function _renderDashboard(lista) {
+        _dashListaAtual = lista || [];
         document.getElementById("dashEstadoVazio").classList.toggle("hidden", lista.length > 0);
         document.getElementById("dashGraficos").classList.toggle("hidden", !lista.length);
         document.getElementById("dashCardPontos").classList.toggle("hidden", !lista.length);
@@ -3615,6 +3619,107 @@
           .catch(function (err) {
             restaurarBtn();
             _alertarAcao("Erro ao gerar o resumo: " + ((err && err.message) || err), { titulo: "❌ Erro" });
+          });
+      }
+
+      // ── Relatório Geral (todo o BI do período filtrado) ─────────
+      // Agrega o mesmo `_dashListaAtual` (getHistoricoExcesso) e
+      // `_justListaAtual` (getJustificativasPermanencia) que alimentam os
+      // cards/gráficos do Dashboard — já filtrados pelo período em
+      // #dashDataIni/#dashDataFim — e manda pronto pra API montar 1 PDF
+      // só com tudo (KPIs, linha do tempo, região, top pontos, rankings,
+      // motivos). Mesmo padrão da API dos outros relatórios (Node/
+      // Puppeteer, não Apps Script) — ver relatorio-geral-tp.route.ts no
+      // Gerador de Relatórios Operacionais.
+      function _contagemOrdenada(lista, campo, limite) {
+        var cont = {};
+        lista.forEach(function (r) {
+          var k = r[campo];
+          if (!k || k === "—") return;
+          cont[k] = (cont[k] || 0) + 1;
+        });
+        var pares = Object.keys(cont).map(function (k) { return { chave: k, count: cont[k] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+        return limite ? pares.slice(0, limite) : pares;
+      }
+
+      function _gerarRelatorioGeralTP(btnEl) {
+        var lista = _dashListaAtual;
+        if (!lista.length) {
+          _alertarAcao("Nenhum relatório de excesso de permanência no período selecionado — ajuste o filtro de data acima.", { titulo: "📊 Relatório Geral" });
+          return;
+        }
+
+        var textoOrig = btnEl.innerHTML;
+        btnEl.disabled = true;
+        btnEl.innerHTML = "Gerando...";
+        function restaurarBtn() { btnEl.disabled = false; btnEl.innerHTML = textoOrig; }
+
+        var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
+        var porPontoTop = _contagemOrdenada(lista, "ponto", 1)[0];
+        var porMotoristaTop = _contagemOrdenada(lista, "motorista", 1)[0];
+
+        var porDiaCont = {};
+        lista.forEach(function (r) { if (r.data) porDiaCont[r.data] = (porDiaCont[r.data] || 0) + 1; });
+        var porDia = Object.keys(porDiaCont).sort().map(function (d) { return { chave: d, count: porDiaCont[d] }; });
+
+        var motivosCont = {}; // motivo -> count, só descartes (mesma base do card "Motivos de análise")
+        (_justListaAtual || []).forEach(function (r) {
+          if (MOTIVOS_DESCARTE.indexOf(r.motivo) === -1) return;
+          motivosCont[r.motivo] = (motivosCont[r.motivo] || 0) + 1;
+        });
+        var motivosAnalise = Object.keys(motivosCont)
+          .map(function (m) { return { motivo: m, label: MOTIVO_LABELS[m] || m, cor: MOTIVO_CORES[m] || "#9ca3af", count: motivosCont[m] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+
+        var payload = {
+          periodoIni: document.getElementById("dashDataIni").value,
+          periodoFim: document.getElementById("dashDataFim").value,
+          geradoPor: _authLogado() ? _obterUsuarioAtual() : "",
+          kpis: {
+            totalRelatorios: lista.length,
+            totalVeiculos: veiculos.size,
+            pontoTop: porPontoTop ? { nome: porPontoTop.chave, count: porPontoTop.count } : null,
+            motoristaTop: porMotoristaTop ? { nome: porMotoristaTop.chave, count: porMotoristaTop.count } : null,
+          },
+          porDia: porDia,
+          porRegiao: _contagemOrdenada(lista, "regiao"),
+          topPontos: _contagemOrdenada(lista, "ponto", 10),
+          rankLinhas: _contagemOrdenada(lista, "linha", 10),
+          rankMotoristas: _contagemOrdenada(lista, "motorista", 10),
+          motivosAnalise: motivosAnalise,
+        };
+
+        _obterCredenciaisDrive()
+          .then(function (cred) {
+            payload.accessToken = cred.accessToken;
+            payload.folderId = cred.folderId;
+            return fetch(REPORTS_API_URL + "/reports/relatorio-geral-tp/drive", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+          })
+          .then(function (r) {
+            var ct = r.headers.get("content-type") || "";
+            if (ct.indexOf("json") === -1) {
+              throw new Error("A API não respondeu em JSON (status " + r.status + ") — o endpoint /reports/relatorio-geral-tp/drive provavelmente ainda não foi implantado no servidor.");
+            }
+            if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.error && (j.error.message || j.error)) || "Falha ao gerar o relatório geral"); });
+            return r.json();
+          })
+          .then(function (json) {
+            restaurarBtn();
+            var url = json && json.data && json.data.webViewLink;
+            _alertarAcao(
+              "Relatório geral do período salvo no Drive — " + lista.length + " excedência" + (lista.length !== 1 ? "s" : "") + " no total.<br><br>" +
+              (url ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--laranja);text-decoration:underline">Abrir no Drive</a>' : ""),
+              { titulo: "✅ Relatório Geral", mensagemHtml: true },
+            );
+          })
+          .catch(function (err) {
+            restaurarBtn();
+            _alertarAcao("Erro ao gerar o relatório geral: " + ((err && err.message) || err), { titulo: "❌ Erro" });
           });
       }
 
