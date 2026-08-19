@@ -1044,3 +1044,43 @@ function atualizarJustificativaHistorico(linhas, justificativa) {
   });
   return true;
 }
+
+// Acha a linha do Historico_antecipacao pra 1 ocorrência específica, pelas
+// chaves que identificam ela de forma única na prática (data da viagem +
+// garagem + veículo + tipo de análise). Existe porque o front só sabe em
+// que linha uma ocorrência foi gravada (o.historicoLinha) enquanto a
+// página que fez o envio continua aberta — se o usuário recarrega a
+// página (ou reabre o app depois) e clica em "Justificativa" numa
+// ocorrência que JÁ foi cobrada numa sessão anterior, o front não tem
+// mais esse número guardado em memória e precisa perguntar pro backend.
+// Devolve { linha, justificativa } ou null se não achar. Quando há mais
+// de 1 lançamento pra mesma chave (raro — reenvio da mesma cobrança), usa
+// o mais recente (última linha, já que a aba só recebe append).
+function buscarHistoricoAntecipacaoLinha(chave) {
+  if (!chave) return null;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("Historico_antecipacao");
+  if (!aba) return null;
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return null;
+
+  const idxData = HISTORICO_ANTECIPACAO_HEADER.indexOf("DATA_VIAGEM");
+  const idxGaragem = HISTORICO_ANTECIPACAO_HEADER.indexOf("GARAGEM");
+  const idxVeiculo = HISTORICO_ANTECIPACAO_HEADER.indexOf("VEICULO");
+  const idxTipo = HISTORICO_ANTECIPACAO_HEADER.indexOf("TIPO_ANALISE");
+  const idxJustificativa = HISTORICO_ANTECIPACAO_HEADER.indexOf("JUSTIFICATIVA");
+
+  const dados = aba.getRange(2, 1, lastRow - 1, HISTORICO_ANTECIPACAO_HEADER.length).getValues();
+  for (let i = dados.length - 1; i >= 0; i--) {
+    const row = dados[i];
+    if (
+      String(row[idxData] || "") === String(chave.dataViagem || "") &&
+      String(row[idxGaragem] || "") === String(chave.garagem || "") &&
+      String(row[idxVeiculo] || "") === String(chave.veiculo || "") &&
+      String(row[idxTipo] || "") === String(chave.tipoAnalise || "")
+    ) {
+      return { linha: i + 2, justificativa: row[idxJustificativa] || "" };
+    }
+  }
+  return null;
+}
