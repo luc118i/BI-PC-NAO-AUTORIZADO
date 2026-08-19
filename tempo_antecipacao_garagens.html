@@ -269,6 +269,19 @@
       .wpp-bubble i { font-style: italic; }
       .wpp-bubble s { text-decoration: line-through; }
 
+      /* ── Histórico de Cobranças (tabela) ────────────────────────── */
+      .hist-table-wrap { overflow-x: auto; border: 1px solid var(--borda); border-radius: var(--radius-sm); }
+      .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+      .hist-table th, .hist-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--borda); }
+      .hist-table th { color: var(--texto3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: var(--preto3); position: sticky; top: 0; }
+      .hist-table tbody tr:hover { background: var(--laranja4); }
+      .hist-table tbody tr:last-child td { border-bottom: none; }
+      .hist-table td.hist-justif { white-space: normal; max-width: 260px; color: var(--texto2); }
+      .hist-table td.hist-justif.vazia { color: var(--texto3); font-style: italic; }
+      .hist-tom { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+      .hist-tom.cobranca { background: rgba(224,80,80,0.15); color: var(--vermelho); }
+      .hist-tom.informativo { background: var(--laranja3); color: var(--laranja); }
+
       footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 18px 28px; margin-top: 8px; }
       .footer-copy { font-size: 10px; color: var(--texto3); text-align: center; }
       .footer-copy span { color: var(--laranja); font-weight: 600; }
@@ -297,6 +310,65 @@
     </header>
 
     <div class="main">
+      <!-- ── Histórico de Cobranças (Historico_antecipacao) — carrega
+           sozinho ao abrir a tela, não depende de importar CSV nenhum;
+           é só o registro do que já foi cobrado até hoje. ────────── -->
+      <div class="card hidden" id="histCard">
+        <div class="card-title">Histórico de Cobranças</div>
+        <div class="kpi-row kpi-row-4" id="histKpis" style="margin-bottom:14px">
+          <div class="kpi" style="--kpi-c: var(--laranja)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Cobranças registradas</div>
+            <div class="kpi-value" id="kHistTotal">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--laranja)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Garagens únicas</div>
+            <div class="kpi-value" id="kHistGaragens">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--vermelho)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Em tom de cobrança</div>
+            <div class="kpi-value" id="kHistCobranca">—</div>
+          </div>
+          <div class="kpi" style="--kpi-c: var(--amarelo)">
+            <div class="kpi-stripe"></div>
+            <div class="kpi-label">Sem justificativa ainda</div>
+            <div class="kpi-value" id="kHistSemJustificativa">—</div>
+          </div>
+        </div>
+        <div class="filtro-bar">
+          <input type="text" id="histBusca" placeholder="Buscar garagem ou veículo..." oninput="_renderHistoricoFiltradoAG()" />
+          <select id="histTipoSel" onchange="_renderHistoricoFiltradoAG()">
+            <option value="">Todos os tipos</option>
+            <option value="Antecipação">Antecipação</option>
+            <option value="Em Trânsito">Em Trânsito</option>
+          </select>
+          <select id="histTomSel" onchange="_renderHistoricoFiltradoAG()">
+            <option value="">Todos os tons</option>
+            <option value="Cobrança">Cobrança</option>
+            <option value="Informativo">Informativo</option>
+          </select>
+          <select id="histJustifSel" onchange="_renderHistoricoFiltradoAG()">
+            <option value="">Justificativa: todas</option>
+            <option value="com">Só com justificativa</option>
+            <option value="sem">Só sem justificativa</option>
+          </select>
+        </div>
+        <div class="hist-table-wrap">
+          <table class="hist-table" id="histTabela">
+            <thead>
+              <tr>
+                <th>Envio</th><th>Viagem</th><th>Garagem</th><th>Veículo</th><th>Tipo</th>
+                <th>Linha</th><th>Status</th><th>Tom</th><th>Justificativa</th>
+              </tr>
+            </thead>
+            <tbody id="histTabelaBody"></tbody>
+          </table>
+        </div>
+        <p id="histVazioNota" class="estado-vazio hidden">Nenhum registro encontrado com esse filtro.</p>
+      </div>
+
       <div class="det-status" id="agStatus"></div>
 
       <div class="ag-tabs hidden" id="agTabs">
@@ -541,7 +613,67 @@
           google.script.run.withSuccessHandler(function (url) { webAppBaseUrl = url; }).getWebAppUrl();
         }
         _carregarGaragens();
+        _carregarHistoricoAG();
       };
+
+      // ═══════════════════════════════════════════════════════════
+      //  Histórico de Cobranças (Historico_antecipacao) — carrega sozinho
+      //  ao entrar na tela, não depende de importar CSV (ver getHistoricoAntecipacao
+      //  em BI_PC.js). Só aparece se já existe pelo menos 1 registro.
+      // ═══════════════════════════════════════════════════════════
+      var _historicoAG = [];
+
+      function _carregarHistoricoAG() {
+        if (!(window.google && google.script && google.script.run)) return;
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _historicoAG = JSON.parse(json || "[]"); } catch (e) { _historicoAG = []; }
+            if (!_historicoAG.length) return; // nada cobrado ainda — card fica escondido
+            document.getElementById("histCard").classList.remove("hidden");
+            document.getElementById("kHistTotal").textContent = _historicoAG.length;
+            document.getElementById("kHistGaragens").textContent = new Set(_historicoAG.map(function (r) { return r.garagem; })).size;
+            document.getElementById("kHistCobranca").textContent = _historicoAG.filter(function (r) { return r.tomMensagem === "Cobrança"; }).length;
+            document.getElementById("kHistSemJustificativa").textContent = _historicoAG.filter(function (r) { return !r.justificativa; }).length;
+            _renderHistoricoFiltradoAG();
+          })
+          .withFailureHandler(function (err) { console.error("[getHistoricoAntecipacao] falhou:", err); })
+          .getHistoricoAntecipacao();
+      }
+
+      function _renderHistoricoFiltradoAG() {
+        var termo = _normAG(document.getElementById("histBusca").value);
+        var tipoFiltro = document.getElementById("histTipoSel").value;
+        var tomFiltro = document.getElementById("histTomSel").value;
+        var justifFiltro = document.getElementById("histJustifSel").value;
+
+        var lista = _historicoAG.filter(function (r) {
+          if (termo && !_normAG(r.garagem + " " + r.veiculo).includes(termo)) return false;
+          if (tipoFiltro && r.tipoAnalise !== tipoFiltro) return false;
+          if (tomFiltro && r.tomMensagem !== tomFiltro) return false;
+          if (justifFiltro === "com" && !r.justificativa) return false;
+          if (justifFiltro === "sem" && r.justificativa) return false;
+          return true;
+        });
+
+        document.getElementById("histVazioNota").classList.toggle("hidden", !!lista.length);
+        document.getElementById("histTabelaBody").innerHTML = lista.map(function (r) {
+          var tomCls = r.tomMensagem === "Cobrança" ? "cobranca" : "informativo";
+          var justif = r.justificativa
+            ? '<td class="hist-justif" title="' + String(r.justificativa).replace(/"/g, "&quot;") + '">' + r.justificativa + '</td>'
+            : '<td class="hist-justif vazia">—</td>';
+          return '<tr>' +
+            '<td>' + (r.dataEnvio || "—") + '</td>' +
+            '<td>' + (r.dataViagem || "—") + '</td>' +
+            '<td>' + (r.garagem || "—") + '</td>' +
+            '<td>' + (r.veiculo || "—") + '</td>' +
+            '<td>' + (r.tipoAnalise || "—") + '</td>' +
+            '<td>' + (r.linhaCod || "—") + '</td>' +
+            '<td>' + (r.status || "—") + '</td>' +
+            '<td><span class="hist-tom ' + tomCls + '">' + (r.tomMensagem || "—") + '</span></td>' +
+            justif +
+          '</tr>';
+        }).join("");
+      }
 
       function voltarDashboard() {
         if (webAppBaseUrl) window.location.href = webAppBaseUrl;

@@ -1084,3 +1084,42 @@ function buscarHistoricoAntecipacaoLinha(chave) {
   }
   return null;
 }
+
+// Devolve todo o Historico_antecipacao pra tela carregar sozinha assim
+// que abre (antes até de importar um CSV) — é o registro de tudo que já
+// foi cobrado, então faz sentido aparecer de cara, sem depender de
+// upload. Ordena do mais recente pro mais antigo. Se a aba ainda não
+// existe (nenhuma cobrança feita ainda), devolve lista vazia.
+function getHistoricoAntecipacao() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("Historico_antecipacao");
+  if (!aba) return JSON.stringify([]);
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+  const tz = ss.getSpreadsheetTimeZone();
+  const dados = aba.getRange(2, 1, lastRow - 1, HISTORICO_ANTECIPACAO_HEADER.length).getValues();
+
+  const registros = dados.map((row) => ({
+    dataEnvio: row[0] instanceof Date ? Utilities.formatDate(row[0], tz, "dd/MM/yyyy HH:mm") : String(row[0] || ""),
+    dataViagem: row[1] || "",
+    garagem: row[2] || "",
+    veiculo: row[3] || "",
+    tipoAnalise: row[4] || "",
+    linhaCod: row[5] || "",
+    linhaNome: row[6] || "",
+    horarioSessao: row[7] || "",
+    horaLiberacaoGaragem: row[8] || "",
+    horaChegadaRodoviaria: row[9] || "",
+    antecedenciaEncontradaMin: row[10],
+    antecedenciaEsperadaMin: row[11],
+    diferencaMin: row[12],
+    atrasoRealMin: row[13],
+    status: row[14] || "",
+    tomMensagem: row[15] || "",
+    telefoneTrafego: row[16] || "",
+    telefoneGestor: row[17] || "",
+    justificativa: row[18] || "",
+  }));
+  registros.reverse();
+  return JSON.stringify(registros);
+}
