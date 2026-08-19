@@ -449,6 +449,10 @@
                 <summary>Mensagem (texto bruto) — editar</summary>
                 <textarea id="garMensagem" oninput="_renderWhatsAppPreviewAG()"></textarea>
               </details>
+              <div class="oc-field">
+                <label>Justificativa (interna — não é enviada no WhatsApp)</label>
+                <textarea id="garJustificativa" placeholder="Ex.: motivo já apurado, combinado com a garagem, reincidência conhecida etc. — fica registrado no Historico_antecipacao pra relatório." style="min-height:60px"></textarea>
+              </div>
             </div>
             <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px">
               <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--texto3);font-weight:700">Arte anexada</label>
@@ -621,7 +625,7 @@
       // ocorrência (o) — cobre os dois tipos de análise, já que os campos
       // relevantes têm nomes diferentes num e noutro (ex.: antecedenciaMin
       // vs duracaoGaragemMin).
-      function _montarRegistroHistoricoAG(o, tipoAnalise, tomMensagem, telefoneTrafego, telefoneGestor) {
+      function _montarRegistroHistoricoAG(o, tipoAnalise, tomMensagem, telefoneTrafego, telefoneGestor, justificativa) {
         var ehTransito = tipoAnalise === "Em Trânsito";
         return {
           dataViagem: o.data ? _fmtDataAG(o.data) : "",
@@ -641,6 +645,7 @@
           tomMensagem: tomMensagem,
           telefoneTrafego: telefoneTrafego,
           telefoneGestor: telefoneGestor,
+          justificativa: justificativa || "",
         };
       }
 
@@ -650,8 +655,9 @@
       // não atrapalha o fluxo (o envio real já aconteceu).
       function _registrarHistoricoAntecipacaoAG(tomMensagem, telefoneTrafego, telefoneGestor) {
         if (!(window.google && google.script && google.script.run)) return;
+        var justificativa = (document.getElementById("garJustificativa").value || "").trim();
         var registros = (_ultimosItensCobrancaAG || []).map(function (o) {
-          return _montarRegistroHistoricoAG(o, _ultimoTipoAnaliseAG, tomMensagem, telefoneTrafego, telefoneGestor);
+          return _montarRegistroHistoricoAG(o, _ultimoTipoAnaliseAG, tomMensagem, telefoneTrafego, telefoneGestor, justificativa);
         });
         if (!registros.length) return;
         google.script.run
@@ -1546,6 +1552,7 @@
         document.getElementById("garCobrancaStatus").className = "oc-status";
         document.getElementById("garBtnEnviar").disabled = false;
         document.getElementById("garBtnConectarWpp").classList.add("hidden");
+        document.getElementById("garJustificativa").value = "";
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
@@ -1568,6 +1575,7 @@
         document.getElementById("garCobrancaStatus").className = "oc-status";
         document.getElementById("garBtnEnviar").disabled = false;
         document.getElementById("garBtnConectarWpp").classList.add("hidden");
+        document.getElementById("garJustificativa").value = "";
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";

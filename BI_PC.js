@@ -968,6 +968,7 @@ var HISTORICO_ANTECIPACAO_HEADER = [
   "HORARIO_LIBERACAO_GARAGEM", "HORARIO_CHEGADA_RODOVIARIA",
   "ANTECEDENCIA_ENCONTRADA_MIN", "ANTECEDENCIA_ESPERADA_MIN", "DIFERENCA_MIN",
   "ATRASO_REAL_MIN", "STATUS", "TOM_MENSAGEM", "TELEFONE_TRAFEGO", "TELEFONE_GESTOR",
+  "JUSTIFICATIVA",
 ];
 
 function _abaHistoricoAntecipacao(ss) {
@@ -1012,6 +1013,7 @@ function registrarHistoricoAntecipacao(registros) {
     r.tomMensagem || "",
     r.telefoneTrafego || "",
     r.telefoneGestor || "",
+    r.justificativa || "",
   ]);
 
   aba.getRange(aba.getLastRow() + 1, 1, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length).setValues(linhas);
