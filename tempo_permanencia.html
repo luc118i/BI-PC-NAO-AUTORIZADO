@@ -364,9 +364,11 @@
       .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; }
       .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); }
       .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); }
+      .esquema-sessao-linha.ok { background: rgba(34,201,122,0.10); border-left: 3px solid var(--verde); }
       .esquema-sessao-linha .esquema-sessao-icone { flex-shrink: 0; }
       .esquema-sessao-linha.cedo .esquema-sessao-icone { color: var(--amarelo); }
       .esquema-sessao-linha.atraso .esquema-sessao-icone { color: var(--vermelho); }
+      .esquema-sessao-linha.ok .esquema-sessao-icone { color: var(--verde); }
       .perm-esquema-editar-btn {
         flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
         color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;
@@ -438,8 +440,10 @@
       .oc-resumo-lista-item b { color: var(--texto); }
       .oc-resumo-lista-item.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); border-bottom-color: transparent; }
       .oc-resumo-lista-item.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); border-bottom-color: transparent; }
+      .oc-resumo-lista-item.ok { background: rgba(34,201,122,0.10); border-left: 3px solid var(--verde); border-bottom-color: transparent; }
       .oc-resumo-lista-item.cedo .esquema-sessao-icone { color: var(--amarelo); }
       .oc-resumo-lista-item.atraso .esquema-sessao-icone { color: var(--vermelho); }
+      .oc-resumo-lista-item.ok .esquema-sessao-icone { color: var(--verde); }
       .oc-resumo-lista-info { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .oc-resumo-lista-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
       .oc-resumo-lista-badge { flex-shrink: 0; font-weight: 700; }
@@ -1621,18 +1625,20 @@
       // chegado bem antes e mesmo assim ter saído atrasado (ficou parado
       // além da conta) — comparar com a chegada mascarava esse atraso.
       // "cedo" = saiu antes (amarelo/alerta), "atraso" = saiu depois
-      // (vermelho/urgente), null = no horário exato ou algo não
-      // parseável (não destaca, pra não sugerir uma leitura errada).
-      // Tolerância de 5 min pra cima ou pra baixo do horário de sessão —
-      // dentro dela consideramos "no horário" (não marca cedo/atraso), só
-      // sinaliza quando a diferença passa disso de verdade.
+      // (vermelho/urgente), "ok" = saiu dentro da tolerância do horário
+      // de sessão (verde, só pra deixar claro que está tudo certo),
+      // null = não deu pra comparar (horário ausente/não parseável — não
+      // destaca, pra não sugerir uma leitura errada). Tolerância de 5 min
+      // pra cima ou pra baixo do horário de sessão — dentro dela
+      // consideramos "no horário", só sinaliza cedo/atraso quando a
+      // diferença passa disso de verdade.
       var TOLERANCIA_SESSAO_MIN = 5;
 
       function _compararSaidaSessao(horaSaida, horaSessao) {
         var sa = _parseHMtoMin(horaSaida), s = _parseHMtoMin(horaSessao);
         if (sa == null || s == null) return null;
         var diff = sa - s;
-        if (Math.abs(diff) <= TOLERANCIA_SESSAO_MIN) return null;
+        if (Math.abs(diff) <= TOLERANCIA_SESSAO_MIN) return "ok";
         return diff < 0 ? "cedo" : "atraso";
       }
 
@@ -1640,7 +1646,7 @@
         if (!comparacao) {
           return '<div style="' + (estiloExtra || "margin-top:6px") + '">' + textoHtml + '</div>';
         }
-        var icone = comparacao === "cedo" ? "alertTriangle" : "alertOctagon";
+        var icone = comparacao === "cedo" ? "alertTriangle" : comparacao === "atraso" ? "alertOctagon" : "check";
         return '<div class="esquema-sessao-linha ' + comparacao + '" style="margin-top:6px">' +
           '<span class="esquema-sessao-icone">' + _icon(icone, 14) + '</span><span>' + textoHtml + '</span>' +
         '</div>';
@@ -2615,6 +2621,7 @@
           var cmp = pontoMatch.horarioComercial ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial) : null;
           if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão';
           if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão';
+          if (cmp === "ok") textoSessao += ' — saiu <b>no horário</b> de sessão';
           html += _htmlLinhaSessao(textoSessao, cmp);
         } else {
           html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
@@ -2818,6 +2825,7 @@
                 : null;
               if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
               if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
+              if (cmpLinha === "ok") textoLinha += ' — saiu <b>no horário</b>';
 
               return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)");
             }).join("");
@@ -3358,7 +3366,7 @@
                 ? _compararSaidaSessao(_fmtHM(it.saida), it._esquemaInfo.horarioSessao)
                 : null;
               var icone = cmp
-                ? '<span class="esquema-sessao-icone">' + _icon(cmp === "cedo" ? "alertTriangle" : "alertOctagon", 13) + '</span>'
+                ? '<span class="esquema-sessao-icone">' + _icon(cmp === "cedo" ? "alertTriangle" : cmp === "atraso" ? "alertOctagon" : "check", 13) + '</span>'
                 : "";
               return '<div class="oc-resumo-lista-item' + (cmp ? (" " + cmp) : "") + '">' +
                 '<span class="oc-resumo-lista-info">' + icone +
