@@ -849,7 +849,7 @@
         <div class="card-title">Excedências por prefixo</div>
         <div class="filtro-bar">
           <input type="text" id="tpBusca" placeholder="Buscar por prefixo, linha ou local..." oninput="_renderTPFiltrado()" />
-          <select id="tpRegiaoSel" onchange="_renderTPFiltrado()">
+          <select id="tpRegiaoSel" onchange="_salvarRegiaoFiltro(this.value);_renderTPFiltrado()">
             <option value="">Todas as regiões</option>
           </select>
           <select id="tpMotivoSel" onchange="_renderTPFiltrado()" title="Filtra pelo motivo da justificativa de análise">
@@ -2313,10 +2313,35 @@
         // fique visível — é o que o usuário realmente veio ver.
         setTimeout(function () { resultCard.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
         document.getElementById("tpBusca").value = "";
-        regiaoSel.value = "";
+        // Reaplica a região salva do arquivo anterior — só se ela existir
+        // entre as regiões deste novo arquivo, senão cai pra "Todas".
+        var regiaoSalva = _carregarRegiaoFiltro();
+        regiaoSel.value = (regiaoSalva && regioes.has(regiaoSalva)) ? regiaoSalva : "";
         document.getElementById("tpMotivoSel").value = "";
         document.getElementById("tpExcedenteMin").value = 10;
         _renderTPFiltrado();
+      }
+
+      // Lembra a última região escolhida no filtro (localStorage) — assim
+      // quem sempre olha a mesma região não precisa reselecionar toda vez
+      // que reprocessa um arquivo novo (ver uso em _renderTP/tpRegiaoSel).
+      var TP_REGIAO_FILTRO_KEY = "tp_regiao_filtro";
+
+      function _salvarRegiaoFiltro(regiao) {
+        try {
+          if (regiao) localStorage.setItem(TP_REGIAO_FILTRO_KEY, regiao);
+          else localStorage.removeItem(TP_REGIAO_FILTRO_KEY);
+        } catch (e) {
+          // localStorage indisponível (modo privado, etc.) — segue sem persistir
+        }
+      }
+
+      function _carregarRegiaoFiltro() {
+        try {
+          return localStorage.getItem(TP_REGIAO_FILTRO_KEY) || "";
+        } catch (e) {
+          return "";
+        }
       }
 
       function _atualizarResumo(lista) {
