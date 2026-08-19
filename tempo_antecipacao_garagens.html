@@ -191,6 +191,15 @@
       .oc-status.err { color: var(--vermelho); }
       .oc-field { display: flex; flex-direction: column; gap: 4px; }
       .oc-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700; }
+      .oc-field summary {
+        font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 700;
+        cursor: pointer; list-style: none; display: flex; align-items: center; gap: 5px; user-select: none;
+      }
+      .oc-field summary::-webkit-details-marker { display: none; }
+      .oc-field summary::before { content: "▸"; font-size: 9px; transition: transform 0.15s; }
+      .oc-field[open] summary::before { transform: rotate(90deg); }
+      .oc-field summary:hover { color: var(--texto2); }
+      .oc-field[open] summary { margin-bottom: 4px; }
       .oc-field input, .oc-field textarea { background: var(--preto3); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); width: 100%; }
       .oc-field textarea { resize: vertical; min-height: 160px; line-height: 1.5; }
       .oc-field input:focus, .oc-field textarea:focus { outline: none; border-color: var(--laranja); }
@@ -231,6 +240,27 @@
       .oco-badge.neutro { background: rgba(255,255,255,0.08); color: var(--texto2); }
 
       .arte-preview { width: 100%; max-width: 220px; border-radius: var(--radius-sm); border: 1px solid var(--borda2); display: block; margin: 0 auto; }
+
+      /* Prévia da mensagem no visual de bolha do WhatsApp — *negrito*,
+         _itálico_ e ~riscado~ renderizados de verdade, pra conferir como
+         vai chegar pro destinatário antes de mandar (a textarea continua
+         com o texto puro/editável ao lado). */
+      .wpp-preview-wrap {
+        background: #0b141a; border-radius: var(--radius-sm); border: 1px solid var(--borda2);
+        padding: 14px 10px; max-height: 220px; overflow-y: auto;
+        background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+        background-size: 14px 14px;
+      }
+      .wpp-bubble {
+        background: #005c4b; color: #e9edef; font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+        font-size: 13.5px; line-height: 1.4; border-radius: 8px; padding: 8px 10px;
+        max-width: 92%; margin-left: auto; box-shadow: 0 1px 1px rgba(0,0,0,0.3);
+        white-space: pre-wrap; word-break: break-word; position: relative;
+      }
+      .wpp-bubble:empty::before { content: "A prévia aparece aqui conforme você edita a mensagem."; color: rgba(233,237,239,0.5); font-style: italic; }
+      .wpp-bubble b { font-weight: 700; }
+      .wpp-bubble i { font-style: italic; }
+      .wpp-bubble s { text-decoration: line-through; }
 
       footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 18px 28px; margin-top: 8px; }
       .footer-copy { font-size: 10px; color: var(--texto3); text-align: center; }
@@ -387,14 +417,26 @@
         <div class="oc-body">
           <div style="display:flex;gap:18px;flex-wrap:wrap">
             <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px">
-              <div class="oc-field">
-                <label>Telefone / Grupo WhatsApp</label>
-                <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" />
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <div class="oc-field" style="flex:1;min-width:180px">
+                  <label>Telefone Tráfego/Garagem</label>
+                  <input type="text" id="garTelefone" placeholder="Ex.: 5511999999999" />
+                </div>
+                <div class="oc-field" style="flex:1;min-width:180px">
+                  <label>Telefone Gestor</label>
+                  <input type="text" id="garTelefoneGestor" placeholder="Ex.: 5511999999999 (opcional)" />
+                </div>
               </div>
               <div class="oc-field">
-                <label>Mensagem</label>
-                <textarea id="garMensagem"></textarea>
+                <label>Prévia (WhatsApp)</label>
+                <div class="wpp-preview-wrap">
+                  <div class="wpp-bubble" id="garMensagemPreview"></div>
+                </div>
               </div>
+              <details class="oc-field">
+                <summary>Mensagem (texto bruto) — editar</summary>
+                <textarea id="garMensagem" oninput="_renderWhatsAppPreviewAG()"></textarea>
+              </details>
             </div>
             <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px">
               <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--texto3);font-weight:700">Arte anexada</label>
@@ -535,6 +577,76 @@
           .getGaragens();
       }
 
+      // Grava os telefones/grupos (já normalizados — dígitos com DDI) de
+      // volta nas Col D (tráfego/garagem) e F (gestor) da aba Garagens,
+      // depois de um envio bem-sucedido — assim os campos já vêm
+      // preenchidos certos da próxima vez, sem precisar redigitar. Passe
+      // `null` (não `undefined`) pra NÃO tocar naquele campo (ex.: envio
+      // pra aquele contato falhou, não persiste um número que acabou de
+      // dar erro) — `undefined` no meio da lista de argumentos do
+      // google.script.run pode chegar do outro lado serializado como
+      // `null` de qualquer forma, então já manda `null` direto pra não
+      // depender disso. Silencioso: se a gravação falhar (ex.: sem
+      // conexão com o Apps Script), não atrapalha o fluxo, só não
+      // persiste — o envio em si já aconteceu.
+      function _salvarTelefoneGaragemAG(origemFull, telefoneTrafego, telefoneGestor) {
+        if (!(window.google && google.script && google.script.run)) return;
+        google.script.run
+          .withSuccessHandler(function () {
+            // Atualiza o cache local também, pra refletir na hora sem
+            // precisar recarregar a página.
+            var g = (_garagensCache || []).find(function (x) { return x.origemFull === origemFull; });
+            if (g) {
+              if (telefoneTrafego != null) g.telefone = telefoneTrafego;
+              if (telefoneGestor != null) g.telefoneGestor = telefoneGestor;
+            }
+          })
+          .withFailureHandler(function (err) { console.error("[salvarTelefoneGaragem] falhou:", err); })
+          .salvarTelefoneGaragem(origemFull, telefoneTrafego != null ? telefoneTrafego : null, telefoneGestor != null ? telefoneGestor : null);
+      }
+
+      // Monta 1 registro pro Historico_antecipacao a partir de uma
+      // ocorrência (o) — cobre os dois tipos de análise, já que os campos
+      // relevantes têm nomes diferentes num e noutro (ex.: antecedenciaMin
+      // vs duracaoGaragemMin).
+      function _montarRegistroHistoricoAG(o, tipoAnalise, tomMensagem, telefoneTrafego, telefoneGestor) {
+        var ehTransito = tipoAnalise === "Em Trânsito";
+        return {
+          dataViagem: o.data ? _fmtDataAG(o.data) : "",
+          garagem: _garSelecionada ? _garSelecionada.cidade : "",
+          veiculo: o.veiculo || "",
+          tipoAnalise: tipoAnalise,
+          linhaCod: o.esquemaMatch ? o.esquemaMatch.codLinha : "",
+          linhaNome: o.esquemaMatch ? o.esquemaMatch.nomeLinha : "",
+          horarioSessao: o.esquemaMatch ? o.esquemaMatch.horarioComercial : "",
+          horaLiberacaoGaragem: _fmtHoraAG(o.horaSaidaGaragem),
+          horaChegadaRodoviaria: o.horaEntradaRodoviaria ? _fmtHoraAG(o.horaEntradaRodoviaria) : "",
+          antecedenciaEncontradaMin: Math.round(ehTransito ? o.duracaoGaragemMin : o.antecedenciaMin),
+          antecedenciaEsperadaMin: ehTransito ? o.tempoMaximoTransitoMin : o.antecipacaoEsperadaMin,
+          diferencaMin: ehTransito ? null : o.diferencaMin,
+          atrasoRealMin: ehTransito ? null : o.atrasoPartidaMin,
+          status: ehTransito ? o.statusTransito : o.status,
+          tomMensagem: tomMensagem,
+          telefoneTrafego: telefoneTrafego,
+          telefoneGestor: telefoneGestor,
+        };
+      }
+
+      // Grava no Historico_antecipacao — chamada só depois de pelo menos 1
+      // envio bem-sucedido (não registra tentativa que falhou por
+      // completo). Silenciosa: se a gravação falhar, só loga no console,
+      // não atrapalha o fluxo (o envio real já aconteceu).
+      function _registrarHistoricoAntecipacaoAG(tomMensagem, telefoneTrafego, telefoneGestor) {
+        if (!(window.google && google.script && google.script.run)) return;
+        var registros = (_ultimosItensCobrancaAG || []).map(function (o) {
+          return _montarRegistroHistoricoAG(o, _ultimoTipoAnaliseAG, tomMensagem, telefoneTrafego, telefoneGestor);
+        });
+        if (!registros.length) return;
+        google.script.run
+          .withFailureHandler(function (err) { console.error("[registrarHistoricoAntecipacao] falhou:", err); })
+          .registrarHistoricoAntecipacao(registros);
+      }
+
       // ═══════════════════════════════════════════════════════════
       //  Upload + parsing do CSV de viagens
       //  (mesma codificação windows-1252 do tempo_permanencia.html —
@@ -646,6 +758,40 @@
         var total = Math.round(min);
         var h = Math.floor(total / 60), m = total % 60;
         return h > 0 ? (h + "h" + String(m).padStart(2, "0") + "min") : (m + " min");
+      }
+
+      // Converte a formatação nativa do WhatsApp (*negrito*, _itálico_,
+      // ~riscado~) pra HTML de verdade — usado na prévia visual da
+      // mensagem, pra já ver como ela chega pro destinatário em vez de só
+      // ler os asteriscos crus na textarea. Escapa HTML antes de aplicar
+      // as marcações (a mensagem é só nosso texto gerado, mas por
+      // segurança nunca interpreta o conteúdo como HTML de verdade).
+      function _whatsappMarkdownToHtmlAG(texto) {
+        var esc = String(texto || "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        esc = esc.replace(/\*([^\*\n]+)\*/g, "<b>$1</b>");
+        esc = esc.replace(/_([^_\n]+)_/g, "<i>$1</i>");
+        esc = esc.replace(/~([^~\n]+)~/g, "<s>$1</s>");
+        return esc.replace(/\n/g, "<br>");
+      }
+
+      function _renderWhatsAppPreviewAG() {
+        var el = document.getElementById("garMensagemPreview");
+        if (!el) return;
+        el.innerHTML = _whatsappMarkdownToHtmlAG(document.getElementById("garMensagem").value);
+      }
+
+      // Mesmo padrão "XhYY" usado na ARTE das garagens (ex.: a de Brasília
+      // mostra "1h" pra 60min) — usado nos números de antecedência da
+      // mensagem/card (esperado/encontrado/diferença), pra bater com o
+      // que a arte anexada já mostra em vez de aparecer em minutos puros.
+      function _fmtHoraMinAG(min) {
+        if (min == null || isNaN(min)) return "—";
+        var total = Math.round(Math.abs(min));
+        var h = Math.floor(total / 60), m = total % 60;
+        if (h > 0 && m > 0) return h + "h" + String(m).padStart(2, "0");
+        if (h > 0) return h + "h";
+        return m + "min";
       }
 
       // Trechinho de HTML mostrando se o atraso real de partida (quando
@@ -1049,8 +1195,8 @@
 
           document.getElementById("kGaragens").textContent = totalGaragens;
           document.getElementById("kTotalOcorrencias").textContent = totalOcorrencias;
-          document.getElementById("kMediaAntecipacao").textContent = _fmtMinAG(mediaGeral);
-          document.getElementById("kMaiorDeficit").textContent = maiorDeficit < 0 ? (maiorDeficit + " min") : "—";
+          document.getElementById("kMediaAntecipacao").textContent = _fmtHoraMinAG(mediaGeral);
+          document.getElementById("kMaiorDeficit").textContent = maiorDeficit < 0 ? ("-" + _fmtHoraMinAG(maiorDeficit)) : "—";
           document.getElementById("agKpis").classList.remove("hidden");
 
           document.getElementById("agResultCard").classList.remove("hidden");
@@ -1250,8 +1396,8 @@
               : '<span class="oco-fonte">Sem linha correspondente — antecedência via horário do CSV</span>') +
           '</div>' +
           '<div class="oco-nums">' +
-            '<div class="encontrado">' + _fmtMinAG(o.antecedenciaMin) + '</div>' +
-            '<div class="esperado">esperado ' + _fmtMinAG(o.antecipacaoEsperadaMin) + '</div>' +
+            '<div class="encontrado">' + _fmtHoraMinAG(o.antecedenciaMin) + '</div>' +
+            '<div class="esperado">esperado ' + _fmtHoraMinAG(o.antecipacaoEsperadaMin) + '</div>' +
           '</div>' +
           '<span class="oco-badge ' + badgeCls + '">' + o.status + '</span>' +
           '<button type="button" class="oco-esquema-btn" onclick="_verEsquemaAG(' + idx + ')" title="Ver se essa antecipação insuficiente também atrasou a sessão/partida do veículo">Ver esquema</button>' +
@@ -1370,6 +1516,13 @@
       //  pra revisar e enviar, sem passo intermediário.
       // ═══════════════════════════════════════════════════════════
       var _garSelecionada = null;
+      // Preenchidos por _montarMensagemCobranca/_montarMensagemCobrancaTransito
+      // toda vez que uma mensagem é (re)montada — usados por _enviarCobranca
+      // pra saber o que gravar no Historico_antecipacao depois de um envio
+      // bem-sucedido (ver _montarRegistroHistoricoAG).
+      var _ultimosItensCobrancaAG = [];
+      var _ultimoTomCobrancaAG = "";
+      var _ultimoTipoAnaliseAG = "";
 
       function _abrirCobrancaModal(origemFull) {
         var g = _garagensAgrupadas.find(function (x) { return x.origemFull === origemFull; });
@@ -1384,6 +1537,7 @@
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
+        document.getElementById("garTelefoneGestor").value = refGaragem ? (refGaragem.telefoneGestor || "") : "";
 
         _montarMensagemCobranca(g, refGaragem);
         document.getElementById("garModal").classList.remove("hidden");
@@ -1404,6 +1558,7 @@
 
         var refGaragem = (_garagensCache || []).find(function (x) { return x.origemFull === g.origemFull; });
         document.getElementById("garTelefone").value = refGaragem ? (refGaragem.telefone || "") : "";
+        document.getElementById("garTelefoneGestor").value = refGaragem ? (refGaragem.telefoneGestor || "") : "";
 
         _montarMensagemCobrancaTransito(g, refGaragem);
         document.getElementById("garModal").classList.remove("hidden");
@@ -1440,7 +1595,7 @@
       //    aviso explícito do atraso encontrado com a cobrança sobre o
       //    motivo da liberação em cima do horário.
       function _montarMensagemCobranca(g, refGaragem) {
-        var esperadoFmt = _fmtMinAG(refGaragem ? refGaragem.antecipacaoMin : null);
+        var esperadoFmt = _fmtHoraMinAG(refGaragem ? refGaragem.antecipacaoMin : null);
 
         var itensFora = g.itens.filter(function (o) { return o.status === "Fora do prazo"; });
         var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
@@ -1450,57 +1605,69 @@
         var piorAtraso = itensFora.reduce(function (m, o) { return o.atrasoPartidaMin != null ? Math.max(m, o.atrasoPartidaMin) : m; }, -Infinity);
         var temAtrasoAcimaTolerancia = piorAtraso > TOLERANCIA_ATRASO_PARTIDA_MIN_AG;
 
+        // Guarda quais ocorrências/tom entraram nessa mensagem — usado
+        // pelo _enviarCobranca pra gravar no Historico_antecipacao depois
+        // de um envio bem-sucedido (ver _montarRegistroHistoricoAG).
+        _ultimosItensCobrancaAG = itensFora;
+        _ultimoTomCobrancaAG = temAtrasoAcimaTolerancia ? "Cobrança" : "Informativo";
+        _ultimoTipoAnaliseAG = "Antecipação";
+
         // Formatação nativa do WhatsApp: *negrito*, _itálico_ — sem
         // markdown de título/lista, então a hierarquia vem de negrito +
-        // emoji + quebra de linha em vez de "#"/"-". Cada ocorrência numa
-        // linha só (escaneável mesmo com várias), números em negrito pra
-        // pular aos olhos.
+        // emoji + quebra de linha em vez de "#"/"-". Cada ocorrência em um
+        // pequeno bloco (não só 1 linha) — o que importa aqui é deixar
+        // claro o horário de liberação da garagem, o horário que o
+        // veículo chegou na rodoviária, e que isso não bateu o mínimo
+        // exigido antes da sessão — não só repetir os números já ditos na
+        // introdução (esperado) de outro jeito.
         var LIMITE_ITENS = 15;
         var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
-          var linha = "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") +
-            " · antecedência *" + _fmtMinAG(o.antecedenciaMin) + "* (faltou " + Math.abs(o.diferencaMin) + "min)";
-          if (o.atrasoPartidaMin != null) {
-            linha += o.atrasoPartidaMin > 0 ? " · atraso real *" + o.atrasoPartidaMin + "min*" : " · saiu no horário";
-          }
-          // Deixa explícito qual linha/horário de sessão embasou esse
-          // cálculo — sobretudo importante quando foi confirmada
-          // manualmente (ver "Usar esta linha" no Ver esquema), pra quem
-          // recebe a cobrança poder conferir a referência usada.
+          var linha = "🚌 *" + o.veiculo + "* — " + (o.data ? _fmtDataAG(o.data) : "—") + "\n" +
+            "Liberação: *" + _fmtHoraAG(o.horaSaidaGaragem) + "* → chegada na rodoviária: *" + _fmtHoraAG(o.horaEntradaRodoviaria) + "*";
+
           if (o.esquemaMatch) {
-            linha += "\n   _" + (o.fonteAntecedencia === "manual" ? "linha confirmada" : "linha") + ": " + o.esquemaMatch.codLinha + " · sessão " + o.esquemaMatch.horarioComercial + "_";
+            linha += "\n❌ Não liberou a tempo — precisava de *" + esperadoFmt + "* antes da sessão *" +
+              o.esquemaMatch.horarioComercial + "* (linha " + o.esquemaMatch.codLinha + ")";
+          } else {
+            linha += "\n❌ Não liberou com os *" + esperadoFmt + "* de antecedência exigidos";
+          }
+
+          if (o.atrasoPartidaMin != null) {
+            linha += o.atrasoPartidaMin > 0
+              ? " — atraso real de *" + o.atrasoPartidaMin + "min* na partida"
+              : " — mesmo assim saiu no horário";
           }
           return linha;
-        }).join("\n");
+        }).join("\n\n");
         if (itensFora.length > LIMITE_ITENS) {
-          linhasItens += "\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
+          linhasItens += "\n\n_(+ " + (itensFora.length - LIMITE_ITENS) + " ocorrência(s) — veja a análise completa)_";
         }
 
-        var periodoTxt = (dataMin && dataMax ? "📅 Período: " + _fmtDataAG(dataMin) + " a " + _fmtDataAG(dataMax) + "\n\n" : "");
+        var dataTxt = dataMin ? "📅 " + _fmtDataAG(dataMin) + (dataMax && dataMax.getTime() !== dataMin.getTime() ? " a " + _fmtDataAG(dataMax) : "") + "\n\n" : "";
         var rodape = "\n\n_Equipe de Monitoramento Operacional_";
 
         var msg;
         if (temAtrasoAcimaTolerancia) {
-          msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
-            "_Cobrança · Antecipação de Garagens_\n\n" +
+          msg = "🚨 *GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
             "Identificamos *" + itensFora.length + " ocorrência" + (itensFora.length !== 1 ? "s" : "") +
             "* de liberação abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*), com impacto direto no atraso real de partida.\n" +
-            periodoTxt +
+            dataTxt +
             linhasItens + "\n\n" +
             "⚠️ Atraso máximo identificado: *" + piorAtraso + "min* no início da viagem.\n\n" +
             "Solicitamos a verificação imediata do motivo da liberação em cima do horário nessa garagem, garantindo o cumprimento do tempo de antecipação exigido." +
             rodape;
         } else {
-          msg = "🔔 *GARAGEM " + g.cidade.toUpperCase() + "*\n" +
-            "_Informativo · Antecipação de Garagens_\n\n" +
+          msg = "🔔 *GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
             "Identificamos *" + itensFora.length + " liberação" + (itensFora.length !== 1 ? "ões" : "") +
             "* abaixo do tempo mínimo de antecipação exigido (*" + esperadoFmt + "*).\n" +
-            periodoTxt +
+            dataTxt +
             linhasItens + "\n\n" +
             "Fica o alerta para reforço na atenção ao tempo de antecipação exigido — sem impacto relevante confirmado até o momento na partida das viagens." +
             rodape;
         }
 
         document.getElementById("garMensagem").value = msg;
+        _renderWhatsAppPreviewAG();
 
         var slug = _slugGaragemAG(g.cidade);
         document.getElementById("garArtePreview").src = RIZER_AGENT_URL + "/assets/garagens/" + slug + ".png";
@@ -1511,12 +1678,19 @@
       // parada intermediária na garagem (troca de motorista/abastecimento/
       // manutenção), não em antecipação pra rodoviária.
       function _montarMensagemCobrancaTransito(g, refGaragem) {
-        var limiteFmt = refGaragem && refGaragem.tempoMaximoTransitoMin != null ? _fmtDuracaoAG(refGaragem.tempoMaximoTransitoMin) : "não cadastrado";
+        // Limite fixo pra todas as garagens (regra de negócio — ver
+        // LIMITE_PERMANENCIA_TRANSITO_MIN_AG), não vem mais de coluna na
+        // aba Garagens.
+        var limiteFmt = _fmtDuracaoAG(LIMITE_PERMANENCIA_TRANSITO_MIN_AG);
 
         var itensFora = g.itens.filter(function (o) { return o.statusTransito === "Fora do prazo"; });
         var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
         var dataMin = datas.length ? new Date(Math.min.apply(null, datas)) : null;
         var dataMax = datas.length ? new Date(Math.max.apply(null, datas)) : null;
+
+        _ultimosItensCobrancaAG = itensFora;
+        _ultimoTomCobrancaAG = "Cobrança";
+        _ultimoTipoAnaliseAG = "Em Trânsito";
 
         var LIMITE_ITENS = 15;
         var linhasItens = itensFora.slice(0, LIMITE_ITENS).map(function (o) {
@@ -1537,6 +1711,7 @@
           "\n\n_Equipe de Monitoramento Operacional_";
 
         document.getElementById("garMensagem").value = msg;
+        _renderWhatsAppPreviewAG();
 
         var slug = _slugGaragemAG(g.cidade);
         document.getElementById("garArtePreview").src = RIZER_AGENT_URL + "/assets/garagens/" + slug + ".png";
@@ -1554,19 +1729,48 @@
         return digitos;
       }
 
+      // Manda a MESMA mensagem pra 1 destinatário — devolve uma Promise
+      // que resolve com {ok, error} (nunca rejeita, pra não travar o
+      // Promise.all quando manda pros dois ao mesmo tempo e um falha).
+      function _enviarWhatsAppUmAG(phone, message, banner) {
+        return fetch(RIZER_AGENT_URL + "/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: phone, message: message, banner: banner }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+          .then(function (res) {
+            if (!res.ok) {
+              console.error("[whatsapp/send] resposta de erro:", res.body); // diagnóstico — ver console (F12) se a mensagem vier estranha de novo
+              return { ok: false, error: (res.body && res.body.error) || "Falha ao enviar (resposta sem detalhe — veja o console)." };
+            }
+            return { ok: true };
+          })
+          .catch(function (err) { return { ok: false, error: err.message }; });
+      }
+
+      // Manda a cobrança pros 2 contatos possíveis da garagem — Tráfego/
+      // Garagem (obrigatório) e Gestor (opcional, só se preenchido) — os
+      // dois recebem a mesma mensagem/arte. Cada um só é salvo de volta
+      // na planilha se o envio PRA ELE deu certo (não salva um número que
+      // acabou de falhar, como se tivesse sido validado).
       function _enviarCobranca() {
         var g = _garSelecionada;
         if (!g) return;
-        var phoneDigitado = (document.getElementById("garTelefone").value || "").trim();
-        var phone = _normalizarTelefoneAG(phoneDigitado);
+        var trafegoDigitado = (document.getElementById("garTelefone").value || "").trim();
+        var gestorDigitado = (document.getElementById("garTelefoneGestor").value || "").trim();
+        var trafego = _normalizarTelefoneAG(trafegoDigitado);
+        var gestor = gestorDigitado ? _normalizarTelefoneAG(gestorDigitado) : "";
         var message = document.getElementById("garMensagem").value || "";
         var statusEl = document.getElementById("garCobrancaStatus");
+        var banner = _slugGaragemAG(g.cidade);
 
-        if (!phoneDigitado) { statusEl.className = "oc-status err"; statusEl.textContent = "Informe o telefone/grupo de destino."; return; }
+        if (!trafegoDigitado) { statusEl.className = "oc-status err"; statusEl.textContent = "Informe ao menos o telefone de Tráfego/Garagem."; return; }
         if (!message.trim()) { statusEl.className = "oc-status err"; statusEl.textContent = "A mensagem não pode ficar vazia."; return; }
 
+        var destinatarios = "Tráfego/Garagem (" + trafegoDigitado + ")" + (gestorDigitado ? " e Gestor (" + gestorDigitado + ")" : "");
         _confirmarAcao(
-          "Enviar a cobrança consolidada da Garagem " + g.cidade + " para " + phoneDigitado + " (" + phone + ") pelo WhatsApp?",
+          "Enviar a cobrança consolidada da Garagem " + g.cidade + " para " + destinatarios + " pelo WhatsApp?",
           { titulo: "📤 Enviar cobrança", textoOk: "Enviar" }
         ).then(function (ok) {
           if (!ok) return;
@@ -1575,27 +1779,42 @@
           statusEl.className = "oc-status";
           statusEl.textContent = "Enviando...";
 
-          fetch(RIZER_AGENT_URL + "/whatsapp/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: phone, message: message, banner: _slugGaragemAG(g.cidade) }),
-          })
-            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
-            .then(function (res) {
+          var envios = [{ chave: "trafego", phone: trafego }];
+          if (gestor) envios.push({ chave: "gestor", phone: gestor });
+
+          Promise.all(envios.map(function (e) { return _enviarWhatsAppUmAG(e.phone, message, banner); }))
+            .then(function (resultados) {
               btn.disabled = false;
-              if (!res.ok) {
-                console.error("[whatsapp/send] resposta de erro:", res.body); // diagnóstico — ver console (F12) se a mensagem vier estranha de novo
-                throw new Error((res.body && res.body.error) || "Falha ao enviar (resposta sem detalhe — veja o console).");
+              var falhas = [];
+              var trafegoParaSalvar = null, gestorParaSalvar = null;
+              resultados.forEach(function (res, i) {
+                if (res.ok) {
+                  if (envios[i].chave === "trafego") trafegoParaSalvar = trafego;
+                  else gestorParaSalvar = gestor;
+                } else {
+                  falhas.push((envios[i].chave === "trafego" ? "Tráfego/Garagem" : "Gestor") + ": " + res.error);
+                }
+              });
+              if (trafegoParaSalvar != null || gestorParaSalvar != null) {
+                _salvarTelefoneGaragemAG(g.origemFull, trafegoParaSalvar, gestorParaSalvar);
+                // Pelo menos 1 envio deu certo — registra no
+                // Historico_antecipacao (marca o que foi cobrado).
+                _registrarHistoricoAntecipacaoAG(_ultimoTomCobrancaAG, trafegoDigitado, gestorDigitado);
               }
-              statusEl.className = "oc-status ok";
-              statusEl.textContent = "✔ Cobrança enviada.";
-              document.getElementById("garBtnConectarWpp").classList.add("hidden");
-            })
-            .catch(function (err) {
-              btn.disabled = false;
-              statusEl.className = "oc-status err";
-              statusEl.textContent = "Erro ao enviar: " + err.message + " — confira se o RIZER Agent está aberto e o WhatsApp conectado.";
-              document.getElementById("garBtnConectarWpp").classList.remove("hidden");
+
+              if (!falhas.length) {
+                statusEl.className = "oc-status ok";
+                statusEl.textContent = "✔ Cobrança enviada" + (envios.length > 1 ? " pros 2 contatos." : ".");
+                document.getElementById("garBtnConectarWpp").classList.add("hidden");
+              } else if (falhas.length < envios.length) {
+                statusEl.className = "oc-status err";
+                statusEl.textContent = "Enviado parcialmente — falhou: " + falhas.join(" · ");
+                document.getElementById("garBtnConectarWpp").classList.remove("hidden");
+              } else {
+                statusEl.className = "oc-status err";
+                statusEl.textContent = "Erro ao enviar: " + falhas.join(" · ") + " — confira se o RIZER Agent está aberto e o WhatsApp conectado.";
+                document.getElementById("garBtnConectarWpp").classList.remove("hidden");
+              }
             });
         });
       }
@@ -2071,7 +2290,7 @@
             "<b>" + (item.esquemaMatch.codLinha || "—") + "</b> · " + item.esquemaMatch.horarioComercial + _htmlAtrasoPartidaAG(item.atrasoPartidaMin);
         }
         var encontradoEl = card.querySelector(".oco-nums .encontrado");
-        if (encontradoEl) encontradoEl.textContent = _fmtMinAG(item.antecedenciaMin);
+        if (encontradoEl) encontradoEl.textContent = _fmtHoraMinAG(item.antecedenciaMin);
         var badgeEl = card.querySelector(".oco-badge");
         if (badgeEl) {
           badgeEl.textContent = item.status;

@@ -196,23 +196,18 @@ function getPontosControle() {
 // Col B (índice 1) → Horário Partida — na verdade uma DURAÇÃO "HH:MM"
 //                    (tempo mínimo de antecipação exigido pra aquele
 //                    ORIGEM), não um horário de relógio
-// Col C (índice 2) → Apelidos/Pontos de Garagem — termos extras
-//                    (separados por vírgula) que também devem casar com
-//                    esse ORIGEM quando aparecerem no nome bruto do
-//                    ponto de garagem/rodoviária (ex.: "GUARULHOS" pro
-//                    ORIGEM "SAO PAULO - SP"). Coluna opcional/nova.
-// Col D (índice 3) → Telefone/Grupo WhatsApp — dígitos com DDI (ex.:
-//                    "5511999999999"), pré-preenche o campo de envio da
-//                    cobrança. Coluna opcional/nova.
-// Col E (índice 4) → Tempo Máximo Parada Trânsito — duração "HH:MM"
-//                    (tempo máximo tolerado pra uma parada INTERMEDIÁRIA
-//                    nessa garagem, no meio de uma viagem já em
-//                    andamento — troca de motorista/abastecimento/
-//                    manutenção. Diferente da Col B, que é sobre
-//                    antecipação pra chegar na rodoviária no início da
-//                    viagem). Vazio = sem referência cadastrada, essas
-//                    paradas ficam "sem dados" na aba Em Trânsito.
-//                    Coluna opcional/nova.
+// Col C (índice 2) → Telefone/Grupo WhatsApp (Tráfego/Garagem) — dígitos
+//                    com DDI, mas também aceita formato "legível" (ex.:
+//                    "61 9681-7151") — a tela normaliza antes de enviar.
+//                    Pré-preenche o campo de envio da cobrança.
+// Col D (índice 3) → Telefone/Grupo WhatsApp do Gestor — mesmo formato da
+//                    Col C. A cobrança manda a mesma mensagem pros dois
+//                    contatos (tráfego/garagem E gestor) quando ambos
+//                    estiverem preenchidos. Coluna opcional.
+//
+// Não tem coluna de Apelidos nem de "Tempo Máximo Parada Trânsito" — o
+// limite de permanência em trânsito é fixo pra todas as garagens (ver
+// LIMITE_PERMANENCIA_TRANSITO_MIN_AG em tempo_antecipacao_garagens.html).
 function getGaragens() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = ss.getSheetByName("Garagens");
@@ -221,7 +216,7 @@ function getGaragens() {
   const lastRow = aba.getLastRow();
   if (lastRow < 2) return JSON.stringify([]);
 
-  const data = aba.getRange(2, 1, lastRow - 1, 5).getValues();
+  const data = aba.getRange(2, 1, lastRow - 1, 4).getValues();
 
   const garagens = data
     .filter((r) => String(r[0] || "").trim() !== "")
@@ -230,22 +225,50 @@ function getGaragens() {
       const partes = origemFull.split("-").map((s) => s.trim());
       const cidade = partes[0] || origemFull;
       const uf = partes.length > 1 ? partes[partes.length - 1] : "";
-      const apelidos = String(r[2] || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "");
       return {
         origemFull: origemFull,
         cidade: cidade,
         uf: uf,
         antecipacaoMin: _parseDuracaoMinGar(r[1]),
-        apelidos: apelidos,
-        telefone: String(r[3] || "").trim(),
-        tempoMaximoTransitoMin: _parseDuracaoMinGar(r[4]),
+        apelidos: [],
+        telefone: String(r[2] || "").trim(),
+        telefoneGestor: String(r[3] || "").trim(),
       };
     });
 
   return JSON.stringify(garagens);
+}
+
+// Salva o telefone/grupo de WhatsApp da garagem de volta nas Col C
+// (tráfego/garagem) e D (gestor) da aba "Garagens" — chamada pela tela de
+// Antecipação de Garagens depois de um envio bem-sucedido, pra já vir
+// preenchido certo da próxima vez (antes disso, o campo só lia da
+// planilha e nunca gravava de volta).
+// telefoneTrafego/telefoneGestor: passe `null` explicitamente pra NÃO
+// tocar naquele campo (ex.: o envio pra aquele contato falhou, não
+// queremos sobrescrever/limpar o que já estava salvo) — "" grava vazio de
+// propósito (limpar o campo), undefined/null pula. Usa `== null` (não
+// `=== undefined`) porque `undefined` no meio da lista de argumentos do
+// google.script.run pode chegar aqui serializado como `null`.
+function salvarTelefoneGaragem(origemFull, telefoneTrafego, telefoneGestor) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("Garagens");
+  if (!aba) throw new Error('Aba "Garagens" não encontrada.');
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) throw new Error('Nenhuma garagem cadastrada.');
+
+  const origens = aba.getRange(2, 1, lastRow - 1, 1).getValues();
+  const linhaIdx = origens.findIndex((r) => String(r[0] || "").trim() === String(origemFull || "").trim());
+  if (linhaIdx === -1) throw new Error('Garagem "' + origemFull + '" não encontrada na aba Garagens.');
+
+  if (telefoneTrafego != null) {
+    aba.getRange(linhaIdx + 2, 3).setValue(String(telefoneTrafego).trim());
+  }
+  if (telefoneGestor != null) {
+    aba.getRange(linhaIdx + 2, 4).setValue(String(telefoneGestor).trim());
+  }
+  return true;
 }
 
 // "HH:MM" ou "HH:MM:SS" (texto ou objeto Date, se a planilha formatar a
@@ -929,4 +952,68 @@ function backfillLinhas() {
   SpreadsheetApp.getUi().alert(
     "Backfill concluído: " + atualizados + " preenchida(s) + " + corrigidos + " corrigida(s) (sentido).",
   );
+}
+
+// ── Histórico de cobrança — tela "Antecipação de Garagens" ─────
+// Registra 1 linha por OCORRÊNCIA (veículo) toda vez que uma cobrança é
+// enviada com sucesso pelo WhatsApp (ver _enviarCobranca em
+// tempo_antecipacao_garagens.html) — não registra o que foi só analisado
+// e descartado (dentro do prazo), só o que efetivamente foi cobrado. Serve
+// de base pra relatórios futuros (quais garagens foram cobradas, com que
+// frequência, atraso médio etc.) — a aba nasce sozinha na 1ª cobrança
+// enviada, igual ao padrão de _abaStatusPermanencia/_abaHistoricoExcesso.
+var HISTORICO_ANTECIPACAO_HEADER = [
+  "DATA_ENVIO", "DATA_VIAGEM", "GARAGEM", "VEICULO", "TIPO_ANALISE",
+  "LINHA_COD", "LINHA_NOME", "HORARIO_SESSAO",
+  "HORARIO_LIBERACAO_GARAGEM", "HORARIO_CHEGADA_RODOVIARIA",
+  "ANTECEDENCIA_ENCONTRADA_MIN", "ANTECEDENCIA_ESPERADA_MIN", "DIFERENCA_MIN",
+  "ATRASO_REAL_MIN", "STATUS", "TOM_MENSAGEM", "TELEFONE_TRAFEGO", "TELEFONE_GESTOR",
+];
+
+function _abaHistoricoAntecipacao(ss) {
+  var aba = ss.getSheetByName("Historico_antecipacao");
+  if (!aba) {
+    aba = ss.insertSheet("Historico_antecipacao");
+    aba.appendRow(HISTORICO_ANTECIPACAO_HEADER);
+    return aba;
+  }
+  if (aba.getLastColumn() < HISTORICO_ANTECIPACAO_HEADER.length) {
+    aba.getRange(1, 1, 1, HISTORICO_ANTECIPACAO_HEADER.length).setValues([HISTORICO_ANTECIPACAO_HEADER]);
+  }
+  return aba;
+}
+
+// registros: array de objetos montados no front (ver
+// _montarRegistroHistoricoAG em tempo_antecipacao_garagens.html) — grava
+// todas as linhas de uma vez (1 cobrança pode cobrir várias ocorrências
+// da mesma garagem). Devolve quantas linhas gravou.
+function registrarHistoricoAntecipacao(registros) {
+  if (!registros || !registros.length) return 0;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = _abaHistoricoAntecipacao(ss);
+  const agora = new Date();
+
+  const linhas = registros.map((r) => [
+    agora,
+    r.dataViagem || "",
+    r.garagem || "",
+    r.veiculo || "",
+    r.tipoAnalise || "",
+    r.linhaCod || "",
+    r.linhaNome || "",
+    r.horarioSessao || "",
+    r.horaLiberacaoGaragem || "",
+    r.horaChegadaRodoviaria || "",
+    r.antecedenciaEncontradaMin != null ? r.antecedenciaEncontradaMin : "",
+    r.antecedenciaEsperadaMin != null ? r.antecedenciaEsperadaMin : "",
+    r.diferencaMin != null ? r.diferencaMin : "",
+    r.atrasoRealMin != null ? r.atrasoRealMin : "",
+    r.status || "",
+    r.tomMensagem || "",
+    r.telefoneTrafego || "",
+    r.telefoneGestor || "",
+  ]);
+
+  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, HISTORICO_ANTECIPACAO_HEADER.length).setValues(linhas);
+  return linhas.length;
 }
