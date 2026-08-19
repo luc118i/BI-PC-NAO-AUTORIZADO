@@ -1122,7 +1122,8 @@ function getHistoricoAntecipacao() {
   const tz = ss.getSpreadsheetTimeZone();
   const dados = aba.getRange(2, 1, lastRow - 1, HISTORICO_ANTECIPACAO_HEADER.length).getValues();
 
-  const registros = dados.map((row) => ({
+  const registros = dados.map((row, i) => ({
+    linha: i + 2, // número da linha na aba — usado por atualizarJustificativaHistorico ao salvar direto pelo painel do Histórico
     dataEnvio: row[0] instanceof Date ? Utilities.formatDate(row[0], tz, "dd/MM/yyyy HH:mm") : String(row[0] || ""),
     dataViagem: _celulaHistoricoParaTexto(row[1], "dd/MM/yyyy"),
     garagem: row[2] || "",

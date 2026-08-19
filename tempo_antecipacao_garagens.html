@@ -274,7 +274,7 @@
       .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
       .hist-table th, .hist-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--borda); }
       .hist-table th { color: var(--texto3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: var(--preto3); position: sticky; top: 0; }
-      .hist-table tbody tr:hover { background: var(--laranja4); }
+      .hist-table tbody tr:hover { background: var(--laranja4); cursor: pointer; }
       .hist-table tbody tr:last-child td { border-bottom: none; }
       .hist-table td.hist-justif { white-space: normal; max-width: 260px; color: var(--texto2); }
       .hist-table td.hist-justif.vazia { color: var(--texto3); font-style: italic; }
@@ -540,6 +540,28 @@
       </div>
     </div>
 
+    <!-- ── MODAL JUSTIFICATIVA (a partir de 1 linha do Histórico de
+         Cobranças) ─────────────────────────────────────────────── -->
+    <div class="oc-overlay hidden" id="histJustifModal" onclick="if(event.target===this)_fecharHistJustifModal()">
+      <div class="oc-panel" style="max-width:480px">
+        <div class="oc-header">
+          <h3>Justificativa</h3>
+          <button class="oc-close" onclick="_fecharHistJustifModal()">✕</button>
+        </div>
+        <div class="oc-body">
+          <p id="histJustifResumo" style="font-size:12.5px;color:var(--texto2);line-height:1.5"></p>
+          <div class="oc-field">
+            <label>Motivo apurado</label>
+            <textarea id="histJustifTexto" style="min-height:120px" placeholder="Motivo já apurado, combinado com a garagem, reincidência conhecida etc."></textarea>
+          </div>
+        </div>
+        <div class="oc-footer">
+          <span class="oc-status" id="histJustifStatus"></span>
+          <button class="btn btn-primary" onclick="_salvarHistJustifModal()">Salvar justificativa</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── MODAL CONECTAR WHATSAPP (QR code do RIZER Agent) ────── -->
     <div class="oc-overlay hidden" id="whatsappQrModal" onclick="if(event.target===this)fecharConexaoWhatsAppAG()">
       <div class="oc-panel" style="max-width:340px">
@@ -661,7 +683,7 @@
           var justif = r.justificativa
             ? '<td class="hist-justif" title="' + String(r.justificativa).replace(/"/g, "&quot;") + '">' + r.justificativa + '</td>'
             : '<td class="hist-justif vazia">—</td>';
-          return '<tr>' +
+          return '<tr class="hist-row" onclick="_abrirHistJustifModal(' + r.linha + ')" title="Clique para ver/editar a justificativa">' +
             '<td>' + (r.dataEnvio || "—") + '</td>' +
             '<td>' + (r.dataViagem || "—") + '</td>' +
             '<td>' + (r.garagem || "—") + '</td>' +
@@ -673,6 +695,58 @@
             justif +
           '</tr>';
         }).join("");
+      }
+
+      // ─── Modal de justificativa a partir de 1 linha do Histórico de
+      // Cobranças (clique na linha da tabela) ────────────────────────
+      var _histJustifLinhaAtual = null;
+
+      function _abrirHistJustifModal(linha) {
+        var r = _historicoAG.find(function (x) { return x.linha === linha; });
+        if (!r) return;
+        _histJustifLinhaAtual = linha;
+        document.getElementById("histJustifResumo").innerHTML =
+          '<b>' + (r.garagem || "—") + '</b> · veículo <b>' + (r.veiculo || "—") + '</b> · viagem ' + (r.dataViagem || "—") +
+          (r.linhaCod ? ' · linha ' + r.linhaCod : '') + '<br>' +
+          'Status: ' + (r.status || "—") + ' · Tom: ' + (r.tomMensagem || "—") + ' · Cobrado em ' + (r.dataEnvio || "—");
+        document.getElementById("histJustifTexto").value = r.justificativa || "";
+        document.getElementById("histJustifStatus").textContent = "";
+        document.getElementById("histJustifStatus").className = "oc-status";
+        document.getElementById("histJustifModal").classList.remove("hidden");
+      }
+
+      function _fecharHistJustifModal() {
+        document.getElementById("histJustifModal").classList.add("hidden");
+        _histJustifLinhaAtual = null;
+      }
+
+      function _salvarHistJustifModal() {
+        if (_histJustifLinhaAtual == null) return;
+        var texto = (document.getElementById("histJustifTexto").value || "").trim();
+        var statusEl = document.getElementById("histJustifStatus");
+        statusEl.className = "oc-status";
+        statusEl.textContent = "Salvando...";
+        if (!(window.google && google.script && google.script.run)) return;
+        google.script.run
+          .withSuccessHandler(function () {
+            var r = _historicoAG.find(function (x) { return x.linha === _histJustifLinhaAtual; });
+            if (r) r.justificativa = texto;
+            // reflete também no card de ocorrência, se essa mesma linha
+            // estiver carregada nesta sessão (o.historicoLinha === linha).
+            [_ocoItensAG, _ocoItensTransitoAG].forEach(function (itens) {
+              (itens || []).forEach(function (o) { if (o.historicoLinha === _histJustifLinhaAtual) o.justificativaAtual = texto; });
+            });
+            document.getElementById("kHistSemJustificativa").textContent = _historicoAG.filter(function (x) { return !x.justificativa; }).length;
+            _renderHistoricoFiltradoAG();
+            statusEl.className = "oc-status ok";
+            statusEl.textContent = "✓ Justificativa salva.";
+          })
+          .withFailureHandler(function (err) {
+            console.error("[atualizarJustificativaHistorico] falhou:", err);
+            statusEl.className = "oc-status err";
+            statusEl.textContent = "Erro ao salvar: " + (err && err.message ? err.message : err);
+          })
+          .atualizarJustificativaHistorico([_histJustifLinhaAtual], texto);
       }
 
       function voltarDashboard() {
