@@ -112,6 +112,14 @@
       }
       .filtro-bar input[type="text"] { flex: 1; min-width: 200px; }
       .filtro-bar input:focus, .filtro-bar select:focus { border-color: var(--laranja); background: var(--preto4); }
+      .filtro-bar input[type="date"] {
+        background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
+        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
+        padding: 8px 10px; outline: none; transition: border-color 0.15s; color-scheme: dark;
+      }
+      .hist-data-filtro { display: flex; align-items: center; gap: 6px; }
+      .hist-data-filtro label { font-size: 12px; color: var(--texto3); white-space: nowrap; }
+      .hist-data-filtro .btn { padding: 8px 10px; font-size: 11px; }
 
       /* ── STATUS DA GARAGEM (badge no cabeçalho do accordion) ─ */
       .gar-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; white-space: nowrap; margin-left: 4px; }
@@ -390,6 +398,13 @@
             <option value="com">Só com justificativa</option>
             <option value="sem">Só sem justificativa</option>
           </select>
+          <div class="hist-data-filtro">
+            <label for="histDataDe">Viagem de</label>
+            <input type="date" id="histDataDe" onchange="_renderHistoricoFiltradoAG()" />
+            <label for="histDataAte">até</label>
+            <input type="date" id="histDataAte" onchange="_renderHistoricoFiltradoAG()" />
+            <button type="button" class="btn btn-ghost" id="histDataLimpar" onclick="_limparFiltroDataHistAG()" title="Limpar filtro de data">✕</button>
+          </div>
         </div>
         <div class="hist-table-wrap">
           <table class="hist-table" id="histTabela">
@@ -731,11 +746,33 @@
           .getHistoricoAntecipacao();
       }
 
+      // "DD/MM/AAAA" (formato de r.dataViagem, ver getHistoricoAntecipacao)
+      // → Date à meia-noite local, pra comparar com os <input type="date">
+      // do filtro (que vêm em "AAAA-MM-DD").
+      function _parseDataBrAG(str) {
+        var partes = String(str || "").split("/");
+        if (partes.length !== 3) return null;
+        var d = new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      function _limparFiltroDataHistAG() {
+        document.getElementById("histDataDe").value = "";
+        document.getElementById("histDataAte").value = "";
+        _renderHistoricoFiltradoAG();
+      }
+
       function _renderHistoricoFiltradoAG() {
         var termo = _normAG(document.getElementById("histBusca").value);
         var tipoFiltro = document.getElementById("histTipoSel").value;
         var tomFiltro = document.getElementById("histTomSel").value;
         var justifFiltro = document.getElementById("histJustifSel").value;
+        // <input type="date"> já devolve "AAAA-MM-DD" — dá pra construir o
+        // Date direto (sem passar por _parseDataBrAG) e comparar por dia.
+        var dataDeStr = document.getElementById("histDataDe").value;
+        var dataAteStr = document.getElementById("histDataAte").value;
+        var dataDe = dataDeStr ? new Date(dataDeStr + "T00:00:00") : null;
+        var dataAte = dataAteStr ? new Date(dataAteStr + "T23:59:59") : null;
 
         var lista = _historicoAG.filter(function (r) {
           if (termo && !_normAG(r.garagem + " " + r.veiculo).includes(termo)) return false;
@@ -743,6 +780,12 @@
           if (tomFiltro && r.tomMensagem !== tomFiltro) return false;
           if (justifFiltro === "com" && !r.justificativa) return false;
           if (justifFiltro === "sem" && r.justificativa) return false;
+          if (dataDe || dataAte) {
+            var dViagem = _parseDataBrAG(r.dataViagem);
+            if (!dViagem) return false; // sem data reconhecível — exclui quando o filtro de data está ativo
+            if (dataDe && dViagem < dataDe) return false;
+            if (dataAte && dViagem > dataAte) return false;
+          }
           return true;
         });
 
