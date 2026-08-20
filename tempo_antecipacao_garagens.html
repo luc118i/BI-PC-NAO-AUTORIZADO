@@ -106,6 +106,23 @@
       .estado-vazio { font-size: 13px; color: var(--texto3); text-align: center; padding: 24px 0; }
       .empty-state-icon { width: 56px; height: 56px; fill: var(--cinza2); display: block; margin: 0 auto 14px; }
 
+      /* ── Lembrete diário de antecipação ────────────────────── */
+      .lembrete-card { border-color: var(--borda-l); background: var(--laranja4); }
+      .lembrete-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: var(--sp-4); }
+      .lembrete-titulo { display: flex; align-items: center; gap: 9px; font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--texto); }
+      .lembrete-titulo svg { color: var(--laranja); flex-shrink: 0; }
+      .lembrete-sub { font-size: 11.5px; color: var(--texto3); margin-top: 3px; font-weight: 500; }
+      .lembrete-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-3); }
+      .lembrete-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto3); border: 1px solid var(--borda2); transition: opacity var(--transition); }
+      .lembrete-item.sem-telefone .lembrete-item-nome { color: var(--amarelo); }
+      .lembrete-item-info { min-width: 0; }
+      .lembrete-item-nome { font-size: 13px; font-weight: 700; color: var(--texto); }
+      .lembrete-item-meta { font-size: 11px; color: var(--texto3); margin-top: 2px; }
+      .lembrete-item-acoes { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+      .lembrete-status { font-size: 11.5px; color: var(--texto3); min-height: 16px; }
+      .lembrete-status.ok { color: var(--verde); }
+      .lembrete-status.err { color: var(--vermelho); }
+
       /* ── ABAS (Antecipação / Em Trânsito) ─────────────────── */
       .ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
       .ag-tab {
@@ -361,6 +378,28 @@
     </header>
 
     <div class="main">
+      <!-- ── Lembrete diário de antecipação — mostra as bases que ainda
+           não tiveram o lembrete de hoje enviado/ignorado (ver
+           getLembreteAntecipacaoHoje/registrarLembreteAntecipacaoEnviado
+           em BI_PC.js). O envio continua manual (1 clique) porque o
+           WhatsApp sai pelo RIZER Agent local — o Apps Script não
+           alcança 127.0.0.1 pra automatizar sozinho — mas reaparece
+           todo dia até alguém tratar todas as bases. ──────────────── -->
+      <div class="card lembrete-card hidden" id="lembreteAntecipacaoCard">
+        <div class="lembrete-head">
+          <div>
+            <div class="lembrete-titulo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              Lembrete diário de antecipação
+            </div>
+            <div class="lembrete-sub" id="lembreteSub">—</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="lembreteBtnEnviarTodos" onclick="_enviarLembreteTodos()">Enviar todos</button>
+        </div>
+        <div class="lembrete-lista" id="lembreteLista"></div>
+        <div class="lembrete-status" id="lembreteStatus"></div>
+      </div>
+
       <!-- ── Aviso de carregamento inicial — some assim que a aba
            Garagens + o Historico_antecipacao terminam de carregar (ver
            _bootConcluidoAG). Sem isso a tela ficava em branco por 1-2s
@@ -734,20 +773,23 @@
         }
         _carregarGaragens(_bootConcluidoAG);
         _carregarHistoricoAG(_bootConcluidoAG);
+        _carregarLembreteAntecipacao(_bootConcluidoAG);
       };
 
-      // Carregamento inicial (aba Garagens + Historico_antecipacao) — a
-      // tela ficava em branco por 1-2s antes disso terminar, sem nenhum
-      // aviso, parecendo travada. Mostra um "carregando" amigável até as
-      // 2 chamadas terminarem (sucesso ou falha, tanto faz); se depois
-      // disso não tiver nenhuma cobrança no histórico, troca por um
-      // convite pra importar o CSV do dia, em vez de deixar tudo vazio.
-      var _bootPendentesAG = 2;
+      // Carregamento inicial (aba Garagens + Historico_antecipacao +
+      // status do lembrete diário) — a tela ficava em branco por 1-2s
+      // antes disso terminar, sem nenhum aviso, parecendo travada. Mostra
+      // um "carregando" amigável até as 3 chamadas terminarem (sucesso ou
+      // falha, tanto faz); se depois disso não tiver nenhuma cobrança no
+      // histórico, troca por um convite pra importar o CSV do dia, em vez
+      // de deixar tudo vazio.
+      var _bootPendentesAG = 3;
       function _bootConcluidoAG() {
         _bootPendentesAG--;
         if (_bootPendentesAG > 0) return;
         document.getElementById("agBootLoading").classList.add("hidden");
         document.getElementById("agEmptyState").classList.toggle("hidden", !!_historicoAG.length);
+        _renderLembreteAntecipacao();
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -969,6 +1011,145 @@
           })
           .withFailureHandler(function () { _garagensCache = []; if (cb) cb(); })
           .getGaragens();
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Lembrete diário de antecipação — ver comentário do card
+      //  #lembreteAntecipacaoCard e getLembreteAntecipacaoHoje()/
+      //  registrarLembreteAntecipacaoEnviado() em BI_PC.js.
+      // ═══════════════════════════════════════════════════════════
+      var _lembreteHojeEnviadosAG = [];      // origemFull já tratados hoje (persistido na planilha)
+      var _lembreteHojeIgnoradosSessaoAG = []; // origemFull ignorados só nesta sessão (clique em "Ignorar")
+
+      function _carregarLembreteAntecipacao(cb) {
+        if (!(window.google && google.script && google.script.run)) { if (cb) cb(); return; }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            try { _lembreteHojeEnviadosAG = (JSON.parse(json || "{}").origens) || []; }
+            catch (e) { _lembreteHojeEnviadosAG = []; }
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _lembreteHojeEnviadosAG = []; if (cb) cb(); })
+          .getLembreteAntecipacaoHoje();
+      }
+
+      function _lembretePendentesAG() {
+        return (_garagensCache || []).filter(function (g) {
+          return _lembreteHojeEnviadosAG.indexOf(g.origemFull) === -1 &&
+                 _lembreteHojeIgnoradosSessaoAG.indexOf(g.origemFull) === -1;
+        });
+      }
+
+      function _renderLembreteAntecipacao() {
+        var card = document.getElementById("lembreteAntecipacaoCard");
+        var pendentes = _lembretePendentesAG();
+        if (!pendentes.length) { card.classList.add("hidden"); return; }
+        card.classList.remove("hidden");
+
+        document.getElementById("lembreteSub").textContent =
+          pendentes.length + " base" + (pendentes.length !== 1 ? "s" : "") + " ainda sem o lembrete de hoje enviado — reforça o tempo mínimo de antecipação exigido de cada uma.";
+
+        document.getElementById("lembreteLista").innerHTML = pendentes.map(function (g) {
+          var temTel = !!g.telefone;
+          var origemEsc = g.origemFull.replace(/'/g, "\\'");
+          return '<div class="lembrete-item' + (temTel ? "" : " sem-telefone") + '">' +
+            '<div class="lembrete-item-info">' +
+              '<div class="lembrete-item-nome">' + g.cidade + (g.uf ? " · " + g.uf : "") + '</div>' +
+              '<div class="lembrete-item-meta">Antecipação mínima: ' + _fmtDuracaoAG(g.antecipacaoMin) +
+                (temTel ? "" : " · sem telefone cadastrado") + '</div>' +
+            '</div>' +
+            '<div class="lembrete-item-acoes">' +
+              (temTel ? '<button class="btn btn-ghost btn-sm" onclick="_enviarLembreteUmAG(\'' + origemEsc + '\')">Enviar</button>' : "") +
+              '<button class="btn btn-ghost btn-sm" onclick="_ignorarLembreteHojeAG(\'' + origemEsc + '\')" title="Não mostrar de novo hoje">Ignorar</button>' +
+            '</div>' +
+          '</div>';
+        }).join("");
+
+        document.getElementById("lembreteStatus").className = "lembrete-status";
+        document.getElementById("lembreteStatus").textContent = "";
+      }
+
+      // Mesma formatação/tom das cobranças (*negrito* nativo do WhatsApp),
+      // só que sem listar ocorrência nenhuma — é só o reforço diário do
+      // tempo mínimo exigido, pra reduzir reincidência antes de virar
+      // cobrança de verdade.
+      function _montarMensagemLembreteAG(g) {
+        var dur = _fmtDuracaoAG(g.antecipacaoMin);
+        return "*LEMBRETE DIÁRIO — GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
+          "Bom dia! Reforçando o tempo mínimo de antecipação exigido na liberação do veículo até a chegada na rodoviária: *" + dur + "*.\n\n" +
+          "Contamos com a atenção da equipe pra manter esse tempo cumprido em todas as saídas de hoje, " + _fmtDataAG(new Date()) + ".\n\n" +
+          "_Equipe de Monitoramento Operacional_";
+      }
+
+      function _ignorarLembreteHojeAG(origemFull) {
+        if (_lembreteHojeIgnoradosSessaoAG.indexOf(origemFull) === -1) {
+          _lembreteHojeIgnoradosSessaoAG.push(origemFull);
+        }
+        var g = (_garagensCache || []).find(function (x) { return x.origemFull === origemFull; });
+        if (g && window.google && google.script && google.script.run) {
+          google.script.run.registrarLembreteAntecipacaoEnviado(g.origemFull, g.cidade, g.uf, false, false);
+        }
+        _renderLembreteAntecipacao();
+      }
+
+      function _enviarLembreteUmAG(origemFull) {
+        var g = (_garagensCache || []).find(function (x) { return x.origemFull === origemFull; });
+        if (g) _executarEnvioLembreteAG([g]);
+      }
+
+      function _enviarLembreteTodos() {
+        var pendentes = _lembretePendentesAG().filter(function (g) { return !!g.telefone; });
+        if (pendentes.length) _executarEnvioLembreteAG(pendentes);
+      }
+
+      // Núcleo do envio do lembrete — manda pro telefone de Tráfego/
+      // Garagem (obrigatório) e, se preenchido, também pro Gestor; grava
+      // no LEMBRETE_ANTECIPACAO_LOG assim que pelo menos 1 dos 2 contatos
+      // recebe com sucesso, pra sumir da lista de pendentes.
+      function _executarEnvioLembreteAG(lista) {
+        var statusEl = document.getElementById("lembreteStatus");
+        var btnTodos = document.getElementById("lembreteBtnEnviarTodos");
+        var nomes = lista.map(function (g) { return g.cidade; }).join(", ");
+
+        _confirmarAcao(
+          "Enviar o lembrete diário de antecipação para " + lista.length + " base" + (lista.length !== 1 ? "s" : "") + " (" + nomes + ") pelo WhatsApp?",
+          { titulo: "Lembrete diário", textoOk: "Enviar" }
+        ).then(function (ok) {
+          if (!ok) return;
+          btnTodos.disabled = true;
+          statusEl.className = "lembrete-status";
+          statusEl.textContent = "Enviando...";
+
+          var falhas = [];
+          Promise.all(lista.map(function (g) {
+            var msg = _montarMensagemLembreteAG(g);
+            return _enviarWhatsAppUmAG(_normalizarTelefoneAG(g.telefone), msg, null).then(function (resTrafego) {
+              var gestorPromise = g.telefoneGestor
+                ? _enviarWhatsAppUmAG(_normalizarTelefoneAG(g.telefoneGestor), msg, null)
+                : Promise.resolve({ ok: false });
+              return gestorPromise.then(function (resGestor) {
+                if (resTrafego.ok || resGestor.ok) {
+                  if (window.google && google.script && google.script.run) {
+                    google.script.run.registrarLembreteAntecipacaoEnviado(g.origemFull, g.cidade, g.uf, resTrafego.ok, resGestor.ok);
+                  }
+                  _lembreteHojeEnviadosAG.push(g.origemFull);
+                } else {
+                  falhas.push(g.cidade + ": " + resTrafego.error);
+                }
+              });
+            });
+          })).then(function () {
+            btnTodos.disabled = false;
+            _renderLembreteAntecipacao();
+            if (falhas.length) {
+              statusEl.className = "lembrete-status err";
+              statusEl.textContent = "Falhou pra: " + falhas.join(" · ") + " — confira se o RIZER Agent está aberto e o WhatsApp conectado.";
+            } else {
+              statusEl.className = "lembrete-status ok";
+              statusEl.textContent = "Lembrete enviado.";
+            }
+          });
+        });
       }
 
       // Grava os telefones/grupos (já normalizados — dígitos com DDI) de

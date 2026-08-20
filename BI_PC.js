@@ -306,6 +306,78 @@ function salvarTelefoneGaragem(origemFull, telefoneTrafego, telefoneGestor) {
   return true;
 }
 
+/** ==============================
+ *  LEMBRETE DIÁRIO — Antecipação de Garagens
+ *  ==============================
+ *  O envio pelo WhatsApp roda pelo RIZER Agent (127.0.0.1, ver
+ *  tempo_antecipacao_garagens.html) — um processo local no computador
+ *  de quem está com a tela aberta. O Apps Script roda nos servidores
+ *  do Google e não alcança esse endereço local, então não dá pra
+ *  disparar o lembrete sozinho por um gatilho de horário.
+ *
+ *  Em vez disso: a aba "LEMBRETE_ANTECIPACAO_LOG" guarda quais
+ *  garagens já tiveram o lembrete de HOJE enviado (ou ignorado). A
+ *  tela consulta isso ao abrir e mostra um aviso com as bases
+ *  pendentes — quem abrir a tela de manhã vê e manda com 1 clique
+ *  ("Enviar todos"), sem precisar redigitar nada. Reaparece todo dia,
+ *  some sozinho assim que todas as bases do dia forem tratadas.
+ */
+var LEMBRETE_ANTECIPACAO_HEADER = [
+  "DATA", "ORIGEM", "CIDADE", "UF", "TRAFEGO_OK", "GESTOR_OK", "ENVIADO_EM",
+];
+
+function _abaLembreteAntecipacao(ss) {
+  var aba = ss.getSheetByName("LEMBRETE_ANTECIPACAO_LOG");
+  if (!aba) {
+    aba = ss.insertSheet("LEMBRETE_ANTECIPACAO_LOG");
+    aba.appendRow(LEMBRETE_ANTECIPACAO_HEADER);
+    aba.setFrozenRows(1);
+  }
+  return aba;
+}
+
+function _hojeISO_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+}
+
+// Devolve { data: "yyyy-MM-dd", origens: [origemFull, ...] } com as
+// garagens que já tiveram o lembrete diário tratado (enviado ou
+// ignorado) HOJE — a tela usa isso pra montar a lista de pendentes:
+// toda garagem de getGaragens() cujo origemFull não está aqui.
+function getLembreteAntecipacaoHoje() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = _abaLembreteAntecipacao(ss);
+  var lastRow = aba.getLastRow();
+  var hoje = _hojeISO_();
+  var origens = [];
+  if (lastRow >= 2) {
+    var data = aba.getRange(2, 1, lastRow - 1, 2).getValues();
+    data.forEach(function (r) {
+      if (String(r[0] || "").trim() === hoje) origens.push(String(r[1] || "").trim());
+    });
+  }
+  return JSON.stringify({ data: hoje, origens: origens });
+}
+
+// Marca 1 garagem como "lembrete de hoje já tratado" — chamada depois
+// de um envio (bem-sucedido ou não, ver trafegoOk/gestorOk) ou de um
+// "Ignorar hoje" na tela (nesse caso ambos os OK vêm false, só pra
+// registrar que foi uma decisão consciente, não uma falha silenciosa).
+function registrarLembreteAntecipacaoEnviado(origemFull, cidade, uf, trafegoOk, gestorOk) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var aba = _abaLembreteAntecipacao(ss);
+  aba.appendRow([
+    _hojeISO_(),
+    String(origemFull || "").trim(),
+    String(cidade || "").trim(),
+    String(uf || "").trim(),
+    trafegoOk ? "SIM" : "NAO",
+    gestorOk ? "SIM" : "NAO",
+    Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss"),
+  ]);
+  return true;
+}
+
 // "HH:MM" ou "HH:MM:SS" (texto ou objeto Date, se a planilha formatar a
 // célula como hora) → minutos. Retorna null se vazio/inválido.
 //
