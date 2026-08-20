@@ -100,7 +100,11 @@
       /* Campos com largura própria por tipo (data curta, base média, busca
          um pouco maior) em vez de esticar igualmente — evita que Base/Local/
          Motorista fiquem largos demais sem necessidade. */
-      .filter-fields { display: flex; flex-wrap: wrap; gap: var(--sp-3); flex: 0 1 auto; min-width: 0; }
+      /* display:contents "achata" o wrapper — os campos e os botões viram
+         itens diretos de .filter-bar, então cada um quebra de linha
+         individualmente (em vez do grupo inteiro pular de vez), sem
+         sobrar vão em branco quando não cabe só uma parte do bloco. */
+      .filter-fields { display: contents; }
       .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; }
       .filter-group.fg-data { width: 138px; }
       .filter-group.fg-base { width: 168px; }
@@ -124,9 +128,9 @@
       .filter-group input:focus, .filter-group select:focus { border-color: var(--laranja); background: var(--preto4); box-shadow: 0 0 0 3px var(--laranja4); }
       .filter-group select option { background: var(--preto3); color: var(--texto); }
 
-      .btn-group { display: flex; gap: 8px; align-self: flex-end; flex-shrink: 0; flex-wrap: wrap; }
+      .btn-group { display: contents; }
       .btn-group-divider { width: 1px; align-self: stretch; background: var(--borda2); margin: 0 2px; }
-      .btn { font-family: var(--font); font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all var(--transition); display: inline-flex; align-items: center; }
+      .btn { font-family: var(--font); font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all var(--transition); display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap; }
       .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 12px rgba(244,121,32,0.22); }
       .btn-primary:hover { background: var(--laranja2); box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(244,121,32,0.3); }
       .btn-primary:active { transform: scale(0.97); }
