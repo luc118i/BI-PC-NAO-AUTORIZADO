@@ -1069,15 +1069,32 @@
         document.getElementById("lembreteStatus").textContent = "";
       }
 
+      // Saudação e referência às saídas do dia adaptadas ao horário real
+      // do envio — o lembrete não sai só de manhã na prática (fica
+      // pendente até alguém abrir a tela e clicar), então "Bom dia" fixo
+      // soava errado quando enviado à tarde/noite.
+      function _saudacaoHoraAG(d) {
+        var h = (d || new Date()).getHours();
+        if (h < 12) return "Bom dia";
+        if (h < 18) return "Boa tarde";
+        return "Boa noite";
+      }
+
       // Mesma formatação/tom das cobranças (*negrito* nativo do WhatsApp),
       // só que sem listar ocorrência nenhuma — é só o reforço diário do
       // tempo mínimo exigido, pra reduzir reincidência antes de virar
       // cobrança de verdade.
       function _montarMensagemLembreteAG(g) {
+        var agora = new Date();
         var dur = _fmtDuracaoAG(g.antecipacaoMin);
+        var saudacao = _saudacaoHoraAG(agora);
+        // De manhã ainda vale pra todas as saídas do dia; à tarde/noite
+        // parte delas já deve ter passado, então o texto muda pra "nas
+        // próximas" em vez de prometer cobrir o que já aconteceu.
+        var refSaidas = agora.getHours() < 12 ? "em todas as saídas de hoje" : "nas próximas saídas de hoje";
         return "*LEMBRETE DIÁRIO — GARAGEM " + g.cidade.toUpperCase() + "*\n\n" +
-          "Bom dia! Reforçando o tempo mínimo de antecipação exigido na liberação do veículo até a chegada na rodoviária: *" + dur + "*.\n\n" +
-          "Contamos com a atenção da equipe pra manter esse tempo cumprido em todas as saídas de hoje, " + _fmtDataAG(new Date()) + ".\n\n" +
+          saudacao + "! Reforçando o tempo mínimo de antecipação exigido na liberação do veículo até a chegada na rodoviária: *" + dur + "*.\n\n" +
+          "Contamos com a atenção da equipe pra manter esse tempo cumprido " + refSaidas + ", " + _fmtDataAG(agora) + ".\n\n" +
           "_Equipe de Monitoramento Operacional_";
       }
 
