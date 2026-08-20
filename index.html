@@ -4,39 +4,62 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BI PC's Não Autorizados · Viação Catedral</title>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-      /* ── CATEDRAL DESIGN SYSTEM ─────────────────────────────── */
+      /* ── CATEDRAL DESIGN SYSTEM ─────────────────────────────────────────
+         Hierarquia de superfícies (do fundo pro elemento interativo):
+           --preto      → background da página (base)
+           --preto2     → superfície primária (chrome: header/filtros/footer)
+           --superficie → superfície secundária (cards, KPIs, módulos)
+           --preto3     → superfície elevada (inputs, dropdowns, hover de linha)
+           --preto4     → estado de foco / elemento elevado ativo
+         Diferenças de luminosidade são deliberadamente sutis — a separação
+         vem da combinação superfície + sombra leve, não de bordas fortes. */
       :root {
-        --preto: #0a0a0a;
-        --preto2: #111111;
-        --preto3: #1a1a1a;
-        --preto4: #242424;
+        --preto: #09090a;
+        --preto2: #121214;
+        --superficie: #17171a;
+        --preto3: #1c1d20;
+        --preto4: #232428;
         --laranja: #f47920;
         --laranja2: #e06510;
         --laranja3: rgba(244, 121, 32, 0.15);
         --laranja4: rgba(244, 121, 32, 0.08);
-        --cinza: #2e2e2e;
-        --cinza2: #3d3d3d;
-        --cinza3: #555555;
-        --borda: rgba(255, 255, 255, 0.07);
-        --borda2: rgba(255, 255, 255, 0.12);
-        --borda-l: rgba(244, 121, 32, 0.3);
-        --texto: #f0f0f0;
-        --texto2: #aaaaaa;
-        --texto3: #666666;
+        --cinza: #2b2b2f;
+        --cinza2: #38383d;
+        --cinza3: #5a5a60;
+        --borda: rgba(255, 255, 255, 0.055);
+        --borda2: rgba(255, 255, 255, 0.1);
+        --borda-l: rgba(244, 121, 32, 0.32);
+        --texto: #f2f2f3;
+        --texto2: #a3a3aa;
+        --texto3: #6b6b72;
         --verde: #22c97a;
         --vermelho: #e05050;
         --amarelo: #f0c040;
         --radius: 10px;
-        --radius-sm: 6px;
+        --radius-sm: 7px;
+        --radius-lg: 14px;
+
+        /* Tipografia corporativa: Inter para toda a UI; Barlow Condensed
+           reservado à assinatura de marca (wordmark). */
+        --font: "Inter", "Barlow", -apple-system, sans-serif;
+        --font-brand: "Barlow Condensed", "Inter", sans-serif;
+
+        /* Escala de espaçamento — usar sempre um destes valores */
+        --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+        --sp-5: 20px; --sp-6: 24px; --sp-7: 32px;
+
+        --transition: 0.16s cubic-bezier(.4,0,.2,1);
+        --shadow-card: 0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02) inset;
+        --shadow-elevated: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
-      body { font-family: "Barlow", sans-serif; background: var(--preto); color: var(--texto); min-height: 100vh; }
+      body { font-family: var(--font); background: var(--preto); color: var(--texto); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
       /* ── Scrollbar customizada (padrão em toda a página — barra do
          navegador e qualquer painel/lista com overflow interno) ──── */
@@ -53,30 +76,35 @@
       .topbar { background: var(--laranja); height: 4px; width: 100%; }
 
       /* ── HEADER ─────────────────────────────────────────── */
-      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-      .header-logo { display: flex; align-items: center; gap: 16px; }
-      .logo-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .header { background: var(--preto2); border-bottom: 1px solid var(--borda2); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-6); flex-wrap: wrap; }
+      .header-logo { display: flex; align-items: center; gap: var(--sp-4); padding-right: var(--sp-5); border-right: 1px solid var(--borda); }
+      .logo-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
       .logo-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
-      .logo-text h1 { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto); line-height: 1; }
+      .logo-text h1 { font-family: var(--font-brand); font-size: 22px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--texto); line-height: 1.1; }
       .logo-text h1 span { color: var(--laranja); }
-      .logo-text p { font-size: 11px; color: var(--texto3); margin-top: 3px; }
-      .header-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .badge-pill { font-size: 11px; padding: 5px 13px; border-radius: 20px; font-weight: 500; border: 1px solid; }
-      .pill-loading { background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.35); color: var(--amarelo); }
-      .pill-ok { background: rgba(34,201,122,0.1); border-color: rgba(34,201,122,0.35); color: var(--verde); }
-      .pill-err { background: rgba(224,80,80,0.1); border-color: rgba(224,80,80,0.35); color: var(--vermelho); }
+      .logo-text p { font-family: var(--font); font-size: 11.5px; font-weight: 500; color: var(--texto2); margin-top: 5px; letter-spacing: 0.01em; }
+      .header-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+      .badge-pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 6px 13px 6px 10px; border-radius: 20px; border: 1px solid; }
+      .badge-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+      .pill-loading { background: rgba(240,192,64,0.08); border-color: rgba(240,192,64,0.3); color: var(--amarelo); }
+      .pill-loading::before { animation: pulse-dot 1.4s ease-in-out infinite; }
+      .pill-ok { background: rgba(34,201,122,0.08); border-color: rgba(34,201,122,0.3); color: var(--verde); }
+      .pill-err { background: rgba(224,80,80,0.08); border-color: rgba(224,80,80,0.3); color: var(--vermelho); }
+      @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 
       /* ── FILTROS ─────────────────────────────────────────── */
-      .filter-wrap { background: var(--preto2); border-bottom: 1px solid var(--borda); padding: 16px 28px; }
-      .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-      .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+      .filter-wrap { background: var(--preto2); border-bottom: 1px solid var(--borda); padding: var(--sp-4) 28px; }
+      .filter-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto3); margin-bottom: var(--sp-3); display: flex; align-items: center; gap: 8px; }
+      .filter-section-label::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
+      .filter-bar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: flex-end; }
+      .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 130px; }
       .filter-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 600; }
       .filter-group input[type="date"],
       .filter-group select,
       .filter-group input[type="text"] {
         background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm);
-        color: var(--texto); font-family: "Barlow", sans-serif; font-size: 13px;
-        padding: 9px 12px; outline: none; transition: border-color 0.15s; width: 100%;
+        color: var(--texto); font-family: var(--font); font-size: 13px;
+        padding: 9px 12px; outline: none; transition: border-color var(--transition), background var(--transition), box-shadow var(--transition); width: 100%;
       }
       .filter-group select {
         appearance: none; -webkit-appearance: none; cursor: pointer;
@@ -85,41 +113,63 @@
       }
       .filter-group input[type="date"] { color-scheme: dark; }
       .filter-group input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(330deg); cursor: pointer; }
-      .filter-group input:focus, .filter-group select:focus { border-color: var(--laranja); background: var(--preto4); }
+      .filter-group input:hover, .filter-group select:hover { border-color: var(--cinza3); }
+      .filter-group input:focus, .filter-group select:focus { border-color: var(--laranja); background: var(--preto4); box-shadow: 0 0 0 3px var(--laranja4); }
       .filter-group select option { background: var(--preto3); color: var(--texto); }
 
-      .btn-group { display: flex; gap: 8px; align-self: flex-end; flex-shrink: 0; }
-      .btn { font-family: "Barlow", sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
-      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); }
-      .btn-primary:hover { background: var(--laranja2); }
+      .btn-group { display: flex; gap: 8px; align-self: flex-end; flex-shrink: 0; flex-wrap: wrap; }
+      .btn-group-divider { width: 1px; align-self: stretch; background: var(--borda2); margin: 0 2px; }
+      .btn { font-family: var(--font); font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all var(--transition); display: inline-flex; align-items: center; }
+      .btn-primary { background: var(--laranja); color: #fff; border-color: var(--laranja); box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 12px rgba(244,121,32,0.22); }
+      .btn-primary:hover { background: var(--laranja2); box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(244,121,32,0.3); }
       .btn-primary:active { transform: scale(0.97); }
       .btn-ghost { background: transparent; color: var(--texto2); border-color: var(--cinza2); }
-      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); }
+      .btn-ghost:hover { border-color: var(--texto2); color: var(--texto); background: rgba(255,255,255,0.03); }
 
-      /* Botão apresentação */
-      .btn-modo-apresentacao { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; border: 1px solid rgba(244,121,32,0.45); background: radial-gradient(circle at 0% 0%, rgba(244,121,32,0.18), rgba(15,23,42,0.96)); color: #f9fafb; font-family: "Barlow", sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; cursor: pointer; overflow: hidden; transition: all 0.2s; }
-      .btn-modo-apresentacao:hover { border-color: var(--laranja); background: radial-gradient(circle at 0% 0%, rgba(244,121,32,0.32), rgba(15,23,42,0.96)); transform: translateY(-1px); }
-      .btn-apres-icon { width: 16px; height: 16px; fill: var(--laranja); }
+      /* Botões "módulo de análise" — mesma família do btn-ghost, porém com
+         leve identidade própria (ícone + rótulo) para se diferenciarem dos
+         controles simples de Aplicar/Limpar. */
+      .btn-modulo { background: var(--preto3); color: var(--texto2); border-color: var(--borda2); gap: 7px; }
+      .btn-modulo svg { opacity: 0.75; transition: opacity var(--transition), stroke var(--transition); }
+      .btn-modulo:hover { border-color: var(--borda-l); color: var(--texto); background: var(--laranja4); }
+      .btn-modulo:hover svg { opacity: 1; stroke: var(--laranja); }
+
+      /* Botão apresentação — tratado como recurso de destaque do sistema,
+         não apenas mais um botão: pill laranja discreta, ícone contido,
+         feedback de elevação no hover. */
+      .btn-modo-apresentacao { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 9px 18px 9px 14px; border-radius: 999px; border: 1px solid var(--borda-l); background: var(--laranja4); color: var(--texto); font-family: var(--font); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; cursor: pointer; transition: all var(--transition); }
+      .btn-modo-apresentacao:hover { border-color: var(--laranja); background: var(--laranja3); color: #fff; box-shadow: 0 4px 14px rgba(244,121,32,0.25); }
+      .btn-modo-apresentacao:active { transform: scale(0.97); }
+      .btn-apres-icon { width: 13px; height: 13px; fill: var(--laranja); flex-shrink: 0; }
 
       /* ── MAIN ────────────────────────────────────────────── */
-      .main { padding: 24px 28px 40px; max-width: 1400px; }
+      .main { padding: var(--sp-6) 28px 40px; max-width: 1480px; margin: 0 auto; }
 
-      /* ── KPIs ────────────────────────────────────────────── */
-      .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-      .kpi { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.2s; }
-      .kpi:hover { border-color: var(--borda-l); }
-      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kpi-c, var(--laranja)); }
-      .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 600; margin-bottom: 8px; }
-      .kpi-value { font-family: "Barlow Condensed", sans-serif; font-size: 36px; font-weight: 700; color: var(--kpi-c, var(--texto)); letter-spacing: -0.01em; line-height: 1; }
-      .kpi-sub { font-size: 11px; color: var(--texto3); margin-top: 6px; }
+      /* ── KPIs (Operational KPI Cards) ──────────────────────
+         Label refinado → valor com tipografia de destaque → contexto
+         secundário → indicador de status/tendência discreto. */
+      .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+      .kpi { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--radius); padding: 20px 22px; position: relative; overflow: hidden; transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition); box-shadow: var(--shadow-card); }
+      .kpi:hover { border-color: var(--borda-l); transform: translateY(-1px); box-shadow: var(--shadow-card), 0 8px 20px rgba(0,0,0,0.28); }
+      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kpi-c, var(--laranja)); opacity: 0.85; }
+      .kpi-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 700; margin-bottom: 10px; }
+      .kpi-value { font-family: var(--font); font-size: 33px; font-weight: 800; color: var(--kpi-c, var(--texto)); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+      .kpi-sub { font-size: 11.5px; color: var(--texto3); margin-top: 8px; font-weight: 500; }
+      /* Card categórico (Base mais ativa) recebe tratamento levemente
+         distinto — valor com corpo diferente do numérico, mesma grade */
+      .kpi-categorico .kpi-value { font-family: var(--font-brand); text-transform: uppercase; letter-spacing: 0.01em; }
 
       /* ── CARDS ───────────────────────────────────────────── */
-      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-      .card { background: var(--preto2); border: 1px solid var(--borda); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; margin-bottom: 10px; }
-      .card:hover { border-color: rgba(255,255,255,0.1); }
-      .card-title { font-size: 10px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
-      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; }
+      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+      .card { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--radius); padding: 20px 22px; transition: border-color var(--transition), box-shadow var(--transition); margin-bottom: var(--sp-3); box-shadow: var(--shadow-card); }
+      .card:hover { border-color: var(--borda2); }
+      .card-head { margin-bottom: var(--sp-4); }
+      .card-title { font-family: var(--font); font-size: 13.5px; font-weight: 700; color: var(--texto); letter-spacing: -0.005em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .card-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--laranja); border-radius: 2px; flex-shrink: 0; }
+      .card-context { font-size: 11.5px; color: var(--texto3); font-weight: 500; padding-left: 11px; }
+      .card-head .card-title { margin-bottom: 3px; }
+      .card-head .card-context { margin-bottom: 16px; }
       .chart-wrap { position: relative; width: 100%; }
 
       /* ── Calendário de paradas (Visitas por dia) ── */
@@ -261,21 +311,21 @@
       /* ── SIDE NAV ───────────────────────────────────────── */
       #sideNav {
         position: fixed;
-        right: 16px;
+        right: 18px;
         top: 50%;
         transform: translateY(-50%);
         z-index: 900;
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        backdrop-filter: blur(18px) saturate(140%) brightness(0.9);
-        -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(0.9);
-        background: rgba(11, 11, 11, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 20px;
-        padding: 12px 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+        gap: 3px;
+        background: var(--preto3);
+        border: 1px solid var(--borda2);
+        border-radius: var(--radius-lg);
+        padding: 12px 9px;
+        box-shadow: var(--shadow-elevated);
+        transition: border-color var(--transition);
       }
+      #sideNav:hover { border-color: var(--borda-l); }
       .side-link {
         display: flex;
         align-items: center;
@@ -532,10 +582,22 @@
       .rel-grupo-remover:hover { color: var(--vermelho); background: rgba(224,80,80,0.14); }
 
       /* ── RESPONSIVE ──────────────────────────────────────── */
+      /* Telas muito largas (1920px+): teto de largura maior, conteúdo
+         segue centralizado (ver .main margin:0 auto) em vez de esticar */
+      @media (min-width: 1700px) {
+        .main { max-width: 1600px; }
+      }
+      /* Notebooks 1366/1280: reduz levemente os respiros sem perder a
+         densidade operacional */
+      @media (max-width: 1366px) {
+        .main { max-width: 100%; }
+        .kpi-value { font-size: 30px; }
+      }
       @media (max-width: 960px) {
         .kpi-row { grid-template-columns: repeat(2, 1fr); }
         .row2, .row3 { grid-template-columns: 1fr; }
         .main { padding: 16px; }
+        .header-logo { border-right: none; padding-right: 0; }
       }
       @media (max-width: 600px) {
         .kpi-row { grid-template-columns: 1fr 1fr; }
@@ -546,52 +608,24 @@
         #mapa { height: 280px; }
       }
 
-      /* ── LIQUID GLASS NAV ───────────────────────────────── */
+      /* ── NAV FIXA (header + filtros) ───────────────────────
+         Sóbria e opaca — o produto é uma central de controle, não uma
+         superfície de vidro. Blur mínimo apenas para suavizar o corte
+         quando o conteúdo passa por baixo; sem brilhos/prismas. */
       #stickyNav {
         position: sticky;
         top: 0;
         z-index: 1100;
-        backdrop-filter: blur(22px) saturate(160%) brightness(0.92);
-        -webkit-backdrop-filter: blur(22px) saturate(160%) brightness(0.92);
-        background: rgba(11, 11, 11, 0.72);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        transition: box-shadow 0.3s, background 0.3s;
-        isolation: isolate;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background: rgba(18, 18, 20, 0.97);
+        border-bottom: 1px solid var(--borda2);
+        transition: box-shadow var(--transition);
       }
-      /* Fade de conteúdo logo abaixo do nav */
-      #stickyNav::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 100%;
-        height: 52px;
-        background: linear-gradient(to bottom, var(--preto) 0%, transparent 100%);
-        pointer-events: none;
-        z-index: 1;
-      }
-
-      /* Highlight prismatic no topo do glass */
-      #stickyNav::before {
-        content: '';
-        position: absolute;
-        inset: 4px 0 0 0; /* começa após o topbar */
-        background: linear-gradient(180deg,
-          rgba(255, 255, 255, 0.06) 0%,
-          rgba(255, 255, 255, 0.01) 30%,
-          transparent 60%);
-        pointer-events: none;
-        z-index: 0;
-      }
-      #stickyNav > * { position: relative; z-index: 1; }
       #stickyNav.scrolled {
-        background: rgba(11, 11, 11, 0.88);
-        box-shadow:
-          0 8px 32px rgba(0, 0, 0, 0.65),
-          inset 0 1px 0 rgba(255, 255, 255, 0.05),
-          inset 0 -1px 0 rgba(244, 121, 32, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       }
-      /* Remove fundos sólidos internos para o glass vazar */
+      /* Remove fundos sólidos internos — o stickyNav já fornece a superfície */
       #stickyNav .header,
       #stickyNav .filter-wrap {
         background: transparent;
@@ -614,7 +648,7 @@
         </div>
       </div>
       <div class="header-meta">
-        <div id="badgeStatus" class="badge-pill pill-loading">⏳ Carregando</div>
+        <div id="badgeStatus" class="badge-pill pill-loading">Carregando</div>
         <button class="btn btn-ghost" id="btnUsuarioAtual" onclick="abrirModalUsuario()" title="Conta usada como 'Analisado por' nos relatórios de Parada Irregular gerados por aqui"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> <span id="btnUsuarioAtualNome">Entrar</span></button>
         <button class="btn-modo-apresentacao" onclick="abrirModoApresentacao()">
           <svg class="btn-apres-icon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
@@ -651,9 +685,10 @@
         <div class="btn-group">
           <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
-          <button class="btn btn-ghost" onclick="abrirModalGerenciarLocais()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg> Locais de Parada Irregular</button>
-          <button class="btn btn-ghost" onclick="abrirTempoPermanencia()">⏱ Tempo de Permanência</button>
-          <button class="btn btn-ghost" onclick="abrirAntecipacaoGaragens()">🚏 Antecipação de Garagens</button>
+          <div class="btn-group-divider" title="Análises disponíveis"></div>
+          <button class="btn btn-modulo" onclick="abrirModalGerenciarLocais()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg> Locais de Parada Irregular</button>
+          <button class="btn btn-modulo" onclick="abrirTempoPermanencia()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg> Tempo de Permanência</button>
+          <button class="btn btn-modulo" onclick="abrirAntecipacaoGaragens()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="9" rx="2"></rect><path d="M5 8l1.5-4h11L19 8"></path><circle cx="7.5" cy="17" r="1.6"></circle><circle cx="16.5" cy="17" r="1.6"></circle></svg> Antecipação de Garagens</button>
         </div>
       </div>
     </div>
@@ -682,10 +717,10 @@
           <div class="kpi-value" id="kMotoristas">—</div>
           <div class="kpi-sub">motoristas distintos</div>
         </div>
-        <div class="kpi" style="--kpi-c: var(--verde)">
+        <div class="kpi kpi-categorico" style="--kpi-c: var(--verde)">
           <div class="kpi-stripe"></div>
           <div class="kpi-label">Base mais ativa</div>
-          <div class="kpi-value" id="kBaseMais" style="font-size:20px;padding-top:6px">—</div>
+          <div class="kpi-value" id="kBaseMais" style="font-size:22px;padding-top:4px">—</div>
           <div class="kpi-sub" id="kBaseSub">—</div>
         </div>
       </div>
@@ -693,13 +728,19 @@
       <!-- Gráficos linha 1 -->
       <div id="sec-graficos" class="row2">
         <div class="card">
-          <div class="card-title">Top 10 locais mais visitados</div>
+          <div class="card-head">
+            <div class="card-title">Top 10 locais mais visitados</div>
+            <div class="card-context">Pontos de controle não autorizados com maior recorrência no período</div>
+          </div>
           <div class="chart-wrap" style="height:260px">
             <canvas id="chartLocais"></canvas>
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Distribuição por região</div>
+          <div class="card-head">
+            <div class="card-title">Distribuição por região</div>
+            <div class="card-context">Participação de cada região no total de visitas registradas</div>
+          </div>
           <div class="chart-wrap" style="height:260px">
             <canvas id="chartRegiao"></canvas>
           </div>
@@ -709,13 +750,19 @@
       <!-- Gráficos linha 2 -->
       <div class="row2">
         <div class="card">
-          <div class="card-title">Top 10 motoristas com mais visitas</div>
+          <div class="card-head">
+            <div class="card-title">Top 10 motoristas com mais visitas</div>
+            <div class="card-context">Motoristas com maior número de paradas irregulares no período</div>
+          </div>
           <div class="chart-wrap" style="height:260px">
             <canvas id="chartMotoristas"></canvas>
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Visitas por dia no período</div>
+          <div class="card-head">
+            <div class="card-title">Visitas por dia no período</div>
+            <div class="card-context">Densidade de ocorrências ao longo do calendário selecionado</div>
+          </div>
           <div id="biCalendario" class="bical"></div>
           <div class="chart-wrap" style="height:260px">
             <canvas id="chartTimeline"></canvas>
@@ -2062,8 +2109,26 @@
       let tabelaFiltrada  = [];
 
       const CORES_PAL = ["#f47920","#3b82c4","#22c97a","#f0c040","#e05050","#8b5cf6","#38bdf8","#ec4899","#a3e635","#fb923c"];
-      const GC = "#2e2e2e";
-      const GT = "#555555";
+      const GC = "rgba(255,255,255,0.055)";   // grid extremamente discreto
+      const GT = "#71717a";                    // ticks — mesmo tom de --texto3
+
+      // Estilo global do Chart.js — tipografia e tooltip alinhadas ao
+      // design system (sem alterar nenhuma lógica/cálculo de dados).
+      if (window.Chart) {
+        Chart.defaults.font.family = "Inter, 'Barlow', sans-serif";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = GT;
+        Chart.defaults.plugins.tooltip.backgroundColor = "#1c1d20";
+        Chart.defaults.plugins.tooltip.titleColor = "#f2f2f3";
+        Chart.defaults.plugins.tooltip.bodyColor = "#a3a3aa";
+        Chart.defaults.plugins.tooltip.borderColor = "rgba(255,255,255,0.08)";
+        Chart.defaults.plugins.tooltip.borderWidth = 1;
+        Chart.defaults.plugins.tooltip.padding = 10;
+        Chart.defaults.plugins.tooltip.cornerRadius = 6;
+        Chart.defaults.plugins.tooltip.titleFont = { family: "Inter, sans-serif", size: 12, weight: "600" };
+        Chart.defaults.plugins.tooltip.bodyFont = { family: "Inter, sans-serif", size: 11.5 };
+        Chart.defaults.plugins.tooltip.displayColors = false;
+      }
 
       // ─────────────────────────────────────────────────────────
       //  Bootstrap
@@ -2097,9 +2162,9 @@
       function setBadge(estado, txt) {
         const el = document.getElementById("badgeStatus");
         el.className = "badge-pill";
-        if (estado === "loading") { el.classList.add("pill-loading"); el.textContent = "⏳ " + (txt || "Carregando"); }
-        else if (estado === "ok")  { el.classList.add("pill-ok");      el.textContent = "✓ " + (txt || "Atualizado"); }
-        else                       { el.classList.add("pill-err");     el.textContent = "✗ " + (txt || "Erro"); }
+        if (estado === "loading") { el.classList.add("pill-loading"); el.textContent = (txt || "Carregando"); }
+        else if (estado === "ok")  { el.classList.add("pill-ok");      el.textContent = (txt || "Atualizado"); }
+        else                       { el.classList.add("pill-err");     el.textContent = (txt || "Erro"); }
       }
 
       // ─────────────────────────────────────────────────────────
@@ -2250,19 +2315,27 @@
         renderCalTimeline(regs);
       }
 
+      // Trunca rótulos longos preservando o texto completo no tooltip —
+      // evita poluição visual nos eixos sem perder a informação (o nome
+      // completo continua disponível ao passar o mouse).
+      function _truncLabel(s, max) {
+        s = String(s);
+        return s.length > max ? s.slice(0, max - 1) + "…" : s;
+      }
+
       function renderChartLocais(regs) {
         destruirChart("locais");
         const cont = {};
         regs.forEach(r => { const k = r.descResumida || r.local; cont[k] = (cont[k]||0)+1; });
-        const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]).slice(0,10);
+        const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
         if (!sorted.length) return;
         charts["locais"] = new Chart(document.getElementById("chartLocais"), {
           type: "bar",
           data: {
             labels: sorted.map(e=>e[0]),
-            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[0] + "cc", borderColor: CORES_PAL[0], borderWidth: 1, borderRadius: 4 }]
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[0], borderRadius: 3, borderSkipped: false, maxBarThickness: 18 }]
           },
-          options: chartOpts("Visitas", false)
+          options: chartOpts("Visitas", true, true)
         });
       }
 
@@ -2272,17 +2345,39 @@
         regs.forEach(r => { const k = r.regiao || "Não informado"; cont[k] = (cont[k]||0)+1; });
         const sorted = Object.entries(cont).sort((a,b)=>b[1]-a[1]);
         if (!sorted.length) return;
+        const total = sorted.reduce((s,e)=>s+e[1], 0);
         charts["regiao"] = new Chart(document.getElementById("chartRegiao"), {
           type: "doughnut",
           data: {
             labels: sorted.map(e=>e[0]),
-            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL.slice(0, sorted.length).map(c=>c+"cc"), borderColor: "transparent", borderWidth: 0 }]
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL.slice(0, sorted.length), borderColor: "#17171a", borderWidth: 2, hoverOffset: 4 }]
           },
           options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: "right", labels: { color: "#aaa", font: { family:"Barlow", size:11 }, boxWidth:12, padding:10 } } },
-            cutout: "65%"
-          }
+            plugins: {
+              legend: { position: "right", labels: { color: "#a3a3aa", font: { family:"Inter", size:11.5 }, boxWidth:9, boxHeight:9, padding:12, usePointStyle: true, pointStyle: "circle" } }
+            },
+            cutout: "72%",
+            animation: { duration: 500 }
+          },
+          plugins: [{
+            id: "centroDonut",
+            afterDraw(chart) {
+              const { ctx, chartArea } = chart;
+              if (!chartArea) return;
+              const cx = (chartArea.left + chartArea.right) / 2;
+              const cy = (chartArea.top + chartArea.bottom) / 2;
+              ctx.save();
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillStyle = "#f2f2f3";
+              ctx.font = "800 26px Inter, sans-serif";
+              ctx.fillText(String(total), cx, cy - 9);
+              ctx.fillStyle = "#6b6b72";
+              ctx.font = "700 10px Inter, sans-serif";
+              ctx.fillText("VISITAS", cx, cy + 13);
+              ctx.restore();
+            }
+          }]
         });
       }
 
@@ -2296,9 +2391,9 @@
           type: "bar",
           data: {
             labels: sorted.map(e=>e[0]),
-            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[4]+"cc", borderColor: CORES_PAL[4], borderWidth:1, borderRadius:4 }]
+            datasets: [{ data: sorted.map(e=>e[1]), backgroundColor: CORES_PAL[4], borderRadius: 3, borderSkipped: false, maxBarThickness: 18 }]
           },
-          options: chartOpts("Visitas", true)
+          options: chartOpts("Visitas", true, true)
         });
       }
 
@@ -2376,15 +2471,31 @@
         calEl.innerHTML = html;
       }
 
-      function chartOpts(label, horizontal) {
+      function chartOpts(label, horizontal, truncLabels) {
+        const catAxis = { // eixo categórico (nomes) — sem grid, rótulos truncados
+          grid: { display: false, drawTicks: false },
+          border: { display: false },
+          ticks: {
+            color: GT, font: { family: "Inter", size: 11 },
+            callback: truncLabels ? function (val) { return _truncLabel(this.getLabelForValue(val), 20); } : undefined
+          }
+        };
+        const valAxis = { // eixo de valores — grid extremamente discreto
+          grid: { color: GC, drawTicks: false },
+          border: { display: false },
+          ticks: { color: GT, font: { family: "Inter", size: 10.5 }, precision: 0 }
+        };
         return {
           responsive: true, maintainAspectRatio: false,
           indexAxis: horizontal ? "y" : "x",
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: GC }, ticks: { color: GT, font: { family:"Barlow", size:10 } } },
-            y: { grid: { color: GC }, ticks: { color: GT, font: { family:"Barlow", size:10 } } }
-          }
+          layout: { padding: { top: 4 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { title: (items) => items[0] ? items[0].label : "" } }
+          },
+          scales: horizontal
+            ? { x: valAxis, y: catAxis }
+            : { x: catAxis, y: valAxis }
         };
       }
 
