@@ -97,12 +97,13 @@
       .filter-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto3); margin-bottom: var(--sp-3); display: flex; align-items: center; gap: 8px; }
       .filter-section-label::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
       .filter-bar { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; justify-content: flex-start; }
-      /* Ações (Aplicar → Análises) ficam ancoradas na borda direita da
-         barra quando sobra espaço na linha, em vez de deixar um vão morto
-         depois do último botão — cada item continua quebrando linha
-         individualmente (ver .filter-fields/.btn-group: display:contents). */
-      .btn-acoes-inicio { margin-left: auto; }
-      @media (max-width: 960px) { .btn-acoes-inicio { margin-left: 0; } }
+      /* .btn-acoes-inicio existiu como tentativa de ancorar Aplicar→Análises
+         na borda direita (margin-left:auto), mas isso só deslocava o vão
+         vazio pro MEIO da barra (entre Motorista e Aplicar) em vez de
+         eliminá-lo, e empurrava o menu Análises até a borda, cortando o
+         dropdown. Revertido — o fluxo natural (cada item quebra linha
+         individualmente, ver .filter-fields/.btn-group: display:contents)
+         já é o comportamento correto. */
       /* Campos com largura própria por tipo (data curta, base média, busca
          um pouco maior) em vez de esticar igualmente — evita que Base/Local/
          Motorista fiquem largos demais sem necessidade. */
@@ -159,8 +160,12 @@
       #btnAnalisesMenu.aberto .analises-menu-chevron { transform: rotate(180deg); }
       #btnAnalisesMenu.aberto { border-color: var(--borda-l); color: var(--texto); background: var(--laranja4); }
       .analises-menu {
-        position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
-        min-width: 240px; padding: 6px; border-radius: var(--radius);
+        /* Abre alinhado à borda DIREITA do botão (right:0, sem left) —
+           o botão fica perto da borda direita da barra, então abrir pra
+           esquerda evita o menu ser cortado pela viewport. z-index acima
+           do #sideNav (900) pra não ficar por baixo da navegação lateral. */
+        position: absolute; top: calc(100% + 8px); right: 0; z-index: 950;
+        min-width: 240px; max-width: min(280px, calc(100vw - 56px)); padding: 6px; border-radius: var(--radius);
         background: var(--preto3); border: 1px solid var(--borda2); box-shadow: var(--shadow-elevated);
         display: flex; flex-direction: column; gap: 2px;
         opacity: 0; transform: translateY(-4px); pointer-events: none;
@@ -729,7 +734,7 @@
           </div>
         </div>
         <div class="btn-group">
-          <button class="btn btn-primary btn-acoes-inicio" onclick="aplicarFiltros()">Aplicar</button>
+          <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
           <div class="btn-group-divider" title="Análises disponíveis"></div>
 

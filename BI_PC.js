@@ -127,6 +127,25 @@ function definirPastaDriveRelatorios(folderId, folderName) {
 // e elimina sufixos operacionais (CATEDRAL, FILIAL, etc.)
 // Não depende de aba de configurações.
 
+// ── 3c. Fallback de UF/Região via lat/lng ─────────────────────
+// Quando a planilha não tem UF/Região preenchida (digitação manual
+// falhou/foi deixada em branco), tenta resolver pela coordenada
+// cadastrada usando ufRegiaoPorCoordenada_() (br_uf_regioes.js) — a
+// mesma lógica já usada no cadastro de ponto novo e na correção em
+// massa (corrigirUfRegiaoTodosPontos, ocorrencias.js). Sem lat/lng
+// válida ou fora dos limites do Brasil, mantém uf/regiao como vieram
+// (normalmente "", que vira "Não informado" no front-end).
+function _comFallbackUfRegiao(uf, regiao, lat, lng) {
+  if (uf && regiao) return { uf: uf, regiao: regiao };
+  if (!isFinite(lat) || !isFinite(lng)) return { uf: uf, regiao: regiao };
+  try {
+    var r = ufRegiaoPorCoordenada_(lat, lng);
+    return { uf: uf || r.uf || "", regiao: regiao || r.regiao || "" };
+  } catch (e) {
+    return { uf: uf, regiao: regiao };
+  }
+}
+
 // ── 4. getPCs() ──────────────────────────────────────────────
 function getPCs() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -140,16 +159,26 @@ function getPCs() {
 
   const pcs = data
     .filter((r) => String(r[0] || "").trim() !== "")
-    .map((r) => ({
-      codigo: String(r[0] || "").trim(),
-      descResumida: String(r[2] || "").trim(),
-      descCompleta: String(r[3] || "").trim(),
-      uf: String(r[4] || "").trim(),
-      regiao: String(r[5] || "").trim(),
-      tipo: String(r[7] || "").trim(),
-      lat: _coordOuNull(r[30], 90),
-      lng: _coordOuNull(r[31], 180),
-    }));
+    .map((r) => {
+      const lat = _coordOuNull(r[30], 90);
+      const lng = _coordOuNull(r[31], 180);
+      const ufRegiao = _comFallbackUfRegiao(
+        String(r[4] || "").trim(),
+        String(r[5] || "").trim(),
+        lat,
+        lng,
+      );
+      return {
+        codigo: String(r[0] || "").trim(),
+        descResumida: String(r[2] || "").trim(),
+        descCompleta: String(r[3] || "").trim(),
+        uf: ufRegiao.uf,
+        regiao: ufRegiao.regiao,
+        tipo: String(r[7] || "").trim(),
+        lat: lat,
+        lng: lng,
+      };
+    });
 
   return JSON.stringify(pcs);
 }
@@ -611,6 +640,15 @@ function getHistoricoExcesso(dataIni, dataFim) {
       if (!dataBruta || dataBruta < dtIni || dataBruta > dtFim) return;
     }
 
+    var latExc = _coordOuNull(r[16], 90);
+    var lngExc = _coordOuNull(r[17], 180);
+    var ufRegiaoExc = _comFallbackUfRegiao(
+      String(r[6] || "").trim(),
+      String(r[7] || "").trim(),
+      latExc,
+      lngExc,
+    );
+
     registros.push({
       chave: chave,
       data: dataBruta ? Utilities.formatDate(dataBruta, Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[1] || ""),
@@ -618,8 +656,8 @@ function getHistoricoExcesso(dataIni, dataFim) {
       linha: String(r[3] || "").trim(),
       ponto: String(r[4] || "").trim(),
       cidade: String(r[5] || "").trim(),
-      uf: String(r[6] || "").trim(),
-      regiao: String(r[7] || "").trim(),
+      uf: ufRegiaoExc.uf,
+      regiao: ufRegiaoExc.regiao,
       motorista: String(r[8] || "").trim(),
       motoristaCodigo: String(r[9] || "").trim(),
       entrada: String(r[10] || "").trim(),
@@ -628,8 +666,8 @@ function getHistoricoExcesso(dataIni, dataFim) {
       permitidoMin: Number(r[13]) || 0,
       excedenteMin: Number(r[14]) || 0,
       occurrenceId: String(r[15] || "").trim(),
-      lat: _coordOuNull(r[16], 90),
-      lng: _coordOuNull(r[17], 180),
+      lat: latExc,
+      lng: lngExc,
     });
   });
 
@@ -754,14 +792,22 @@ function _buildPcMap(ss) {
       .forEach(function (r) {
         const codigo = String(r[0] || "").trim();
         if (!codigo) return;
+        const lat = _coordOuNull(r[30], 90);
+        const lng = _coordOuNull(r[31], 180);
+        const ufRegiao = _comFallbackUfRegiao(
+          String(r[4] || "").trim(),
+          String(r[5] || "").trim(),
+          lat,
+          lng,
+        );
         map[codigo] = {
           descResumida: String(r[2] || "").trim(),
           descCompleta: String(r[3] || "").trim(),
-          uf: String(r[4] || "").trim(),
-          regiao: String(r[5] || "").trim(),
+          uf: ufRegiao.uf,
+          regiao: ufRegiao.regiao,
           tipo: String(r[7] || "").trim(),
-          lat: _coordOuNull(r[30], 90),
-          lng: _coordOuNull(r[31], 180),
+          lat: lat,
+          lng: lng,
         };
       });
   } catch (e) {
