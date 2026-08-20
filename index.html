@@ -97,6 +97,12 @@
       .filter-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto3); margin-bottom: var(--sp-3); display: flex; align-items: center; gap: 8px; }
       .filter-section-label::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
       .filter-bar { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; justify-content: flex-start; }
+      /* Ações (Aplicar → Análises) ficam ancoradas na borda direita da
+         barra quando sobra espaço na linha, em vez de deixar um vão morto
+         depois do último botão — cada item continua quebrando linha
+         individualmente (ver .filter-fields/.btn-group: display:contents). */
+      .btn-acoes-inicio { margin-left: auto; }
+      @media (max-width: 960px) { .btn-acoes-inicio { margin-left: 0; } }
       /* Campos com largura própria por tipo (data curta, base média, busca
          um pouco maior) em vez de esticar igualmente — evita que Base/Local/
          Motorista fiquem largos demais sem necessidade. */
@@ -723,7 +729,7 @@
           </div>
         </div>
         <div class="btn-group">
-          <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
+          <button class="btn btn-primary btn-acoes-inicio" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
           <div class="btn-group-divider" title="Análises disponíveis"></div>
 
