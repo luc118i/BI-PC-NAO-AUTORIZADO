@@ -145,6 +145,32 @@
       .btn-modulo:hover { border-color: var(--borda-l); color: var(--texto); background: var(--laranja4); }
       .btn-modulo:hover svg { opacity: 1; stroke: var(--laranja); }
 
+      /* Menu "Análises" — agrupa os módulos (Locais de Parada Irregular /
+         Tempo de Permanência / Antecipação de Garagens) num dropdown único
+         em vez de 3 botões soltos na barra de filtros. */
+      .analises-menu-wrap { position: relative; }
+      .analises-menu-chevron { margin-left: 1px; opacity: 0.6; transition: transform var(--transition); }
+      #btnAnalisesMenu.aberto .analises-menu-chevron { transform: rotate(180deg); }
+      #btnAnalisesMenu.aberto { border-color: var(--borda-l); color: var(--texto); background: var(--laranja4); }
+      .analises-menu {
+        position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+        min-width: 240px; padding: 6px; border-radius: var(--radius);
+        background: var(--preto3); border: 1px solid var(--borda2); box-shadow: var(--shadow-elevated);
+        display: flex; flex-direction: column; gap: 2px;
+        opacity: 0; transform: translateY(-4px); pointer-events: none;
+        transition: opacity var(--transition), transform var(--transition);
+      }
+      .analises-menu.aberto { opacity: 1; transform: translateY(0); pointer-events: auto; }
+      .analises-menu-item {
+        display: flex; align-items: center; gap: 10px; width: 100%;
+        padding: 9px 10px; border-radius: var(--radius-sm); border: none; background: transparent;
+        color: var(--texto2); font-family: var(--font); font-size: 12.5px; font-weight: 600; text-align: left;
+        cursor: pointer; transition: background var(--transition), color var(--transition);
+      }
+      .analises-menu-item svg { opacity: 0.7; flex-shrink: 0; transition: opacity var(--transition), stroke var(--transition); }
+      .analises-menu-item:hover { background: var(--laranja4); color: var(--texto); }
+      .analises-menu-item:hover svg { opacity: 1; stroke: var(--laranja); }
+
       /* Botão apresentação — tratado como recurso de destaque do sistema,
          não apenas mais um botão: pill laranja discreta, ícone contido,
          feedback de elevação no hover. */
@@ -700,9 +726,33 @@
           <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar</button>
           <button class="btn btn-ghost" onclick="limparFiltros()">Limpar</button>
           <div class="btn-group-divider" title="Análises disponíveis"></div>
-          <button class="btn btn-modulo" onclick="abrirModalGerenciarLocais()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg> Locais de Parada Irregular</button>
-          <button class="btn btn-modulo" onclick="abrirTempoPermanencia()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg> Tempo de Permanência</button>
-          <button class="btn btn-modulo" onclick="abrirAntecipacaoGaragens()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="9" rx="2"></rect><path d="M5 8l1.5-4h11L19 8"></path><circle cx="7.5" cy="17" r="1.6"></circle><circle cx="16.5" cy="17" r="1.6"></circle></svg> Antecipação de Garagens</button>
+
+          <!-- Menu "Análises" — agrupa os 3 módulos (Locais de Parada
+               Irregular / Tempo de Permanência / Antecipação de Garagens)
+               num único dropdown em vez de 3 botões soltos na barra.
+               Mesmas funções de sempre (abrirModalGerenciarLocais() etc.),
+               só a apresentação muda. Ver _toggleAnalisesMenu() no script. -->
+          <div class="analises-menu-wrap">
+            <button class="btn btn-modulo" id="btnAnalisesMenu" onclick="_toggleAnalisesMenu(event)" aria-haspopup="true" aria-expanded="false">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+              Análises
+              <svg class="analises-menu-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="analises-menu hidden" id="analisesMenu">
+              <button class="analises-menu-item" onclick="_fecharAnalisesMenu();abrirModalGerenciarLocais()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span>Locais de Parada Irregular</span>
+              </button>
+              <button class="analises-menu-item" onclick="_fecharAnalisesMenu();abrirTempoPermanencia()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>
+                <span>Tempo de Permanência</span>
+              </button>
+              <button class="analises-menu-item" onclick="_fecharAnalisesMenu();abrirAntecipacaoGaragens()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="9" rx="2"></rect><path d="M5 8l1.5-4h11L19 8"></path><circle cx="7.5" cy="17" r="1.6"></circle><circle cx="16.5" cy="17" r="1.6"></circle></svg>
+                <span>Antecipação de Garagens</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2116,6 +2166,44 @@
         var url = (webAppBaseUrl || window.location.href.split("?")[0]) + "?view=tempo-antecipacao-garagens";
         window.open(url, "_blank");
       }
+
+      // ─────────────────────────────────────────────────────────
+      //  Menu "Análises" (dropdown que agrupa Locais de Parada Irregular /
+      //  Tempo de Permanência / Antecipação de Garagens na barra de
+      //  filtros) — só UI, os handlers dos itens continuam sendo as
+      //  mesmas abrirModalGerenciarLocais()/abrirTempoPermanencia()/
+      //  abrirAntecipacaoGaragens() de sempre.
+      // ─────────────────────────────────────────────────────────
+      function _toggleAnalisesMenu(ev) {
+        if (ev) ev.stopPropagation();
+        var btn = document.getElementById("btnAnalisesMenu");
+        var menu = document.getElementById("analisesMenu");
+        var abrindo = menu.classList.contains("hidden");
+        if (abrindo) {
+          menu.classList.remove("hidden");
+          requestAnimationFrame(function () { menu.classList.add("aberto"); });
+          btn.classList.add("aberto");
+          btn.setAttribute("aria-expanded", "true");
+        } else {
+          _fecharAnalisesMenu();
+        }
+      }
+      function _fecharAnalisesMenu() {
+        var btn = document.getElementById("btnAnalisesMenu");
+        var menu = document.getElementById("analisesMenu");
+        if (!menu || menu.classList.contains("hidden")) return;
+        menu.classList.remove("aberto");
+        btn.classList.remove("aberto");
+        btn.setAttribute("aria-expanded", "false");
+        setTimeout(function () { menu.classList.add("hidden"); }, 160);
+      }
+      document.addEventListener("click", function (ev) {
+        var wrap = document.querySelector(".analises-menu-wrap");
+        if (wrap && !wrap.contains(ev.target)) _fecharAnalisesMenu();
+      });
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape") _fecharAnalisesMenu();
+      });
 
       // Paginação da tabela histórico
       let pagAtual        = 1;
