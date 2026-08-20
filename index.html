@@ -96,7 +96,7 @@
       .filter-wrap { background: var(--preto2); border-bottom: 1px solid var(--borda); padding: var(--sp-4) 28px; }
       .filter-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto3); margin-bottom: var(--sp-3); display: flex; align-items: center; gap: 8px; }
       .filter-section-label::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
-      .filter-bar { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; }
+      .filter-bar { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; justify-content: flex-start; }
       /* Campos com largura própria por tipo (data curta, base média, busca
          um pouco maior) em vez de esticar igualmente — evita que Base/Local/
          Motorista fiquem largos demais sem necessidade. */
@@ -108,7 +108,7 @@
       .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; }
       .filter-group.fg-data { width: 138px; }
       .filter-group.fg-base { width: 168px; }
-      .filter-group.fg-busca { width: 180px; flex: 1 1 160px; max-width: 220px; }
+      .filter-group.fg-busca { width: 190px; }
       .filter-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto3); font-weight: 600; }
       .filter-group input[type="date"],
       .filter-group select,
