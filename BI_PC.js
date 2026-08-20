@@ -137,7 +137,13 @@ function definirPastaDriveRelatorios(folderId, folderName) {
 // (normalmente "", que vira "Não informado" no front-end).
 function _comFallbackUfRegiao(uf, regiao, lat, lng) {
   if (uf && regiao) return { uf: uf, regiao: regiao };
-  if (!isFinite(lat) || !isFinite(lng)) return { uf: uf, regiao: regiao };
+  // isFinite(null) === true (Number(null) é 0) — checar typeof primeiro,
+  // senão lat/lng ausentes (null, de _coordOuNull) viram silenciosamente
+  // a coordenada (0,0) e o ponto-no-polígono roda à toa pra nada (0,0
+  // fica no Atlântico, nunca bate com nenhuma UF, mas gasta CPU).
+  if (typeof lat !== "number" || typeof lng !== "number" || !isFinite(lat) || !isFinite(lng)) {
+    return { uf: uf, regiao: regiao };
+  }
   try {
     var r = ufRegiaoPorCoordenada_(lat, lng);
     return { uf: uf || r.uf || "", regiao: regiao || r.regiao || "" };
@@ -379,6 +385,47 @@ function getDadosBI(dataIni, dataFim) {
   });
 
   return JSON.stringify(registros);
+}
+
+/** ==============================
+ *  DIAGNÓSTICO — locais sem Região no período (index.html)
+ *  ==============================
+ *  Roda a mesma junção de getDadosBI() e lista os locais (idLocal +
+ *  nome) cuja Região ficou vazia ("Não informado" no donut), indicando
+ *  se o motivo é falta de Latitude_OK/Longitude_OK na aba "PC'S NÃO
+ *  AUTORIZADO" (nesse caso o fallback por coordenada não tem o que
+ *  usar) ou se a coordenada existe mas caiu fora de qualquer UF.
+ *
+ *  Rodar manualmente pelo editor do Apps Script (selecionar esta
+ *  função no dropdown, Executar, depois Ver > Registros de execução).
+ */
+function diagnosticarRegioesNaoInformadas(dataIni, dataFim) {
+  var regs = JSON.parse(getDadosBI(dataIni, dataFim));
+  var porLocal = {};
+  regs.forEach(function (r) {
+    if (r.regiao) return;
+    var k = r.idLocal + " · " + (r.descResumida || r.local);
+    if (!porLocal[k]) {
+      porLocal[k] = {
+        idLocal: r.idLocal,
+        local: r.descResumida || r.local,
+        temCoordenada: r.lat !== null && r.lng !== null,
+        lat: r.lat,
+        lng: r.lng,
+        visitas: 0,
+      };
+    }
+    porLocal[k].visitas++;
+  });
+  var lista = Object.values(porLocal).sort(function (a, b) { return b.visitas - a.visitas; });
+  Logger.log(
+    "Locais sem Região no período (" + lista.length + "):\n" +
+    lista.map(function (l) {
+      return "- " + l.local + " (idLocal=" + l.idLocal + ", " + l.visitas + " visitas) — " +
+        (l.temCoordenada ? "TEM coordenada (" + l.lat + "," + l.lng + ") mas caiu fora de qualquer UF" : "SEM Latitude_OK/Longitude_OK cadastrada");
+    }).join("\n"),
+  );
+  return lista;
 }
 
 // ── 5b. Status de análise — Tempo de Permanência ──────────────
