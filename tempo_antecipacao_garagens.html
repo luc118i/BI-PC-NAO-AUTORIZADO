@@ -90,6 +90,7 @@
       .secao-hr { border: none; border-top: 1px solid var(--borda); margin: 26px 0; }
 
       .estado-vazio { font-size: 13px; color: var(--texto3); text-align: center; padding: 24px 0; }
+      .empty-state-icon { width: 56px; height: 56px; fill: var(--cinza2); display: block; margin: 0 auto 14px; }
 
       /* ── ABAS (Antecipação / Em Trânsito) ─────────────────── */
       .ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
@@ -286,17 +287,20 @@
       .wpp-bubble s { text-decoration: line-through; }
 
       /* ── Histórico de Cobranças (tabela) ────────────────────────── */
-      .hist-table-wrap { overflow-x: auto; border: 1px solid var(--borda); border-radius: var(--radius-sm); }
+      .hist-table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--borda); border-radius: var(--radius-sm); }
       .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
       .hist-table th, .hist-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--borda); }
-      .hist-table th { color: var(--texto3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: var(--preto3); position: sticky; top: 0; }
+      .hist-table th { color: var(--texto3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: var(--preto3); position: sticky; top: 0; z-index: 1; }
+      .hist-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
       .hist-table tbody tr:hover { background: var(--laranja4); cursor: pointer; }
       .hist-table tbody tr:last-child td { border-bottom: none; }
-      .hist-table td.hist-justif { white-space: normal; max-width: 260px; color: var(--texto2); }
+      .hist-table td.hist-num { text-align: right; font-variant-numeric: tabular-nums; }
+      .hist-table td.hist-justif { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--texto2); }
       .hist-table td.hist-justif.vazia { color: var(--texto3); font-style: italic; }
-      .hist-tom { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
-      .hist-tom.cobranca { background: rgba(224,80,80,0.15); color: var(--vermelho); }
+      .hist-tom, .hist-status { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+      .hist-tom.cobranca, .hist-status.fora { background: rgba(224,80,80,0.15); color: var(--vermelho); }
       .hist-tom.informativo { background: var(--laranja3); color: var(--laranja); }
+      .hist-status.outro { background: var(--cinza); color: var(--texto2); }
 
       footer { background: var(--preto2); border-top: 1px solid var(--borda2); padding: 20px 28px; margin-top: 8px; }
       .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -346,8 +350,10 @@
            de deixar a tela sem nenhuma pista do que fazer. ──────────── -->
       <div class="card hidden" id="agEmptyState">
         <div class="estado-vazio">
-          Nenhuma cobrança registrada ainda.<br>
-          Importe o CSV do dia pra começar a análise de antecipação das garagens.
+          <svg class="empty-state-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 10 12 3 21 10 21 21 15 21 15 13 9 13 9 21 3 21 Z"/>
+          </svg>
+          <div>Nenhuma cobrança registrada ainda.<br>Importe o CSV do dia pra começar a análise de antecipação das garagens.</div>
           <div style="margin-top:14px">
             <button class="btn btn-primary" onclick="document.getElementById('agFileInput').click()">+ Importar CSV</button>
           </div>
@@ -821,17 +827,18 @@
         document.getElementById("histVazioNota").classList.toggle("hidden", !!lista.length);
         document.getElementById("histTabelaBody").innerHTML = lista.map(function (r) {
           var tomCls = r.tomMensagem === "Cobrança" ? "cobranca" : "informativo";
+          var statusCls = /fora/i.test(r.status || "") ? "fora" : "outro";
           var justif = r.justificativa
             ? '<td class="hist-justif" title="' + String(r.justificativa).replace(/"/g, "&quot;") + '">' + r.justificativa + '</td>'
             : '<td class="hist-justif vazia">—</td>';
           return '<tr class="hist-row" onclick="_abrirHistJustifModal(' + r.linha + ')" title="Clique para ver/editar a justificativa">' +
-            '<td>' + (r.dataEnvio || "—") + '</td>' +
-            '<td>' + (r.dataViagem || "—") + '</td>' +
+            '<td class="hist-num">' + (r.dataEnvio || "—") + '</td>' +
+            '<td class="hist-num">' + (r.dataViagem || "—") + '</td>' +
             '<td>' + (r.garagem || "—") + '</td>' +
-            '<td>' + (r.veiculo || "—") + '</td>' +
+            '<td class="hist-num">' + (r.veiculo || "—") + '</td>' +
             '<td>' + (r.tipoAnalise || "—") + '</td>' +
             '<td>' + (r.linhaCod || "—") + '</td>' +
-            '<td>' + (r.status || "—") + '</td>' +
+            '<td><span class="hist-status ' + statusCls + '">' + (r.status || "—") + '</span></td>' +
             '<td><span class="hist-tom ' + tomCls + '">' + (r.tomMensagem || "—") + '</span></td>' +
             justif +
           '</tr>';
