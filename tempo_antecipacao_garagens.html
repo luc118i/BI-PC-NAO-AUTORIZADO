@@ -403,6 +403,7 @@
             <input type="date" id="histDataDe" onchange="_renderHistoricoFiltradoAG()" />
             <label for="histDataAte">até</label>
             <input type="date" id="histDataAte" onchange="_renderHistoricoFiltradoAG()" />
+            <button type="button" class="btn btn-ghost" onclick="_filtroDataHojeHistAG()" title="Filtrar só as viagens de hoje">Hoje</button>
             <button type="button" class="btn btn-ghost" id="histDataLimpar" onclick="_limparFiltroDataHistAG()" title="Limpar filtro de data">✕</button>
           </div>
         </div>
@@ -777,6 +778,16 @@
       function _limparFiltroDataHistAG() {
         document.getElementById("histDataDe").value = "";
         document.getElementById("histDataAte").value = "";
+        _renderHistoricoFiltradoAG();
+      }
+
+      // Botão "Hoje" — puxa a data do calendário do próprio navegador
+      // (não depende de nenhum dado carregado) e filtra só as viagens de
+      // hoje, de/até no mesmo dia.
+      function _filtroDataHojeHistAG() {
+        var hojeStr = _fmtDataInputAG(new Date());
+        document.getElementById("histDataDe").value = hojeStr;
+        document.getElementById("histDataAte").value = hojeStr;
         _renderHistoricoFiltradoAG();
       }
 
