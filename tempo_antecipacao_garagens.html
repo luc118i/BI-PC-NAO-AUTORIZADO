@@ -715,9 +715,7 @@
         _bootPendentesAG--;
         if (_bootPendentesAG > 0) return;
         document.getElementById("agBootLoading").classList.add("hidden");
-        if (!_historicoAG.length) {
-          document.getElementById("agEmptyState").classList.remove("hidden");
-        }
+        document.getElementById("agEmptyState").classList.toggle("hidden", !!_historicoAG.length);
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -726,6 +724,21 @@
       //  em BI_PC.js). Só aparece se já existe pelo menos 1 registro.
       // ═══════════════════════════════════════════════════════════
       var _historicoAG = [];
+
+      // Segunda a domingo da semana corrente (baseado na data local do
+      // navegador) — usado pra pré-selecionar o filtro de data do
+      // Histórico assim que a tela abre, ver _carregarHistoricoAG abaixo.
+      function _semanaAtualAG() {
+        var hoje = new Date();
+        var diaSemana = hoje.getDay(); // 0=domingo ... 6=sábado
+        var offsetSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+        var segunda = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - offsetSegunda);
+        var domingo = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + 6);
+        return { de: segunda, ate: domingo };
+      }
+      function _fmtDataInputAG(d) {
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      }
 
       function _carregarHistoricoAG(cb) {
         if (!(window.google && google.script && google.script.run)) { if (cb) cb(); return; }
@@ -738,6 +751,11 @@
               document.getElementById("kHistGaragens").textContent = new Set(_historicoAG.map(function (r) { return r.garagem; })).size;
               document.getElementById("kHistCobranca").textContent = _historicoAG.filter(function (r) { return r.tomMensagem === "Cobrança"; }).length;
               document.getElementById("kHistSemJustificativa").textContent = _historicoAG.filter(function (r) { return !r.justificativa; }).length;
+              // Filtro de data pré-selecionado na semana atual — o
+              // usuário pode limpar com o botão ✕ se quiser ver tudo.
+              var semana = _semanaAtualAG();
+              document.getElementById("histDataDe").value = _fmtDataInputAG(semana.de);
+              document.getElementById("histDataAte").value = _fmtDataInputAG(semana.ate);
               _renderHistoricoFiltradoAG();
             }
             if (cb) cb();
