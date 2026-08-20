@@ -164,6 +164,16 @@
         cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
       }
       .oco-esquema-btn:hover { border-color: #4f8ef7; color: #4f8ef7; background: rgba(79,142,247,0.1); }
+      /* Checkbox "Cobrar" — desmarca pra excluir 1 ocorrência da próxima
+         cobrança da garagem sem precisar mexer nas outras (ex.: falso
+         positivo, veículo em trânsito misclassificado). */
+      .oco-incluir-toggle {
+        display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--texto2);
+        cursor: pointer; user-select: none; flex-shrink: 0;
+      }
+      .oco-incluir-toggle input { accent-color: var(--laranja); cursor: pointer; }
+      .oco-item.excluido-cobranca { opacity: 0.45; }
+      .oco-item.excluido-cobranca .oco-incluir-toggle { opacity: 1; color: var(--texto3); }
       .oco-esquema-panel { flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto3); border: 1px solid var(--borda2); }
       .oco-esquema-input { width: 100%; background: var(--preto2); border: 1px solid var(--cinza2); color: var(--texto); font-family: "Barlow", sans-serif; font-size: 12px; padding: 7px 10px; border-radius: var(--radius-sm); }
       .oco-esquema-input:focus { outline: none; border-color: var(--laranja); }
@@ -1869,7 +1879,7 @@
         var veiculoEsc = String(o.veiculo || "").replace(/'/g, "\\'");
         var garagemEsc = String(o.garagemPontoBruto || "").replace(/'/g, "\\'");
         var rodoviariaEsc = String(o.rodoviariaPontoBruto || "").replace(/'/g, "\\'");
-        return '<div class="oco-item" style="flex-wrap:wrap">' +
+        return '<div class="oco-item" id="oco-item-' + idx + '" style="flex-wrap:wrap">' +
           '<div class="oco-info">' +
             '<div class="oco-cabecalho">' +
               '<b class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + veiculoEsc + '\')" title="Clique para copiar o veículo">' + o.veiculo + '</b>' +
@@ -1892,6 +1902,9 @@
             '<div class="esperado">esperado ' + _fmtHoraMinAG(o.antecipacaoEsperadaMin) + '</div>' +
           '</div>' +
           '<span class="oco-badge ' + badgeCls + '">' + o.status + '</span>' +
+          '<label class="oco-incluir-toggle" onclick="event.stopPropagation()" title="Desmarque pra deixar essa ocorrência de fora da próxima cobrança dessa garagem (ex.: falso positivo, veículo em trânsito)">' +
+            '<input type="checkbox" checked onchange="_toggleIncluirCobrancaAG(' + idx + ', this.checked)" /> Cobrar' +
+          '</label>' +
           '<button type="button" class="oco-esquema-btn" onclick="_verEsquemaAG(' + idx + ')" title="Ver se essa antecipação insuficiente também atrasou a sessão/partida do veículo">Ver esquema</button>' +
           '<button type="button" class="oco-esquema-btn" onclick="_toggleJustificativaAG(' + idx + ')" title="Registrar o motivo apurado pra essa ocorrência (depois de cobrada)">Justificativa</button>' +
           '<div class="oco-esquema-panel hidden" id="oco-esquema-' + idx + '"></div>' +
@@ -1914,7 +1927,7 @@
         var garagemEsc = String(o.garagemPontoBruto || "").replace(/'/g, "\\'");
         var rodoviariaEsc = String(o.rodoviariaPontoBruto || "").replace(/'/g, "\\'");
         var limiteFmt = o.tempoMaximoTransitoMin != null ? _fmtDuracaoAG(o.tempoMaximoTransitoMin) : "sem referência";
-        return '<div class="oco-item" style="flex-wrap:wrap">' +
+        return '<div class="oco-item" id="oco-item-t-' + idx + '" style="flex-wrap:wrap">' +
           '<div class="oco-info">' +
             '<div class="oco-cabecalho">' +
               '<b class="oco-copy" onclick="event.stopPropagation();_copiarTextoAG(this,\'' + veiculoEsc + '\')" title="Clique para copiar o veículo">' + o.veiculo + '</b>' +
@@ -1933,9 +1946,32 @@
             '<div class="esperado">limite ' + limiteFmt + '</div>' +
           '</div>' +
           '<span class="oco-badge ' + badgeCls + '">' + o.statusTransito + '</span>' +
+          '<label class="oco-incluir-toggle" onclick="event.stopPropagation()" title="Desmarque pra deixar essa ocorrência de fora da próxima cobrança dessa garagem">' +
+            '<input type="checkbox" checked onchange="_toggleIncluirCobrancaTransitoAG(' + idx + ', this.checked)" /> Cobrar' +
+          '</label>' +
           '<button type="button" class="oco-esquema-btn" onclick="_toggleJustificativaTransitoAG(' + idx + ')" title="Registrar o motivo apurado pra essa ocorrência (depois de cobrada)">Justificativa</button>' +
           '<div class="oco-esquema-panel hidden" id="oco-justif-t-' + idx + '"></div>' +
         '</div>';
+      }
+
+      // Checkbox "Cobrar" de cada ocorrência — marca/desmarca se ela entra
+      // na PRÓXIMA mensagem gerada pra essa garagem (ver filtro em
+      // _montarMensagemCobranca/_montarMensagemCobrancaTransito). Útil
+      // pra tirar da cobrança um caso que na verdade é falso positivo /
+      // veículo em trânsito, sem precisar excluir a garagem inteira.
+      function _toggleIncluirCobrancaAG(idx, incluido) {
+        var o = _ocoItensAG[idx];
+        if (!o) return;
+        o.excluidoCobranca = !incluido;
+        var item = document.getElementById("oco-item-" + idx);
+        if (item) item.classList.toggle("excluido-cobranca", !incluido);
+      }
+      function _toggleIncluirCobrancaTransitoAG(idx, incluido) {
+        var o = _ocoItensTransitoAG[idx];
+        if (!o) return;
+        o.excluidoCobranca = !incluido;
+        var item = document.getElementById("oco-item-t-" + idx);
+        if (item) item.classList.toggle("excluido-cobranca", !incluido);
       }
 
       // Nível 2 = garagem, aninhado dentro da região — cabeçalho já com o
@@ -2025,6 +2061,10 @@
       function _abrirCobrancaModal(origemFull) {
         var g = _garagensAgrupadas.find(function (x) { return x.origemFull === origemFull; });
         if (!g) return;
+        if (!g.itens.some(function (o) { return o.status === "Fora do prazo" && !o.excluidoCobranca; })) {
+          _alertarAcao('Todas as ocorrências dessa garagem estão desmarcadas (checkbox "Cobrar"). Marque pelo menos 1 pra gerar a cobrança.');
+          return;
+        }
         _garSelecionada = g;
 
         document.getElementById("garModalTitulo").textContent = "Gerar cobrança — Garagem " + g.cidade;
@@ -2047,6 +2087,10 @@
       function _abrirCobrancaModalTransito(origemFull) {
         var g = _garagensAgrupadasTransito.find(function (x) { return x.origemFull === origemFull; });
         if (!g) return;
+        if (!g.itens.some(function (o) { return o.statusTransito === "Fora do prazo" && !o.excluidoCobranca; })) {
+          _alertarAcao('Todas as ocorrências dessa garagem estão desmarcadas (checkbox "Cobrar"). Marque pelo menos 1 pra gerar a cobrança.');
+          return;
+        }
         _garSelecionada = g;
 
         document.getElementById("garModalTitulo").textContent = "Gerar cobrança (em trânsito) — Garagem " + g.cidade;
@@ -2097,7 +2141,7 @@
       function _montarMensagemCobranca(g, refGaragem) {
         var esperadoFmt = _fmtHoraMinAG(refGaragem ? refGaragem.antecipacaoMin : null);
 
-        var itensFora = g.itens.filter(function (o) { return o.status === "Fora do prazo"; });
+        var itensFora = g.itens.filter(function (o) { return o.status === "Fora do prazo" && !o.excluidoCobranca; });
         var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
         var dataMin = datas.length ? new Date(Math.min.apply(null, datas)) : null;
         var dataMax = datas.length ? new Date(Math.max.apply(null, datas)) : null;
@@ -2183,7 +2227,7 @@
         // aba Garagens.
         var limiteFmt = _fmtDuracaoAG(LIMITE_PERMANENCIA_TRANSITO_MIN_AG);
 
-        var itensFora = g.itens.filter(function (o) { return o.statusTransito === "Fora do prazo"; });
+        var itensFora = g.itens.filter(function (o) { return o.statusTransito === "Fora do prazo" && !o.excluidoCobranca; });
         var datas = itensFora.map(function (o) { return o.data; }).filter(Boolean);
         var dataMin = datas.length ? new Date(Math.min.apply(null, datas)) : null;
         var dataMax = datas.length ? new Date(Math.max.apply(null, datas)) : null;
