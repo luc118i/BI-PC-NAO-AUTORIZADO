@@ -1355,7 +1355,7 @@
       //      esquema", sinal mais fraco (pode ser posto/restaurante que o
       //      roteiro simplesmente não lista, não necessariamente algo
       //      errado), mas ainda vale mostrar pro usuário decidir.
-      //  Garagem não entra (é parada normal, coberta pelo indicador A).
+      //  Garagem e rodoviária não entram (parada normal de terminal).
       // ─────────────────────────────────────────────────────────
       // Abaixo disso não conta como parada de verdade — é passagem rápida
       // /ruído de GPS, não vale reportar como PC irregular/fora do esquema.
@@ -1387,7 +1387,10 @@
         var achados = [];
         for (var i = idxAtual - 1; i > idxDesde; i--) {
           var r = linhaVeiculo[i];
-          if (_ehGaragem(r.ponto)) continue;
+          // Rodoviária, como garagem, é parada normal de terminal — não
+          // faz sentido reportar como "PC irregular" só porque o nome
+          // dela também bate com um PC cadastrado como não autorizado.
+          if (_ehGaragem(r.ponto) || _ehRodoviaria(r.ponto)) continue;
           var normPonto = _normTP(r.ponto);
           if (!normPonto) continue;
           if (_parseDurSeg(r.parada) / 60 < LIMITE_PARADA_IRREGULAR_MIN_TP) continue;
