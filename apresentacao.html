@@ -3262,7 +3262,23 @@
         }
       }
 
+      // Registros de HISTORICO_EXCESSO trazem "linha" como um único texto
+      // já pronto ("CODIGO - CIDADE (UF) - CIDADE (UF)"), sem os campos
+      // separados de hora/sentido que o catálogo de PC irregular grava em
+      // "codigo|rota|hora|dir" (ver _parseLinha). Só quebra em código +
+      // rota pra reaproveitar o mesmo _fmtRotaTV do card padrão — não tem
+      // hora/IDA-VOLTA pra exibir aqui porque HISTORICO_EXCESSO não guarda
+      // isso.
+      function _parseLinhaExcesso(raw) {
+        const m = raw.match(/^(\S+)\s*-\s*(.+)$/);
+        if (!m) return { codigo: "", rota: raw };
+        return { codigo: m[1], rota: m[2] };
+      }
+
       // ─── Excesso de permanência — Linhas afetadas (Slide 12) ─
+      // Mesmo layout de card do slide 7 (Linhas afetadas — PC irregular),
+      // ver renderRankingLinhasTV() — mantém o padrão visual entre as duas
+      // seções da apresentação.
       function renderLinhasExcesso() {
         const cont = {};
         excedencias.forEach((r) => {
@@ -3272,6 +3288,11 @@
           cont[linha].ocorrencias++;
           cont[linha].pontos.add(r.ponto || "—");
         });
+
+        const ufMap = _buildUfPorCidadeTV(
+          Object.keys(cont).map((linha) => _parseLinhaExcesso(linha).rota).filter(Boolean),
+        );
+
         const sorted = Object.entries(cont)
           .sort((a, b) => b[1].ocorrencias - a[1].ocorrencias)
           .slice(0, 10);
@@ -3292,12 +3313,16 @@
         }
         el.innerHTML = sorted
           .map(([linha, d], i) => {
+            const p = _parseLinhaExcesso(linha);
             const locTxt =
-              d.pontos.size !== 1 ? d.pontos.size + " pontos" : "1 ponto";
+              d.pontos.size !== 1 ? d.pontos.size + " locais" : "1 local";
             return (
               '<div class="linha-card">' +
               '<div class="linha-medal ' + medalClass(i) + '">' + (i + 1) + "</div>" +
-              '<div class="linha-info"><div class="linha-rota">' + linha + "</div></div>" +
+              '<div class="linha-info">' +
+              (p.codigo ? '<div class="linha-topo"><span class="linha-codigo">' + p.codigo + '</span></div>' : '') +
+              '<div class="linha-rota">' + (p.rota ? _fmtRotaTV(p.rota, ufMap, "") : (p.codigo || linha)) + '</div>' +
+              "</div>" +
               '<div class="linha-metricas">' +
               '<div class="linha-count">' + d.ocorrencias + "</div>" +
               '<div class="linha-locais">' + locTxt + "</div>" +
