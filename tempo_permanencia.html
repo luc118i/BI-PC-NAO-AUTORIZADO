@@ -375,6 +375,63 @@
         white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
       }
 
+      /* Indicador de garagem no cabeçalho do grupo (prefixo) — ver
+         _statusGaragemGrupoTP: sinaliza, de forma discreta, se o atraso
+         já nascia na garagem (antecipação insuficiente) ou se a garagem
+         liberou dentro do tempo ideal (o atraso surgiu depois, em algum
+         ponto do trajeto — cabe ao usuário investigar ali). */
+      .perm-gar-badge {
+        font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+        white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+      }
+      .perm-gar-ok {
+        border: 1px solid var(--borda2); color: var(--texto3); background: transparent;
+      }
+      .perm-gar-atraso {
+        border: 1px solid var(--laranja); color: var(--laranja); background: var(--laranja4);
+      }
+
+      /* Indicador C — excesso em ponto de apoio (>40min), no item da
+         ocorrência — ver _excessoPontoApoioItemTP. */
+      .perm-apoio-badge {
+        margin-top: 6px; font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 6px;
+        border: 1px solid var(--amarelo); color: var(--amarelo); background: rgba(240,192,64,0.10);
+        display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+        flex-basis: 100%; /* .perm-item é flex-wrap — força o aviso pra própria linha, não espremido ao lado dos botões */
+      }
+
+      /* Indicador B — locais do roteiro sem nenhuma leitura de GPS pra
+         este veículo no dia, no painel "Ver esquema" do grupo/item — ver
+         _locaisNaoPercorridosTP. Lista em chips (não um parágrafo corrido
+         de maiúsculas) pra ficar escaneável; altura travada com scroll
+         interno pra não estourar o card quando a lista for grande. */
+      .perm-nao-percorrido { margin-top: 6px; font-size: 11px; color: var(--laranja); }
+      .perm-nao-percorrido-head { display: flex; align-items: center; gap: 5px; font-weight: 600; margin-bottom: 4px; }
+      .perm-nao-percorrido-lista {
+        display: flex; flex-wrap: wrap; gap: 4px; max-height: 48px; overflow-y: auto; padding-right: 2px;
+      }
+      .perm-nao-percorrido-chip {
+        font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+        border: 1px solid rgba(244,121,32,0.35); background: rgba(244,121,32,0.08); color: var(--laranja);
+      }
+
+      /* Indicador D — PC irregular / parada fora do esquema, na mesma
+         perna do indicador B — ver _paradasIrregularesTP. Vermelho pra PC
+         cadastrado como não autorizado (mais grave), laranja pra parada
+         que só não consta no roteiro (pode ser normal, é sinal fraco). */
+      .perm-irregular { margin-top: 6px; font-size: 11px; color: var(--vermelho); }
+      .perm-irregular-head { display: flex; align-items: center; gap: 5px; font-weight: 600; margin-bottom: 4px; }
+      .perm-irregular-lista {
+        display: flex; flex-wrap: wrap; gap: 4px; max-height: 48px; overflow-y: auto; padding-right: 2px;
+      }
+      .perm-irregular-chip {
+        font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+        border: 1px solid rgba(224,80,80,0.4); background: rgba(224,80,80,0.08); color: var(--vermelho);
+      }
+      .perm-irregular-chip-fora {
+        border-color: rgba(244,121,32,0.35); background: rgba(244,121,32,0.08); color: var(--laranja);
+      }
+
       /* ── MODAL GERAR RELATÓRIO (mesmo padrão do dashboard) ─── */
       .oc-overlay {
         position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -1040,6 +1097,366 @@
       }
 
       // ─────────────────────────────────────────────────────────
+      //  Garagens (aba "Garagens", mesma base do tempo_antecipacao_
+      //  garagens.html — ver getGaragens() em BI_PC.js) — usada só pelo
+      //  indicador "saiu no tempo ideal da garagem" (_statusGaragemGrupoTP).
+      //  Reprocessa o mesmo CSV já carregado nesta tela em vez de exigir
+      //  um 2º upload: a tela de Antecipação de Garagens só persiste os
+      //  casos IRREGULARES (ver Historico_antecipacao), então pra saber se
+      //  a garagem estava ou não dentro do prazo num dia específico é
+      //  preciso recalcular aqui, com o CSV que o usuário já trouxe.
+      // ─────────────────────────────────────────────────────────
+      var _garagensCacheTP = null;
+
+      function _carregarGaragensTP(cb) {
+        if (_garagensCacheTP) { if (cb) cb(); return; }
+        if (!(window.google && google.script && google.script.run)) {
+          _garagensCacheTP = [];
+          if (cb) cb();
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(function (json) {
+            var lista = [];
+            try { lista = JSON.parse(json || "[]"); } catch (e) { lista = []; }
+            _garagensCacheTP = lista
+              .map(function (g) {
+                return { origemFull: g.origemFull, cidadeNorm: _normTP(g.cidade), antecipacaoMin: g.antecipacaoMin };
+              })
+              .filter(function (g) { return g.cidadeNorm && g.antecipacaoMin != null; });
+            if (cb) cb();
+          })
+          .withFailureHandler(function () { _garagensCacheTP = []; if (cb) cb(); })
+          .getGaragens();
+      }
+
+      // Casa o nome de um ponto (garagem OU rodoviária) contra a lista de
+      // ORIGEM cadastrada na aba Garagens — mesma técnica de _matchReferencia
+      // acima (fronteira de palavra, pega o nome de cidade mais específico
+      // em caso de empate).
+      function _matchGaragemTP(pontoNome) {
+        var norm = _normTP(pontoNome);
+        if (!norm) return null;
+        var melhor = null;
+        (_garagensCacheTP || []).forEach(function (g) {
+          var re = new RegExp("\\b" + g.cidadeNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+          if (re.test(norm) && (!melhor || g.cidadeNorm.length > melhor.cidadeNorm.length)) melhor = g;
+        });
+        return melhor;
+      }
+
+      // Parseia "YYYY-MM-DD HH:MM(:SS)" (formato do CSV de rastreamento)
+      // pra um Date — usado só pra achar a garagem mais recente antes de
+      // uma entrada (_statusGaragemGrupoTP), _fmtHM/_fmtData já cobrem a
+      // exibição, que não precisa de aritmética de data.
+      function _parseDataHoraTP(dtStr) {
+        var m = String(dtStr || "").match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (!m) return null;
+        return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+      }
+
+      // Indicador "saiu no tempo ideal da garagem" — acha, pro veículo do
+      // grupo, a última parada de garagem ANTES da 1ª ocorrência do grupo
+      // e compara a antecedência (garagem → rodoviária) com o mínimo
+      // exigido pra aquela origem (aba Garagens). Não confundir com o
+      // indicador de sessão do "Ver esquema" (esse compara a saída da
+      // RODOVIÁRIA com o horário previsto de partida da linha) — este
+      // aqui é sobre o trecho ANTES: se a garagem já liberou atrasada, o
+      // atraso "nasce" ali; se liberou dentro do prazo, o atraso surgiu
+      // depois, em algum ponto do trajeto (cabe ao usuário investigar).
+      // Mesmo cálculo de antecedência que tempo_antecipacao_garagens.html
+      // usa quando não há esquema vinculado (coluna Intervalo do CSV, com
+      // fallback pra entrada-saída) — ver _detectarOcorrenciasAG lá.
+      // Retorna null quando não há dado suficiente pra opinar (sem
+      // garagem antes, sem origem cadastrada, etc.) — nesse caso a tela
+      // simplesmente não mostra o indicador, em vez de arriscar um
+      // palpite errado.
+      function _statusGaragemGrupoTP(grupo) {
+        if (!grupo.length || !_garagensCacheTP || !_garagensCacheTP.length || !_tpRowsRaw.length) return null;
+
+        var veiculo = grupo[0].veiculo;
+        var primeiraEntrada = grupo.reduce(function (min, r) {
+          var d = _parseDataHoraTP(r.entrada);
+          return (d && (!min || d < min)) ? d : min;
+        }, null);
+        if (!primeiraEntrada) return null;
+
+        // O CSV já vem em ordem cronológica por veículo — pega a última
+        // garagem cuja saída fica antes da 1ª ocorrência deste grupo.
+        var garagemRow = null, garagemSaidaDt = null;
+        for (var i = 0; i < _tpRowsRaw.length; i++) {
+          var r = _tpRowsRaw[i];
+          if (r.veiculo !== veiculo || !_ehGaragem(r.ponto)) continue;
+          var dSaida = _parseDataHoraTP(r.saida) || _parseDataHoraTP(r.entrada);
+          if (!dSaida || dSaida >= primeiraEntrada) continue;
+          if (!garagemSaidaDt || dSaida > garagemSaidaDt) { garagemRow = r; garagemSaidaDt = dSaida; }
+        }
+        if (!garagemRow) return null; // sem garagem antes desse trecho — nada a dizer
+
+        var origem = _matchGaragemTP(garagemRow.ponto) || _matchGaragemTP(grupo[0].ponto);
+        if (!origem) return null;
+
+        var antecedenciaMin = _parseDurSeg(garagemRow.intervalo) / 60;
+        if (!antecedenciaMin) {
+          // Usa a 1ª ocorrência CRONOLÓGICA do grupo (primeiraEntrada), não
+          // grupo[0] — o array do grupo vem ordenado por excedente, não por
+          // horário, então grupo[0] pode ser qualquer ocorrência do veículo.
+          antecedenciaMin = (primeiraEntrada && garagemSaidaDt) ? (primeiraEntrada - garagemSaidaDt) / 60000 : null;
+        }
+        // Fora dessa janela é ruído de leitura (ou dado ausente), não uma
+        // antecedência real medível — mesmo limite de _detectarOcorrenciasAG.
+        if (antecedenciaMin == null || antecedenciaMin < 0 || antecedenciaMin > 240) return null;
+
+        var diferencaMin = Math.round(antecedenciaMin - origem.antecipacaoMin);
+        return {
+          origem: origem.origemFull,
+          antecipacaoMin: origem.antecipacaoMin,
+          antecedenciaMin: Math.round(antecedenciaMin),
+          diferencaMin: diferencaMin,
+          conforme: diferencaMin >= 0,
+        };
+      }
+
+      // HTML do badge discreto no cabeçalho do grupo — ver _statusGaragemGrupoTP.
+      function _htmlBadgeGaragemTP(grupo) {
+        var st = _statusGaragemGrupoTP(grupo);
+        if (!st) return "";
+        if (st.conforme) {
+          return '<span class="perm-gar-badge perm-gar-ok" ' +
+            'title="Saiu da garagem em ' + st.origem + ' com ' + st.antecedenciaMin + ' min de antecedência ' +
+            '(mínimo exigido: ' + st.antecipacaoMin + ' min) — o atraso não vem da garagem, procure a causa no trajeto">' +
+            _icon("check", 11) + ' saiu no tempo ideal da garagem</span>';
+        }
+        return '<span class="perm-gar-badge perm-gar-atraso" ' +
+          'title="Antecedência de ' + st.antecedenciaMin + ' min na garagem de ' + st.origem + ', abaixo do mínimo exigido ' +
+          '(' + st.antecipacaoMin + ' min) — o atraso pode ter nascido na liberação da garagem">' +
+          _icon("alertTriangle", 11) + ' antecipação insuficiente na garagem (' + Math.abs(st.diferencaMin) + ' min a menos)</span>';
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Indicador B — "locais que o carro não passou": compara o
+      //  roteiro completo do esquema vinculado (json.pontos, já carregado
+      //  por _verDetalheEsquemaGrupo) contra os pontos que o CSV do dia
+      //  realmente registrou pra aquele veículo (_tpRowsRaw) — sobra a
+      //  lista de pontos previstos sem nenhuma leitura de GPS. Não prova
+      //  que o veículo pulou o ponto (pode ser passagem rápida sem
+      //  registro, ou o esquema estar desatualizado) — é só um sinal pro
+      //  usuário investigar, igual ao indicador da garagem.
+      //
+      //  O CSV é um RECORTE DE 1 DIA SÓ — uma linha longa (ex.: NATAL X
+      //  SÃO PAULO) leva vários dias, então o roteiro completo tem pontos
+      //  de dias anteriores que o CSV de hoje nunca vai conter (o
+      //  veículo já passou por eles antes do recorte começar, não
+      //  "pulou"). Por isso não comparamos o roteiro INTEIRO: achamos, na
+      //  ordem do roteiro, o 1º ponto que já aparece no CSV do dia — e só
+      //  avaliamos "não passou por" a PARTIR dali.
+      //
+      //  `ateNome` (opcional): quando informado, é o ponto que está sendo
+      //  ANALISADO (ex.: "RODOVIARIA CANDIDO SALES - BA") — a lista para
+      //  ali, não segue até o fim do roteiro. Sem isso, um veículo que já
+      //  passou por 6 rodoviárias corretamente antes de chegar em Candido
+      //  Sales aparecia "não passou por" TODAS as rodoviárias que ainda
+      //  vem depois na linha (Aracaju, Maceió, Arapiraca...), que nem
+      //  aconteceram ainda — a lista precisa ser "pulados até chegar
+      //  aqui", não "o que falta na linha inteira". Se o próprio ponto
+      //  analisado for o 1º do dia, não sobra nada antes dele pra
+      //  comparar (lista vazia, indicador nem aparece).
+      //
+      //  `atePontoMatch`: o OBJETO do roteiro (não um nome) — precisa ser
+      //  o MESMO objeto que _aplicarEsquemaAoItem/_htmlEsquemaDetalhe já
+      //  acharam pra essa ocorrência (json.pontos.find(...), exibido como
+      //  "horário de sessão"). Uma 1ª versão desta função re-buscava o
+      //  índice por nome aqui dentro, só que com um critério ligeiramente
+      //  diferente do match original — pra ocorrências onde essa 2ª busca
+      //  falhava (nenhum índice achado), o corte caía no fallback "vai até
+      //  o fim do roteiro" pra TODAS elas, fazendo Petrolina, Juazeiro e
+      //  Senhor do Bonfim (bem distantes entre si) mostrarem a MESMA
+      //  lista fixa — porque na prática todas comparavam contra "o resto
+      //  do roteiro inteiro", não contra o ponto de cada uma. Reusar o
+      //  objeto já casado elimina essa 2ª busca (e essa inconsistência).
+      //
+      //  `desdePontoMatch` (opcional): NÃO é acumulativo — cada ocorrência
+      //  deve mostrar só os pontos pulados NESSA PERNA (desde a ocorrência
+      //  ANTERIOR do grupo até esta), não desde o início do dia toda vez.
+      //  Sem isso, um veículo com 5 ocorrências no dia repetia os MESMOS
+      //  pontos pulados lá no início em todas as 5 (Mossoró/Apodi
+      //  aparecendo igual em Pau dos Ferros, Petrolina, Juazeiro E Senhor
+      //  do Bonfim) — o grupo (_verDetalheEsquemaGrupo) passa o
+      //  pontoMatch da ocorrência anterior aqui; sem essa referência (uso
+      //  solto, fora de uma sequência), cai no comportamento antigo:
+      //  desde o 1º ponto do roteiro que já aparece no CSV do dia.
+      // ─────────────────────────────────────────────────────────
+      function _locaisNaoPercorridosTP(veiculo, roteiroPontos, desdePontoMatch, atePontoMatch) {
+        if (!roteiroPontos || !roteiroPontos.length || !_tpRowsRaw.length) return [];
+        // Sem o ponto analisado (ou ele não bate com o roteiro), não tem
+        // "até aqui" pra calcular — melhor não mostrar nada a arriscar uma
+        // lista que compara contra o resto da linha inteira.
+        if (!atePontoMatch) return [];
+        var fimIdx = roteiroPontos.indexOf(atePontoMatch);
+        if (fimIdx === -1) return [];
+
+        var visitadosNorm = _tpRowsRaw
+          .filter(function (r) { return r.veiculo === veiculo; })
+          .map(function (r) { return _normTP(r.ponto); })
+          .filter(Boolean);
+        if (!visitadosNorm.length) return [];
+
+        var inicioIdx;
+        if (desdePontoMatch) {
+          // Início = logo depois da ocorrência ANTERIOR do grupo — só a
+          // perna nova, não acumula o que já foi listado antes.
+          var idxAnterior = roteiroPontos.indexOf(desdePontoMatch);
+          inicioIdx = idxAnterior === -1 ? 0 : idxAnterior + 1;
+        } else {
+          // Sem ocorrência anterior conhecida (1ª do grupo, ou uso fora de
+          // sequência): início = 1º ponto do roteiro que já aparece no CSV
+          // do dia. Pontos ANTES disso ficaram fora do recorte diário —
+          // não entram na comparação, senão qualquer linha de mais de 1
+          // dia acusaria dezenas de "não passou por" falsos.
+          inicioIdx = roteiroPontos.findIndex(function (p) {
+            var nomeNorm = _normTP(p.nome);
+            if (!nomeNorm) return false;
+            return visitadosNorm.some(function (v) { return v.includes(nomeNorm) || nomeNorm.includes(v); });
+          });
+          if (inicioIdx === -1) return []; // nenhum ponto do roteiro bate com o CSV — sem base pra comparar
+        }
+        if (inicioIdx >= fimIdx) return [];
+
+        return roteiroPontos.slice(inicioIdx, fimIdx).filter(function (p) {
+          var nomeNorm = _normTP(p.nome);
+          if (!nomeNorm) return false;
+          return !visitadosNorm.some(function (v) { return v.includes(nomeNorm) || nomeNorm.includes(v); });
+        });
+      }
+
+      function _htmlNaoPercorridosTP(veiculo, roteiroPontos, desdePontoMatch, atePontoMatch) {
+        var faltantes = _locaisNaoPercorridosTP(veiculo, roteiroPontos, desdePontoMatch, atePontoMatch);
+        if (!faltantes.length) return "";
+        var chips = faltantes.map(function (p) { return '<span class="perm-nao-percorrido-chip">' + p.nome + '</span>'; }).join("");
+        var origemTxt = desdePontoMatch ? "desde a ocorrência anterior" : "a partir da data de corte";
+        return '<div class="perm-nao-percorrido" ' +
+          'title="Pontos do roteiro (' + origemTxt + ', até este ponto) sem nenhuma leitura de GPS pra este veículo — pode ser trecho não percorrido, passagem rápida sem registro, ou esquema desatualizado">' +
+          '<div class="perm-nao-percorrido-head">' + _icon("alertTriangle", 12) +
+            '<span>' + faltantes.length + ' ponto' + (faltantes.length !== 1 ? "s" : "") + ' pulado' + (faltantes.length !== 1 ? "s" : "") + ' até aqui (' + origemTxt + ')</span></div>' +
+          '<div class="perm-nao-percorrido-lista">' + chips + '</div>' +
+        '</div>';
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Indicador D — "PC irregular / fora do esquema": mesma perna do
+      //  indicador B (desde a ocorrência anterior do grupo até esta, não
+      //  acumulativo), só que olhando pro lado oposto: em vez de pontos
+      //  do ROTEIRO sem leitura no CSV, aqui é o contrário — leituras do
+      //  CSV nessa perna que:
+      //   a) batem com um PC cadastrado como NÃO AUTORIZADO (_matchPC,
+      //      mesma base do dashboard de Detecção Automática) — sinal
+      //      forte, é um local já conhecido como irregular; ou
+      //   b) não constam em NENHUM ponto do roteiro vinculado — "fora do
+      //      esquema", sinal mais fraco (pode ser posto/restaurante que o
+      //      roteiro simplesmente não lista, não necessariamente algo
+      //      errado), mas ainda vale mostrar pro usuário decidir.
+      //  Garagem não entra (é parada normal, coberta pelo indicador A).
+      // ─────────────────────────────────────────────────────────
+      // Abaixo disso não conta como parada de verdade — é passagem rápida
+      // /ruído de GPS, não vale reportar como PC irregular/fora do esquema.
+      var LIMITE_PARADA_IRREGULAR_MIN_TP = 5;
+
+      function _paradasIrregularesTP(item, roteiroPontos, desdePontoMatch) {
+        if (!_tpRowsRaw.length) return [];
+        var linhaVeiculo = _tpRowsRaw.filter(function (r) { return r.veiculo === item.veiculo; });
+
+        var idxAtual = linhaVeiculo.findIndex(function (r) {
+          return _normTP(r.ponto) === _normTP(item.ponto) && r.entrada === item.entrada;
+        });
+        if (idxAtual === -1) return [];
+
+        // Acha, na lista bruta do veículo, a linha da ocorrência ANTERIOR
+        // do grupo — pra não reprocessar um trecho já reportado antes
+        // (mesma ideia não-acumulativa do indicador B).
+        var idxDesde = -1;
+        if (desdePontoMatch) {
+          var normAnterior = _normTP(desdePontoMatch.nome);
+          for (var j = idxAtual - 1; j >= 0; j--) {
+            var n = _normTP(linhaVeiculo[j].ponto);
+            if (n && normAnterior && (n.includes(normAnterior) || normAnterior.includes(n))) { idxDesde = j; break; }
+          }
+        }
+
+        var roteiroNorm = (roteiroPontos || []).map(function (p) { return _normTP(p.nome); }).filter(Boolean);
+
+        var achados = [];
+        for (var i = idxAtual - 1; i > idxDesde; i--) {
+          var r = linhaVeiculo[i];
+          if (_ehGaragem(r.ponto)) continue;
+          var normPonto = _normTP(r.ponto);
+          if (!normPonto) continue;
+          if (_parseDurSeg(r.parada) / 60 < LIMITE_PARADA_IRREGULAR_MIN_TP) continue;
+          var pc = _matchPC(r.ponto);
+          if (pc) { achados.unshift({ ponto: r.ponto, tipo: "pc" }); continue; }
+          var noRoteiro = roteiroNorm.some(function (n) { return n.includes(normPonto) || normPonto.includes(n); });
+          if (!noRoteiro) achados.unshift({ ponto: r.ponto, tipo: "fora" });
+        }
+        return achados;
+      }
+
+      function _htmlParadasIrregularesTP(item, roteiroPontos, desdePontoMatch) {
+        var achados = _paradasIrregularesTP(item, roteiroPontos, desdePontoMatch);
+        if (!achados.length) return "";
+        var chips = achados.map(function (a) {
+          return '<span class="perm-irregular-chip' + (a.tipo === "fora" ? " perm-irregular-chip-fora" : "") + '">' + a.ponto + '</span>';
+        }).join("");
+        var qtdPc = achados.filter(function (a) { return a.tipo === "pc"; }).length;
+        var qtdFora = achados.length - qtdPc;
+        var partes = [];
+        if (qtdPc) partes.push(qtdPc + " PC irregular" + (qtdPc !== 1 ? "es" : ""));
+        if (qtdFora) partes.push(qtdFora + " fora do esquema");
+        return '<div class="perm-irregular" ' +
+          'title="Paradas nesta perna que batem com um PC cadastrado como não autorizado, ou que não constam em nenhum ponto do roteiro vinculado">' +
+          '<div class="perm-irregular-head">' + _icon("alertOctagon", 12) + '<span>' + partes.join(" · ") + '</span></div>' +
+          '<div class="perm-irregular-lista">' + chips + '</div>' +
+        '</div>';
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Indicador C — "excesso em ponto de apoio": na perna que leva até
+      //  a ocorrência (do último ponto de garagem/rodoviária até ela),
+      //  aponta paradas em posto/restaurante/outro ponto de apoio acima
+      //  de LIMITE_PONTO_APOIO_MIN_TP — ajuda a explicar um atraso que
+      //  não vem da garagem (ver indicador A) nem da sessão em si: o
+      //  tempo pode ter sido perdido no meio do caminho.
+      // ─────────────────────────────────────────────────────────
+      var LIMITE_PONTO_APOIO_MIN_TP = 40;
+
+      function _excessoPontoApoioItemTP(item) {
+        if (!_tpRowsRaw.length) return null;
+        var linhaVeiculo = _tpRowsRaw.filter(function (r) { return r.veiculo === item.veiculo; });
+        var idxItem = linhaVeiculo.findIndex(function (r) {
+          return _normTP(r.ponto) === _normTP(item.ponto) && r.entrada === item.entrada;
+        });
+        if (idxItem === -1) return null;
+
+        var achados = [];
+        for (var i = idxItem - 1; i >= 0; i--) {
+          var r = linhaVeiculo[i];
+          // Achou o limite da perna (garagem ou outra rodoviária) — pra
+          // de andar pra trás, o que veio antes disso é outra viagem/etapa.
+          if (_ehGaragem(r.ponto) || _ehRodoviaria(r.ponto)) break;
+          var min = _parseDurSeg(r.parada) / 60;
+          if (min > LIMITE_PONTO_APOIO_MIN_TP) achados.unshift({ ponto: r.ponto, min: Math.round(min) });
+        }
+        return achados.length ? achados : null;
+      }
+
+      function _htmlExcessoPontoApoioTP(item) {
+        var achados = _excessoPontoApoioItemTP(item);
+        if (!achados) return "";
+        var texto = achados.map(function (a) { return a.ponto + " (+" + a.min + "min)"; }).join(", ");
+        return '<div class="perm-apoio-badge" ' +
+          'title="Parada(s) em ponto de apoio acima de ' + LIMITE_PONTO_APOIO_MIN_TP + 'min no trajeto até esta ocorrência — possível causa do atraso">' +
+          _icon("alertTriangle", 12) + ' excesso em ponto de apoio: ' + texto + '</div>';
+      }
+
+      // ─────────────────────────────────────────────────────────
       //  Status "analisado" — persistido na aba TEMPO_PERMANENCIA_STATUS
       //  pra sobreviver a reload/novo upload do mesmo CSV.
       // ─────────────────────────────────────────────────────────
@@ -1444,6 +1861,14 @@
           if (cmp === "cedo") texto += " — saiu antes do horário de sessão.";
           else if (cmp === "atraso") texto += " — saiu depois do horário de sessão.";
           else texto += ".";
+        }
+        // Chegada antecipada é o cenário mais provável de o veículo ter
+        // "cortado caminho" (pulado pontos do roteiro) — anexa a lista do
+        // indicador B (ver _aplicarEsquemaAoItem) direto na observação,
+        // já filtrada pela data de corte, pra registrar isso no relatório.
+        var faltantes = item && item._locaisNaoPercorridos;
+        if (faltantes && faltantes.length) {
+          texto += " Não passou por (a partir da data de corte): " + faltantes.map(function (p) { return p.nome; }).join(", ") + ".";
         }
         return texto;
       }
@@ -2233,9 +2658,15 @@
         reader.onload = function (e) {
           try {
             var rows = _parseCSVRastrTP(e.target.result);
+            // Guarda todas as linhas do CSV (não só as excedências) — o
+            // indicador de garagem (_statusGaragemGrupoTP) precisa achar a
+            // parada de garagem do veículo, que _detectarExcedencias descarta.
+            _tpRowsRaw = rows;
             _carregarPCs(function () {
-              var excedencias = _detectarExcedencias(rows);
-              _renderTP(excedencias);
+              _carregarGaragensTP(function () {
+                var excedencias = _detectarExcedencias(rows);
+                _renderTP(excedencias);
+              });
             });
           } catch (ex) {
             statusEl.innerHTML = '<span style="color:var(--vermelho)">' + _icon("x") + ' Erro ao processar arquivo: ' + ex.message + '</span>';
@@ -2271,6 +2702,11 @@
         var iS = idx(["SAIDA", "SADA"]);
         var iD = idx(["PARADA", "DURACAO", "DURA"]);
         var iL = idx(["LINHA", "SERVICO"]);
+        // "Intervalo" — mesma coluna usada pelo tempo_antecipacao_garagens.html
+        // (cur.intervalo) pra medir a antecedência garagem → rodoviária sem
+        // precisar casar com um esquema. Usada pelo indicador "saiu no tempo
+        // ideal da garagem" (ver _statusGaragemGrupoTP).
+        var iI = idx(["INTERVALO"]);
 
         var rows = [];
         for (var i = 1; i < lines.length; i++) {
@@ -2284,6 +2720,7 @@
             saida: (f[iS] || "").trim(),
             parada: (f[iD] || "").trim(),
             linha: iL >= 0 ? (f[iL] || "").trim() : "",
+            intervalo: iI >= 0 ? (f[iI] || "").trim() : "",
           });
         }
         return rows;
@@ -2337,6 +2774,7 @@
       }
 
       var _tpLista = [];
+      var _tpRowsRaw = []; // todas as linhas do CSV do dia (não só excedências) — ver _statusGaragemGrupoTP
 
       function _renderTP(lista) {
         _tpLista = lista;
@@ -2449,6 +2887,7 @@
           '<button type="button" class="perm-esquema-btn" onclick="event.stopPropagation();_verEsquema(' + idx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
           '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
           '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
+          _htmlExcessoPontoApoioTP(r) +
           '<div class="perm-esquema-panel hidden" id="esquema-' + idx + '"></div>' +
         '</div>';
       }
@@ -2649,7 +3088,9 @@
       // Acha o ponto do roteiro que corresponde ao local do item, grava
       // "_esquemaInfo" nele (reaproveitado por "Gerar Relatório") e devolve
       // o ponto encontrado (ou undefined) pra quem chamou montar o texto.
-      function _aplicarEsquemaAoItem(idx, json) {
+      // desdePontoMatch (opcional): ponto da ocorrência ANTERIOR do mesmo
+      // grupo — ver _locaisNaoPercorridosTP (não é acumulativo).
+      function _aplicarEsquemaAoItem(idx, json, desdePontoMatch) {
         var item = _relatorioItens[idx];
         var pontoNorm = _normTP(item.ponto);
         var pontoMatch = (json.pontos || []).find(function (p) {
@@ -2664,6 +3105,12 @@
           horarioSessao: pontoMatch ? (pontoMatch.horarioComercial || null) : null,
           pontoSessao: pontoMatch ? pontoMatch.nome : null,
         };
+        // Guarda os "não passou por" (indicador B, só a perna desde a
+        // ocorrência anterior — não acumula) no próprio item —
+        // _textoAutoAntecipado usa isso pra enriquecer a observação
+        // sugerida quando o motivo for "Chegou antecipadamente" (ver
+        // também _htmlNaoPercorridosTP, mesma base).
+        item._locaisNaoPercorridos = _locaisNaoPercorridosTP(item.veiculo, json.pontos || [], desdePontoMatch, pontoMatch);
         return pontoMatch;
       }
 
@@ -2690,7 +3137,9 @@
             '<div><b>' + (json.esquema.codLinha || "—") + '</b> — ' + json.esquema.nomeLinha +
               ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtnHtml + salvoHtml + '</div>' +
-          '</div>';
+          '</div>' +
+          _htmlNaoPercorridosTP(item.veiculo, json.pontos || [], null, pontoMatch) +
+          _htmlParadasIrregularesTP(item, json.pontos || [], null);
 
         if (pontoMatch) {
           var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
@@ -2874,10 +3323,16 @@
               return;
             }
 
+            // Não acumulativo: cada ocorrência do grupo compara só a
+            // perna DESDE a ocorrência anterior (ver _locaisNaoPercorridosTP)
+            // — sem isso, todas repetiam os mesmos pontos pulados lá no
+            // início do dia (ver print do RNSP00530460, 24416).
+            var pontoAnteriorMatch = null;
+
             var linhasHtml = idxs.map(function (idx) {
               var item = _relatorioItens[idx];
               if (!item) return "";
-              var pontoMatch = _aplicarEsquemaAoItem(idx, json);
+              var pontoMatch = _aplicarEsquemaAoItem(idx, json, pontoAnteriorMatch);
 
               // Pré-preenche o painel individual do item — abrir "Ver esquema"
               // ali já mostra o resultado vinculado aqui, sem buscar de novo.
@@ -2904,7 +3359,17 @@
               if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
               if (cmpLinha === "ok") textoLinha += ' — saiu <b>no horário</b>';
 
-              return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)");
+              // Indicadores B e D — cortados NESTE ponto, não no fim do
+              // roteiro, e só desde a ocorrência ANTERIOR do grupo (não
+              // acumulativo — ver _locaisNaoPercorridosTP/_paradasIrregularesTP):
+              // "quantos pulou/quantas paradas irregulares nesta perna",
+              // não "desde o início do dia".
+              var naoPercorridoHtml = _htmlNaoPercorridosTP(item.veiculo, json.pontos || [], pontoAnteriorMatch, pontoMatch);
+              var irregularHtml = _htmlParadasIrregularesTP(item, json.pontos || [], pontoAnteriorMatch);
+              if (pontoMatch) pontoAnteriorMatch = pontoMatch;
+
+              return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)") +
+                naoPercorridoHtml + irregularHtml;
             }).join("");
 
             // A volta idxs.map() acima já chamou _htmlEsquemaDetalhe(...,
@@ -3079,6 +3544,20 @@
             if (!grupos[r.veiculo]) { grupos[r.veiculo] = []; ordemGrupos.push(r.veiculo); }
             grupos[r.veiculo].push(r);
           });
+          // Dentro de cada veículo, ordena pela ORDEM CRONOLÓGICA real do
+          // trajeto (entrada), não pelo tamanho do excedente — o card deve
+          // ler como a viagem aconteceu (1º ponto que o veículo passou
+          // primeiro), pra os indicadores de garagem/ponto de apoio (que
+          // olham pra trás no CSV) fazerem sentido visualmente também.
+          Object.keys(grupos).forEach(function (veiculo) {
+            grupos[veiculo].sort(function (a, b) {
+              var da = _parseDataHoraTP(a.entrada), db = _parseDataHoraTP(b.entrada);
+              if (da && db) return da - db;
+              return String(a.entrada).localeCompare(String(b.entrada));
+            });
+          });
+          // A ordem dos GRUPOS (qual veículo aparece primeiro) continua
+          // priorizando o pior excedente — só a ordem DENTRO do veículo mudou.
           ordemGrupos.sort(function (a, b) { return _grupoMaiorExcedente(grupos[b]) - _grupoMaiorExcedente(grupos[a]); });
           _regiaoGidxs[ri] = [];
 
@@ -3119,6 +3598,7 @@
                 '<div class="acc-right">' +
                   '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
                   '<span class="motivo-tag hidden" data-role="motivo-tag-grupo"></span>' +
+                  _htmlBadgeGaragemTP(grupo) +
                   '<button type="button" class="acc-mini-btn" id="esquema-grupo-btn-' + gidx + '" title="Vincular um esquema a todas as ocorrências deste veículo de uma vez" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
                   '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +

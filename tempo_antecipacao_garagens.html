@@ -179,6 +179,17 @@
       .acc-group.acc-garagem > .acc-summary:hover { background: var(--laranja4); }
       .acc-garagem-nome { font-family: "Barlow Condensed", sans-serif; font-size: 16px; font-weight: 700; color: var(--texto); letter-spacing: 0.02em; }
       .acc-group.acc-garagem > .acc-body { padding: 6px 14px 12px; }
+
+      /* Nível 3 = prefixo (veículo), aninhado dentro da garagem — mesmo
+         padrão do Tempo de Permanência (acc-prefixo-group), só que mais
+         recuado ainda por já estar 1 nível mais fundo. */
+      .acc-group.acc-prefixo-group { border-color: var(--borda); margin: 0 0 6px; background: var(--preto4); }
+      .acc-group.acc-prefixo-group > .acc-summary { padding: 8px 12px; background: transparent; }
+      .acc-group.acc-prefixo-group > .acc-summary:hover { background: var(--laranja4); }
+      .acc-group.acc-prefixo-group > .acc-body { padding: 4px 12px 10px; }
+      .acc-prefixo { font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 700; color: var(--laranja); letter-spacing: 0.03em; }
+      .acc-prefixo-copy { cursor: pointer; border-bottom: 1px dashed var(--cinza2); transition: color 0.15s, border-color 0.15s; }
+      .acc-prefixo-copy:hover { color: var(--laranja) !important; border-color: var(--laranja); }
       .acc-cobranca-btn {
         font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 12px;
         border-radius: 6px; border: 1px solid var(--laranja); background: transparent; color: var(--laranja);
@@ -1098,13 +1109,48 @@
           "_Equipe de Monitoramento Operacional_";
       }
 
+      // Grava no LEMBRETE_ANTECIPACAO_LOG (ver registrarLembreteAntecipacaoEnviado
+      // em BI_PC.js) — devolve uma Promise que resolve com true/false (nunca
+      // rejeita), pra quem chama SABER se persistiu de verdade antes de tirar
+      // a base da lista de pendentes.
+      //
+      // Bug corrigido aqui: antes, essa chamada saía "solta" (sem
+      // withSuccessHandler/withFailureHandler nenhum) e o item já sumia da
+      // tela otimisticamente, contando só com o envio do WhatsApp ter dado
+      // certo. Se o registro no Sheets falhasse silenciosamente por
+      // qualquer motivo (rede, timeout, planilha ocupada), NINGUÉM ficava
+      // sabendo — a base sumia da lista nesta sessão, mas ao reabrir a
+      // tela (ou no dia seguinte) getLembreteAntecipacaoHoje() não achava o
+      // registro e ela reaparecia como se nada tivesse sido enviado —
+      // exatamente o "eu já mandei mas continua aparecendo" reportado.
+      function _registrarLembreteAntecipacaoAG(origemFull, cidade, uf, trafegoOk, gestorOk) {
+        return new Promise(function (resolve) {
+          if (!(window.google && google.script && google.script.run)) { resolve(false); return; }
+          google.script.run
+            .withSuccessHandler(function () { resolve(true); })
+            .withFailureHandler(function (err) {
+              console.error("[lembrete] falha ao registrar " + origemFull + ":", err);
+              resolve(false);
+            })
+            .registrarLembreteAntecipacaoEnviado(origemFull, cidade, uf, trafegoOk, gestorOk);
+        });
+      }
+
       function _ignorarLembreteHojeAG(origemFull) {
         if (_lembreteHojeIgnoradosSessaoAG.indexOf(origemFull) === -1) {
           _lembreteHojeIgnoradosSessaoAG.push(origemFull);
         }
         var g = (_garagensCache || []).find(function (x) { return x.origemFull === origemFull; });
-        if (g && window.google && google.script && google.script.run) {
-          google.script.run.registrarLembreteAntecipacaoEnviado(g.origemFull, g.cidade, g.uf, false, false);
+        if (g) {
+          _registrarLembreteAntecipacaoAG(g.origemFull, g.cidade, g.uf, false, false).then(function (salvou) {
+            // "Ignorar" some da lista NESTA sessão de qualquer jeito
+            // (_lembreteHojeIgnoradosSessaoAG acima já resolve isso) — se o
+            // registro no servidor falhou, só avisa no console pra
+            // diagnóstico; reabrir a tela hoje voltaria a mostrar essa
+            // base, o que é aceitável pro "Ignorar" (menos crítico que o
+            // "Enviar" já ter saído de verdade pelo WhatsApp).
+            if (!salvou) console.warn("[lembrete] Ignorar não persistiu no servidor pra " + origemFull + " — pode reaparecer se a página recarregar hoje.");
+          });
         }
         _renderLembreteAntecipacao();
       }
@@ -1145,14 +1191,23 @@
                 ? _enviarWhatsAppUmAG(_normalizarTelefoneAG(g.telefoneGestor), msg, null)
                 : Promise.resolve({ ok: false });
               return gestorPromise.then(function (resGestor) {
-                if (resTrafego.ok || resGestor.ok) {
-                  if (window.google && google.script && google.script.run) {
-                    google.script.run.registrarLembreteAntecipacaoEnviado(g.origemFull, g.cidade, g.uf, resTrafego.ok, resGestor.ok);
-                  }
-                  _lembreteHojeEnviadosAG.push(g.origemFull);
-                } else {
+                if (!(resTrafego.ok || resGestor.ok)) {
                   falhas.push(g.cidade + ": " + resTrafego.error);
+                  return;
                 }
+                // Só marca como "enviado" (some da lista de pendentes)
+                // DEPOIS de confirmar que o registro gravou no Sheets —
+                // sem isso, uma falha silenciosa no registro escondia a
+                // base nesta sessão, mas ela voltava a aparecer pendente
+                // no próximo carregamento (mensagem já tinha saído pelo
+                // WhatsApp, só o "lembrado" não persistia).
+                return _registrarLembreteAntecipacaoAG(g.origemFull, g.cidade, g.uf, resTrafego.ok, resGestor.ok).then(function (salvou) {
+                  if (salvou) {
+                    _lembreteHojeEnviadosAG.push(g.origemFull);
+                  } else {
+                    falhas.push(g.cidade + ": mensagem enviada, mas falhou salvar o registro — tenta marcar de novo em instantes");
+                  }
+                });
               });
             });
           })).then(function () {
@@ -1556,6 +1611,18 @@
       // mesmo ponto que termina em idx (cada ping do rastreamento vira uma
       // linha — um veículo parado gera várias leituras seguidas do mesmo
       // ponto).
+      //
+      // Tentativa revertida: já tentamos parar de fundir quando a coluna
+      // "Intervalo" entre duas leituras passava de um limiar (pra separar
+      // "saiu e voltou" de "continuação da mesma parada") — mas um
+      // veículo genuinamente parado pode gerar gaps de 1-2min entre
+      // leituras do próprio GPS sem nunca ter saído da área (caso real:
+      // veículo 24431 parado na rodoviária das 07:03 às 08:04, com gaps de
+      // até 88s entre leituras — o corte separava a 1ª leitura do resto,
+      // fazendo a "saída real" aparecer como 07:24 em vez de 08:04, a
+      // verdadeira última leitura). Sem um sinal confiável no CSV pra
+      // distinguir os dois casos, fundir sempre por nome (comportamento
+      // original) erra menos do que cortar por um limiar de tempo.
       function _inicioGrupoAG(lista, idx) {
         var ref = _normAG(lista[idx].ponto);
         var j = idx;
@@ -1575,7 +1642,8 @@
       // Necessário pra achar a SAÍDA real de uma parada com vários pings
       // (ex.: rodoviária com 5 leituras seguidas — a saída de verdade é a
       // da ÚLTIMA leitura, não da 1ª, que é só quando o GPS "entrou" na
-      // área do ponto).
+      // área do ponto). Ver nota em _inicioGrupoAG sobre a tentativa
+      // (revertida) de cortar por intervalo entre leituras.
       function _fimGrupoAG(lista, idx) {
         var ref = _normAG(lista[idx].ponto);
         var j = idx;
@@ -1755,18 +1823,34 @@
             base.garagemCidade = origem.cidade;
 
             // Veículo já tinha parado numa rodoviária de verdade mais cedo
-            // no dia — essa garagem não é o início da viagem, é uma parada
-            // intermediária (troca de motorista, manutenção, pernoite) no
-            // meio de uma viagem que já estava em andamento. Não é falha
-            // da garagem em liberar a tempo pra uma partida programada, e
-            // por isso não entra na cobrança — mas fica registrada à parte
-            // pra transparência (ver _emTransitoAG / nota na tela).
-            if (_teveRodoviariaAnteriorAG(lista, garagemInicioIdx)) {
+            // no dia — pode ser uma parada intermediária de verdade (troca
+            // de motorista, manutenção, pernoite, sem folga real pra
+            // preparar o veículo) OU pode ser um veículo que só TERMINOU
+            // uma viagem anterior e agora tem uma janela grande até a
+            // PRÓXIMA sessão — nesse 2º caso a régua frouxa de trânsito não
+            // se aplica: teve tempo de sobra pra liberar dentro do prazo, e
+            // avaliar isso só por "ficou >30min parado" mascara um atraso
+            // real (caso observado: chegou 08h55, só saiu 17h53 — 9h de
+            // janela — mas a "duração na garagem" sozinha não captura isso).
+            //
+            // "Achou sessão" sozinho não basta pra sair da régua de
+            // trânsito: _acharSessaoMaisProximaAG casa com QUALQUER linha
+            // dentro de até 3h (JANELA_MAX_MATCH_MIN_AG) só pra dar uma
+            // referência — não confirma que o veículo teve tempo real de
+            // se preparar pra ela. O sinal que importa é a JANELA: se o
+            // veículo já ficou parado na garagem tempo suficiente (>= a
+            // antecipação exigida ali, origem.antecipacaoMin), não há
+            // desculpa de "acabou de chegar" — avalia pela régua normal.
+            // Só cai na régua frouxa de trânsito quando não achamos sessão
+            // pra comparar OU a janela real foi menor que o exigido.
+            var janelaSuficienteAG = fonteAntecedencia === "sessao" &&
+              duracaoGaragemMin != null && duracaoGaragemMin >= origem.antecipacaoMin;
+            if (_teveRodoviariaAnteriorAG(lista, garagemInicioIdx) && !janelaSuficienteAG) {
               base.status = "Em trânsito (parada intermediária)";
-              // Ponto em trânsito: não avalia antecipação (não é início de
-              // viagem) — avalia só o tempo de permanência do veículo NA
-              // GARAGEM. Limite fixo de 30min pra todas as garagens (regra
-              // de negócio — não depende de cadastro por garagem).
+              // Ponto em trânsito sem sessão pra comparar: avalia só o
+              // tempo de permanência do veículo NA GARAGEM. Limite fixo de
+              // 30min pra todas as garagens (regra de negócio — não
+              // depende de cadastro por garagem).
               base.tempoMaximoTransitoMin = LIMITE_PERMANENCIA_TRANSITO_MIN_AG;
               base.statusTransito = duracaoGaragemMin == null
                 ? "Sem dados suficientes"
@@ -1976,10 +2060,40 @@
         _renderTransitoFiltradoAG();
       }
 
+      // Nível 3 = prefixo (veículo), aninhado dentro da garagem — agrupa os
+      // itens (ocorrências ou paradas em trânsito) daquela garagem por
+      // veículo, mesmo padrão visual do Tempo de Permanência. `itemHtmlFn`
+      // é o renderer de item de cada aba (_ocorrenciaItemHtml ou
+      // _ocorrenciaTransitoItemHtml) — mantém cada aba com seu próprio
+      // layout de linha, só acrescenta o nível de agrupamento por cima.
+      function _prefixoAccordionHtml(itens, itemHtmlFn) {
+        var porVeiculo = {};
+        itens.forEach(function (o) {
+          var v = o.veiculo || "—";
+          (porVeiculo[v] = porVeiculo[v] || []).push(o);
+        });
+        var veiculos = Object.keys(porVeiculo).map(function (v) { return { veiculo: v, itens: porVeiculo[v] }; });
+        // Mais ocorrências primeiro — mesmo critério das regiões/garagens;
+        // empate desfeito por ordem alfanumérica do prefixo.
+        veiculos.sort(function (a, b) { return b.itens.length - a.itens.length || a.veiculo.localeCompare(b.veiculo); });
+        return veiculos.map(function (pv) {
+          var veiculoEsc = pv.veiculo.replace(/'/g, "\\'");
+          var itensHtml = pv.itens.map(itemHtmlFn).join("");
+          return '<details class="acc-group acc-prefixo-group">' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left"><span class="acc-chevron"></span>' +
+              '<span class="acc-prefixo acc-prefixo-copy" onclick="event.preventDefault();event.stopPropagation();_copiarTextoAG(this,\'' + veiculoEsc + '\')" title="Clique para copiar o veículo">' + pv.veiculo + '</span></div>' +
+              '<div class="acc-right"><span class="acc-count">' + pv.itens.length + ' ocorrência' + (pv.itens.length !== 1 ? "s" : "") + '</span></div>' +
+            '</summary>' +
+            '<div class="acc-body">' + itensHtml + '</div>' +
+          '</details>';
+        }).join("");
+      }
+
       function _tabelaTransitoAccordionHtml(lista) {
         return lista.map(function (g) {
           var statusCls = g.status === "Fora do prazo" ? "fora" : "regular";
-          var itensHtml = g.itens.map(_ocorrenciaTransitoItemHtml).join("");
+          var itensHtml = _prefixoAccordionHtml(g.itens, _ocorrenciaTransitoItemHtml);
           var origemAttr = g.origemFull.replace(/'/g, "\\'");
           var cidadeEsc = g.cidade.replace(/'/g, "\\'");
           return '<details class="acc-group acc-garagem">' +
@@ -2194,7 +2308,7 @@
       function _garagensAccordionHtml(lista) {
         return lista.map(function (g) {
           var statusCls = g.status === "Fora do prazo" ? "fora" : "regular";
-          var itensHtml = g.itens.map(_ocorrenciaItemHtml).join("");
+          var itensHtml = _prefixoAccordionHtml(g.itens, _ocorrenciaItemHtml);
           var origemAttr = g.origemFull.replace(/'/g, "\\'");
           var cidadeEsc = g.cidade.replace(/'/g, "\\'");
           return '<details class="acc-group acc-garagem">' +

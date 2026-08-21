@@ -340,6 +340,21 @@ function _hojeISO_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
 }
 
+// Defensivo: linhas gravadas ANTES da correção do setNumberFormat("@")
+// em registrarLembreteAntecipacaoEnviado podem ter DATA como objeto Date
+// de verdade (o Sheets converteu sozinho a string "yyyy-MM-dd" gravada
+// por appendRow), em vez do texto que foi enviado originalmente —
+// mesmo bug já visto em Historico_antecipacao (ver
+// _celulaHistoricoParaTexto). Sem isso, o compara-com-string nunca
+// batia e o lembrete "enviado hoje" nunca era reconhecido como tal —
+// a base reaparecia como pendente mesmo depois de mandada.
+function _celulaLembreteParaTexto_(valor) {
+  if (valor instanceof Date) {
+    return Utilities.formatDate(valor, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+  return String(valor || "").trim();
+}
+
 // Devolve { data: "yyyy-MM-dd", origens: [origemFull, ...] } com as
 // garagens que já tiveram o lembrete diário tratado (enviado ou
 // ignorado) HOJE — a tela usa isso pra montar a lista de pendentes:
@@ -353,7 +368,7 @@ function getLembreteAntecipacaoHoje() {
   if (lastRow >= 2) {
     var data = aba.getRange(2, 1, lastRow - 1, 2).getValues();
     data.forEach(function (r) {
-      if (String(r[0] || "").trim() === hoje) origens.push(String(r[1] || "").trim());
+      if (_celulaLembreteParaTexto_(r[0]) === hoje) origens.push(String(r[1] || "").trim());
     });
   }
   return JSON.stringify({ data: hoje, origens: origens });
@@ -366,7 +381,7 @@ function getLembreteAntecipacaoHoje() {
 function registrarLembreteAntecipacaoEnviado(origemFull, cidade, uf, trafegoOk, gestorOk) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var aba = _abaLembreteAntecipacao(ss);
-  aba.appendRow([
+  var linha = [
     _hojeISO_(),
     String(origemFull || "").trim(),
     String(cidade || "").trim(),
@@ -374,7 +389,19 @@ function registrarLembreteAntecipacaoEnviado(origemFull, cidade, uf, trafegoOk, 
     trafegoOk ? "SIM" : "NAO",
     gestorOk ? "SIM" : "NAO",
     Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss"),
-  ]);
+  ];
+  var proximaLinha = aba.getLastRow() + 1;
+  // Força texto puro nas colunas A (DATA) e G (ENVIADO_EM) ANTES de
+  // gravar — sem isso, o Sheets "detecta" a string "yyyy-MM-dd" (ou
+  // "dd/MM/yyyy HH:mm:ss") e converte a célula pra Data/Hora de
+  // verdade sozinho, mesmo vindo do Apps Script. Isso quebrava
+  // getLembreteAntecipacaoHoje: comparava string com objeto Date e
+  // nunca batia, então o lembrete de hoje nunca era reconhecido como
+  // já enviado — a base reaparecia como pendente pra sempre. Mesmo bug
+  // já corrigido em registrarHistoricoAntecipacao (ver setNumberFormat
+  // lá) — só não tinha sido replicado aqui.
+  aba.getRange(proximaLinha, 1, 1, LEMBRETE_ANTECIPACAO_HEADER.length).setNumberFormat("@");
+  aba.getRange(proximaLinha, 1, 1, linha.length).setValues([linha]);
   return true;
 }
 
