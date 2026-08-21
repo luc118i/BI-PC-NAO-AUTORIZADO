@@ -1361,7 +1361,15 @@
       // /ruído de GPS, não vale reportar como PC irregular/fora do esquema.
       var LIMITE_PARADA_IRREGULAR_MIN_TP = 5;
 
+      // DESATIVADO por hora — gerando falso positivo demais (ex.: rodoviária
+      // que está no esquema mas o nome bate com um PC cadastrado como não
+      // autorizado, e outras variações de nome que não deveriam contar
+      // como "fora do esquema"). Lógica mantida pra retomar depois de
+      // revisar os critérios de match.
+      var INDICADOR_PARADAS_IRREGULARES_TP_ATIVO = false;
+
       function _paradasIrregularesTP(item, roteiroPontos, desdePontoMatch) {
+        if (!INDICADOR_PARADAS_IRREGULARES_TP_ATIVO) return [];
         if (!_tpRowsRaw.length) return [];
         var linhaVeiculo = _tpRowsRaw.filter(function (r) { return r.veiculo === item.veiculo; });
 
