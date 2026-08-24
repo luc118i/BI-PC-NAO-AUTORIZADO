@@ -123,6 +123,22 @@
       .lembrete-status.ok { color: var(--verde); }
       .lembrete-status.err { color: var(--vermelho); }
 
+      /* ── Programar lembretes (horários + notificação do navegador) ── */
+      .lembrete-horario-lista { display: flex; flex-direction: column; gap: 6px; }
+      .lembrete-horario-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--preto3); border: 1px solid var(--borda2); }
+      .lembrete-horario-hora { font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--texto); font-variant-numeric: tabular-nums; }
+      .lembrete-horario-add { display: flex; gap: 8px; align-items: center; }
+      .lembrete-horario-add input[type="time"] { background: var(--preto3); border: 1px solid var(--cinza2); border-radius: var(--radius-sm); color: var(--texto); font-family: var(--font); font-size: 13px; padding: 8px 10px; outline: none; color-scheme: dark; }
+      .lembrete-horario-add input[type="time"]:focus { border-color: var(--laranja); }
+      .lembrete-horario-vazio { font-size: 12px; color: var(--texto3); font-style: italic; padding: 6px 2px; }
+      .lembrete-notif-toggle { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--texto2); cursor: pointer; user-select: none; }
+      .lembrete-notif-toggle input { accent-color: var(--laranja); width: 15px; height: 15px; cursor: pointer; }
+      .lembrete-notif-permissao { font-size: 11.5px; color: var(--texto3); }
+      .lembrete-notif-permissao.negada { color: var(--vermelho); }
+      .lembrete-notif-permissao.concedida { color: var(--verde); }
+      .lembrete-remover-btn { flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 13px; line-height: 1; }
+      .lembrete-remover-btn:hover { border-color: var(--vermelho); color: var(--vermelho); background: rgba(224,80,80,0.1); }
+
       /* ── ABAS (Antecipação / Em Trânsito) ─────────────────── */
       .ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
       .ag-tab {
@@ -384,6 +400,7 @@
       </div>
       <div class="header-meta">
         <button class="btn btn-primary" onclick="document.getElementById('agFileInput').click()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Importar CSV</button>
+        <button class="btn btn-ghost" id="lembreteConfigBtn" onclick="_abrirConfigLembreteAG()" title="Programar horários de lembrete diário"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> <span id="lembreteConfigBtnTexto">Programar lembretes</span></button>
         <button class="btn btn-ghost" onclick="voltarDashboard()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Voltar ao dashboard</button>
       </div>
     </header>
@@ -725,6 +742,46 @@
       </div>
     </div>
 
+    <!-- ── MODAL PROGRAMAR LEMBRETES (horários + notificação do navegador) ──
+         Client-side only: o Apps Script não alcança o RIZER Agent local pra
+         disparar o envio sozinho (ver comentário do LEMBRETE_ANTECIPACAO_LOG
+         em BI_PC.js), então isso não manda nada automaticamente — só dispara
+         uma notificação do navegador, nos horários configurados, avisando
+         que ainda tem base pendente pra alguém vir aqui e clicar em "Enviar
+         todos". Só funciona enquanto esta aba estiver aberta (sem service
+         worker/push de verdade) — ver _verificarHorariosLembreteAG. -->
+    <div class="oc-overlay hidden" id="lembreteConfigModal" onclick="if(event.target===this)_fecharConfigLembreteAG()">
+      <div class="oc-panel" style="max-width:440px">
+        <div class="oc-header">
+          <h3>Programar lembretes</h3>
+          <button class="oc-close" onclick="_fecharConfigLembreteAG()">✕</button>
+        </div>
+        <div class="oc-body">
+          <p style="font-size:12px;color:var(--texto3);line-height:1.5">
+            Escolha os horários em que o navegador deve avisar — enquanto esta aba estiver aberta — se ainda houver bases sem o lembrete diário enviado. O envio continua manual: a notificação só lembra de voltar aqui e clicar em "Enviar todos".
+          </p>
+          <label class="lembrete-notif-toggle">
+            <input type="checkbox" id="lembreteNotifToggle" onchange="_toggleNotifAtivaLembreteAG(this.checked)" />
+            Ativar notificações do navegador
+          </label>
+          <div class="lembrete-notif-permissao" id="lembreteNotifPermissao"></div>
+          <div class="oc-field">
+            <label>Horários programados</label>
+            <div class="lembrete-horario-lista" id="lembreteHorarioLista"></div>
+            <p class="lembrete-horario-vazio hidden" id="lembreteHorarioVazio">Nenhum horário programado ainda.</p>
+          </div>
+          <div class="lembrete-horario-add">
+            <input type="time" id="lembreteHorarioInput" />
+            <button type="button" class="btn btn-ghost btn-sm" onclick="_adicionarHorarioLembreteAG()">+ Adicionar</button>
+          </div>
+        </div>
+        <div class="oc-footer">
+          <span class="oc-status" id="lembreteConfigStatus"></span>
+          <button class="btn btn-primary" onclick="_fecharConfigLembreteAG()">Fechar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- FOOTER (mesmo padrão de index.html/tempo_permanencia.html) -->
     <footer>
       <div class="footer-inner">
@@ -785,6 +842,8 @@
         _carregarGaragens(_bootConcluidoAG);
         _carregarHistoricoAG(_bootConcluidoAG);
         _carregarLembreteAntecipacao(_bootConcluidoAG);
+        _atualizarBadgeLembreteConfigBtnAG();
+        _iniciarVerificacaoLembreteAG();
       };
 
       // Carregamento inicial (aba Garagens + Historico_antecipacao +
@@ -1250,6 +1309,214 @@
           })
           .withFailureHandler(function (err) { console.error("[salvarTelefoneGaragem] falhou:", err); })
           .salvarTelefoneGaragem(origemFull, telefoneTrafego != null ? telefoneTrafego : null, telefoneGestor != null ? telefoneGestor : null);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  Programar lembretes — horários + notificação do navegador
+      //  ──────────────────────────────────────────────────────────
+      //  Puramente client-side (localStorage): o Apps Script não alcança
+      //  o RIZER Agent local (127.0.0.1) pra disparar o envio sozinho por
+      //  um gatilho de horário — ver comentário do LEMBRETE_ANTECIPACAO_LOG
+      //  em BI_PC.js. Em vez disso, guardamos os horários desejados no
+      //  navegador de quem opera a tela e, enquanto a aba estiver aberta,
+      //  um relógio de fundo (setInterval) confere a cada minuto se bateu
+      //  algum horário programado; se bateu e ainda existe base pendente
+      //  (_lembretePendentesAG), dispara uma Notification do navegador
+      //  lembrando de vir aqui enviar. Não é push de verdade — se a aba
+      //  estiver fechada, nada dispara; é só um lembrete pra quem já
+      //  costuma deixar a tela aberta no fundo do dia.
+      // ═══════════════════════════════════════════════════════════
+      var LEMBRETE_HORARIOS_LS_KEY = "ag_lembrete_horarios_v1";
+      var LEMBRETE_NOTIF_ATIVA_LS_KEY = "ag_lembrete_notif_ativa_v1";
+      var LEMBRETE_DISPARADOS_LS_KEY = "ag_lembrete_disparados_v1";
+
+      function _lerHorariosLembreteAG() {
+        try {
+          var lista = JSON.parse(localStorage.getItem(LEMBRETE_HORARIOS_LS_KEY) || "[]");
+          return Array.isArray(lista) ? lista.filter(function (h) { return /^\d{2}:\d{2}$/.test(h); }).sort() : [];
+        } catch (e) { return []; }
+      }
+      function _salvarHorariosLembreteAG(lista) {
+        try { localStorage.setItem(LEMBRETE_HORARIOS_LS_KEY, JSON.stringify(lista)); }
+        catch (e) { /* localStorage indisponível (modo privado, etc.) — segue sem persistir */ }
+      }
+      function _notifAtivaLembreteAG() {
+        try { return localStorage.getItem(LEMBRETE_NOTIF_ATIVA_LS_KEY) === "1"; }
+        catch (e) { return false; }
+      }
+      function _salvarNotifAtivaLembreteAG(ativa) {
+        try { localStorage.setItem(LEMBRETE_NOTIF_ATIVA_LS_KEY, ativa ? "1" : "0"); }
+        catch (e) { /* idem */ }
+      }
+
+      // { data: "AAAA-MM-DD", horarios: [...] } — horários já disparados
+      // HOJE, pra não notificar de novo a cada volta do setInterval dentro
+      // do mesmo minuto/dia. Reseta sozinho quando o dia muda.
+      function _lerDisparadosHojeLembreteAG() {
+        var hoje = _fmtDataInputAG(new Date());
+        try {
+          var obj = JSON.parse(localStorage.getItem(LEMBRETE_DISPARADOS_LS_KEY) || "{}");
+          if (obj && obj.data === hoje && Array.isArray(obj.horarios)) return obj;
+        } catch (e) { /* ignora e recomeça */ }
+        return { data: hoje, horarios: [] };
+      }
+      function _marcarDisparadoHojeLembreteAG(horario) {
+        var obj = _lerDisparadosHojeLembreteAG();
+        if (obj.horarios.indexOf(horario) === -1) obj.horarios.push(horario);
+        try { localStorage.setItem(LEMBRETE_DISPARADOS_LS_KEY, JSON.stringify(obj)); }
+        catch (e) { /* idem */ }
+      }
+
+      // Próximo horário programado a partir de agora (hoje se ainda não
+      // passou, senão o primeiro de amanhã) — só pra exibir no botão do
+      // cabeçalho, não influencia o disparo em si.
+      function _proximoHorarioLembreteAG() {
+        var horarios = _lerHorariosLembreteAG();
+        if (!horarios.length) return null;
+        var agora = new Date();
+        var atual = String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
+        var proximo = horarios.find(function (h) { return h >= atual; });
+        return proximo || horarios[0];
+      }
+      function _atualizarBadgeLembreteConfigBtnAG() {
+        var span = document.getElementById("lembreteConfigBtnTexto");
+        if (!span) return;
+        var proximo = _notifAtivaLembreteAG() ? _proximoHorarioLembreteAG() : null;
+        span.textContent = proximo ? "Lembretes · próx " + proximo : "Programar lembretes";
+      }
+
+      function _renderPermissaoNotifLembreteAG() {
+        var el = document.getElementById("lembreteNotifPermissao");
+        if (!el) return;
+        var permissao = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
+        el.className = "lembrete-notif-permissao";
+        if (permissao === "unsupported") { el.textContent = "Este navegador não suporta notificações."; }
+        else if (permissao === "granted") { el.className += " concedida"; el.textContent = "Notificações permitidas neste navegador."; }
+        else if (permissao === "denied") { el.className += " negada"; el.textContent = "Notificações bloqueadas — libere nas configurações do site pra usar o lembrete."; }
+        else { el.textContent = "Ao ativar, o navegador vai pedir permissão pra mostrar notificações."; }
+      }
+
+      function _renderHorariosLembreteAG() {
+        var lista = _lerHorariosLembreteAG();
+        var container = document.getElementById("lembreteHorarioLista");
+        document.getElementById("lembreteHorarioVazio").classList.toggle("hidden", !!lista.length);
+        container.innerHTML = lista.map(function (h) {
+          return '<div class="lembrete-horario-item">' +
+            '<span class="lembrete-horario-hora">' + h + '</span>' +
+            '<button type="button" class="lembrete-remover-btn" title="Remover horário" onclick="_removerHorarioLembreteAG(\'' + h + '\')">✕</button>' +
+          '</div>';
+        }).join("");
+        _atualizarBadgeLembreteConfigBtnAG();
+      }
+
+      function _abrirConfigLembreteAG() {
+        document.getElementById("lembreteNotifToggle").checked = _notifAtivaLembreteAG();
+        document.getElementById("lembreteConfigStatus").textContent = "";
+        _renderPermissaoNotifLembreteAG();
+        _renderHorariosLembreteAG();
+        document.getElementById("lembreteHorarioInput").value = "";
+        document.getElementById("lembreteConfigModal").classList.remove("hidden");
+      }
+      function _fecharConfigLembreteAG() {
+        document.getElementById("lembreteConfigModal").classList.add("hidden");
+      }
+
+      function _adicionarHorarioLembreteAG() {
+        var input = document.getElementById("lembreteHorarioInput");
+        var valor = (input.value || "").trim();
+        var statusEl = document.getElementById("lembreteConfigStatus");
+        if (!/^\d{2}:\d{2}$/.test(valor)) {
+          statusEl.className = "oc-status err";
+          statusEl.textContent = "Escolha um horário válido antes de adicionar.";
+          return;
+        }
+        var lista = _lerHorariosLembreteAG();
+        if (lista.indexOf(valor) !== -1) {
+          statusEl.className = "oc-status err";
+          statusEl.textContent = "Esse horário já está programado.";
+          return;
+        }
+        lista.push(valor);
+        _salvarHorariosLembreteAG(lista);
+        input.value = "";
+        statusEl.className = "oc-status ok";
+        statusEl.textContent = "Horário " + valor + " adicionado.";
+        _renderHorariosLembreteAG();
+      }
+      function _removerHorarioLembreteAG(horario) {
+        var lista = _lerHorariosLembreteAG().filter(function (h) { return h !== horario; });
+        _salvarHorariosLembreteAG(lista);
+        _renderHorariosLembreteAG();
+      }
+
+      function _toggleNotifAtivaLembreteAG(ligar) {
+        var statusEl = document.getElementById("lembreteConfigStatus");
+        if (!ligar) {
+          _salvarNotifAtivaLembreteAG(false);
+          _atualizarBadgeLembreteConfigBtnAG();
+          return;
+        }
+        if (typeof Notification === "undefined") {
+          document.getElementById("lembreteNotifToggle").checked = false;
+          statusEl.className = "oc-status err";
+          statusEl.textContent = "Este navegador não suporta notificações.";
+          return;
+        }
+        // Pedir permissão exige um gesto do usuário — o clique no
+        // checkbox serve pra isso; se já tiver decidido antes (granted/
+        // denied), requestPermission() só resolve na hora sem popup novo.
+        Notification.requestPermission().then(function (permissao) {
+          _renderPermissaoNotifLembreteAG();
+          if (permissao === "granted") {
+            _salvarNotifAtivaLembreteAG(true);
+          } else {
+            document.getElementById("lembreteNotifToggle").checked = false;
+            _salvarNotifAtivaLembreteAG(false);
+            statusEl.className = "oc-status err";
+            statusEl.textContent = "Permissão de notificação negada — libere nas configurações do site pra ativar.";
+          }
+          _atualizarBadgeLembreteConfigBtnAG();
+        });
+      }
+
+      // Dispara a notificação de verdade — chamada pelo relógio de fundo
+      // quando o horário atual bate com 1 dos programados e ainda existe
+      // base pendente. Clicar na notificação foca a aba e rola até o
+      // card de lembrete, pra já cair direto no "Enviar todos".
+      function _dispararNotificacaoLembreteAG(pendentes) {
+        if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+        var n = new Notification("Lembrete diário de antecipação", {
+          body: pendentes.length + " base" + (pendentes.length !== 1 ? "s" : "") + " ainda sem o lembrete de hoje enviado.",
+          tag: "ag-lembrete-antecipacao",
+        });
+        n.onclick = function () {
+          window.focus();
+          var card = document.getElementById("lembreteAntecipacaoCard");
+          if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+          n.close();
+        };
+      }
+
+      // Relógio de fundo: confere a cada 20s (folga suficiente pra não
+      // perder o minuto exato mesmo com a aba em segundo plano, onde o
+      // navegador pode atrasar o setInterval) se bateu algum horário
+      // programado ainda não disparado hoje.
+      function _verificarHorariosLembreteAG() {
+        if (!_notifAtivaLembreteAG()) return;
+        var horarios = _lerHorariosLembreteAG();
+        if (!horarios.length) return;
+        var agora = new Date();
+        var atual = String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
+        if (horarios.indexOf(atual) === -1) return;
+        var disparados = _lerDisparadosHojeLembreteAG();
+        if (disparados.horarios.indexOf(atual) !== -1) return;
+        _marcarDisparadoHojeLembreteAG(atual);
+        var pendentes = _lembretePendentesAG();
+        if (pendentes.length) _dispararNotificacaoLembreteAG(pendentes);
+      }
+      function _iniciarVerificacaoLembreteAG() {
+        _verificarHorariosLembreteAG();
+        setInterval(_verificarHorariosLembreteAG, 20000);
       }
 
       // Monta 1 registro pro Historico_antecipacao a partir de uma
