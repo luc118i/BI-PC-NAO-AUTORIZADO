@@ -96,6 +96,14 @@
       .kpi-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto3); font-weight: 700; margin-bottom: 9px; }
       .kpi-value { font-family: var(--font); font-size: 26px; font-weight: 800; color: var(--kpi-c, var(--texto)); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
       .kpi-sub { font-size: 11px; color: var(--texto3); margin-top: 7px; font-weight: 500; }
+      /* KPIs clicáveis do Histórico de Cobranças — funcionam como atalho
+         de filtro (ver _kpiHistTomClickAG/_kpiHistSemJustifClickAG/
+         _kpiHistVerTudoClickAG): clique aplica o filtro correspondente,
+         clique de novo no mesmo card tira o filtro. .kpi-ativo marca qual
+         está aplicado agora, sincronizado com os <select> da filtro-bar. */
+      .kpi-clicavel { cursor: pointer; }
+      .kpi-clicavel:active { transform: translateY(0); }
+      .kpi-ativo { border-color: var(--kpi-c); background: color-mix(in srgb, var(--kpi-c) 10%, var(--superficie)); box-shadow: var(--shadow-card), 0 0 0 1px var(--kpi-c); }
 
       .card { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--radius); padding: 20px 22px; margin-bottom: var(--sp-3); transition: border-color var(--transition); box-shadow: var(--shadow-card); }
       .card:hover { border-color: var(--borda2); }
@@ -138,6 +146,30 @@
       .lembrete-notif-permissao.concedida { color: var(--verde); }
       .lembrete-remover-btn { flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 13px; line-height: 1; }
       .lembrete-remover-btn:hover { border-color: var(--vermelho); color: var(--vermelho); background: rgba(224,80,80,0.1); }
+
+      /* ── Toast do lembrete (alerta visual dentro da página) ──
+         Complementa a Notification nativa do navegador (que só aceita
+         texto puro, sem cor/ícone) pra quem está com a aba em foco e
+         acaba não reparando na notificação do SO. Empilha no canto
+         inferior direito e some sozinho depois de alguns segundos. */
+      .lembrete-toast-wrap { position: fixed; right: 20px; bottom: 20px; z-index: 999; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none; }
+      .lembrete-toast {
+        pointer-events: auto; width: 320px; max-width: calc(100vw - 40px);
+        background: var(--superficie); border: 1px solid var(--borda-l); border-left: 3px solid var(--laranja);
+        border-radius: var(--radius); box-shadow: var(--shadow-card), 0 10px 28px rgba(0,0,0,0.4);
+        padding: 13px 14px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+        animation: lembreteToastIn 0.22s ease-out;
+      }
+      .lembrete-toast.saindo { animation: lembreteToastOut 0.18s ease-in forwards; }
+      @keyframes lembreteToastIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+      @keyframes lembreteToastOut { to { opacity: 0; transform: translateX(12px); } }
+      .lembrete-toast-icon { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--laranja4); color: var(--laranja); display: flex; align-items: center; justify-content: center; }
+      .lembrete-toast-icon svg { width: 16px; height: 16px; }
+      .lembrete-toast-corpo { min-width: 0; flex: 1; }
+      .lembrete-toast-titulo { font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--texto); }
+      .lembrete-toast-msg { font-size: 11.5px; color: var(--texto2); margin-top: 3px; line-height: 1.4; }
+      .lembrete-toast-fechar { flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px; border: none; background: transparent; color: var(--texto3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
+      .lembrete-toast-fechar:hover { color: var(--texto); background: rgba(255,255,255,0.08); }
 
       /* ── ABAS (Antecipação / Em Trânsito) ─────────────────── */
       .ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
@@ -458,22 +490,22 @@
       <div class="card hidden" id="histCard">
         <div class="card-title">Histórico de Cobranças</div>
         <div class="kpi-row kpi-row-4" id="histKpis" style="margin-bottom:14px">
-          <div class="kpi" style="--kpi-c: var(--laranja)">
+          <div class="kpi kpi-clicavel" style="--kpi-c: var(--laranja)" id="kpiHistTotalCard" onclick="_kpiHistVerTudoClickAG()" title="Ver tudo — limpa busca e filtros de tipo/tom/justificativa">
             <div class="kpi-stripe"></div>
             <div class="kpi-label">Cobranças registradas</div>
             <div class="kpi-value" id="kHistTotal">—</div>
           </div>
-          <div class="kpi" style="--kpi-c: var(--laranja)">
+          <div class="kpi kpi-clicavel" style="--kpi-c: var(--laranja)" id="kpiHistGaragensCard" onclick="_kpiHistVerTudoClickAG()" title="Ver tudo — limpa busca e filtros de tipo/tom/justificativa">
             <div class="kpi-stripe"></div>
             <div class="kpi-label">Garagens únicas</div>
             <div class="kpi-value" id="kHistGaragens">—</div>
           </div>
-          <div class="kpi" style="--kpi-c: var(--vermelho)">
+          <div class="kpi kpi-clicavel" style="--kpi-c: var(--vermelho)" id="kpiHistCobrancaCard" onclick="_kpiHistTomClickAG()" title="Filtrar só o tom Cobrança — clique de novo pra tirar o filtro">
             <div class="kpi-stripe"></div>
             <div class="kpi-label">Em tom de cobrança</div>
             <div class="kpi-value" id="kHistCobranca">—</div>
           </div>
-          <div class="kpi" style="--kpi-c: var(--amarelo)">
+          <div class="kpi kpi-clicavel" style="--kpi-c: var(--amarelo)" id="kpiHistSemJustifCard" onclick="_kpiHistSemJustifClickAG()" title="Filtrar só quem ainda não tem justificativa — clique de novo pra tirar o filtro">
             <div class="kpi-stripe"></div>
             <div class="kpi-label">Sem justificativa ainda</div>
             <div class="kpi-value" id="kHistSemJustificativa">—</div>
@@ -800,6 +832,12 @@
       <div class="footer-copy">© <span id="anoAtual"></span> <span>Lucas Inácio</span> · Uso exclusivo interno · Viação Catedral</div>
     </footer>
 
+    <!-- Toast do lembrete diário de antecipação — alerta visual dentro
+         da página, disparado junto com a Notification do navegador (ver
+         _dispararNotificacaoLembreteAG em BI_PC.js/inline) pra quem está
+         com a aba em foco e pode não reparar na notificação do SO. -->
+    <div class="lembrete-toast-wrap" id="lembreteToastWrap" aria-live="polite"></div>
+
     <script>
       // ── Trava o scroll do FUNDO da página quando alguma modal
       // (.oc-overlay) está aberta — mesmo padrão do tempo_permanencia.html:
@@ -934,6 +972,40 @@
         _renderHistoricoFiltradoAG();
       }
 
+      // ── KPIs clicáveis do Histórico de Cobranças ──────────────────
+      // "Cobranças registradas"/"Garagens únicas" não têm um filtro
+      // próprio (são totais, não uma categoria) — clicar neles funciona
+      // como atalho de "ver tudo": limpa busca e os filtros de tipo/tom/
+      // justificativa (o período de data fica como está, é independente).
+      // Já "Em tom de cobrança" e "Sem justificativa ainda" ligam/desligam
+      // o filtro correspondente — clicar de novo tira o filtro.
+      function _kpiHistVerTudoClickAG() {
+        document.getElementById("histBusca").value = "";
+        document.getElementById("histTipoSel").value = "";
+        document.getElementById("histTomSel").value = "";
+        document.getElementById("histJustifSel").value = "";
+        _renderHistoricoFiltradoAG();
+      }
+      function _kpiHistTomClickAG() {
+        var sel = document.getElementById("histTomSel");
+        sel.value = sel.value === "Cobrança" ? "" : "Cobrança";
+        _renderHistoricoFiltradoAG();
+      }
+      function _kpiHistSemJustifClickAG() {
+        var sel = document.getElementById("histJustifSel");
+        sel.value = sel.value === "sem" ? "" : "sem";
+        _renderHistoricoFiltradoAG();
+      }
+      // Fonte da verdade é o valor atual dos <select> — assim o destaque
+      // fica certo tanto quando o filtro veio de um clique no KPI quanto
+      // de alguém mexer direto na filtro-bar.
+      function _atualizarKpiAtivoHistAG() {
+        var tom = document.getElementById("histTomSel").value;
+        var justif = document.getElementById("histJustifSel").value;
+        document.getElementById("kpiHistCobrancaCard").classList.toggle("kpi-ativo", tom === "Cobrança");
+        document.getElementById("kpiHistSemJustifCard").classList.toggle("kpi-ativo", justif === "sem");
+      }
+
       function _renderHistoricoFiltradoAG() {
         var termo = _normAG(document.getElementById("histBusca").value);
         var tipoFiltro = document.getElementById("histTipoSel").value;
@@ -980,6 +1052,7 @@
             justif +
           '</tr>';
         }).join("");
+        _atualizarKpiAtivoHistAG();
       }
 
       // ─── Modal de justificativa a partir de 1 linha do Histórico de
@@ -1479,11 +1552,51 @@
         });
       }
 
+      // Toast in-page (estilizado) do lembrete — roda em paralelo com a
+      // Notification nativa do navegador (que só aceita texto puro, sem
+      // cor/ícone). Cobre o caso de a aba já estar em foco, quando a
+      // notificação do SO às vezes nem chega a aparecer ou passa
+      // despercebida. Some sozinho depois de LEMBRETE_TOAST_MS, ou ao
+      // clicar em ✕; clicar no corpo do toast rola até o card, igual ao
+      // clique na notificação nativa.
+      var LEMBRETE_TOAST_MS = 12000;
+      function _mostrarToastLembreteAG(pendentes) {
+        var wrap = document.getElementById("lembreteToastWrap");
+        if (!wrap) return;
+        var el = document.createElement("div");
+        el.className = "lembrete-toast";
+        el.innerHTML =
+          '<div class="lembrete-toast-icon">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+          '</div>' +
+          '<div class="lembrete-toast-corpo">' +
+            '<div class="lembrete-toast-titulo">Lembrete diário de antecipação</div>' +
+            '<div class="lembrete-toast-msg">' + pendentes.length + ' base' + (pendentes.length !== 1 ? 's' : '') + ' ainda sem o lembrete de hoje enviado.</div>' +
+          '</div>' +
+          '<button type="button" class="lembrete-toast-fechar" title="Fechar">✕</button>';
+        var fechar = function () {
+          if (!el.parentNode) return;
+          el.classList.add("saindo");
+          setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 180);
+        };
+        el.addEventListener("click", function (ev) {
+          if (ev.target.closest(".lembrete-toast-fechar")) { fechar(); return; }
+          var card = document.getElementById("lembreteAntecipacaoCard");
+          if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+          fechar();
+        });
+        wrap.appendChild(el);
+        setTimeout(fechar, LEMBRETE_TOAST_MS);
+      }
+
       // Dispara a notificação de verdade — chamada pelo relógio de fundo
       // quando o horário atual bate com 1 dos programados e ainda existe
       // base pendente. Clicar na notificação foca a aba e rola até o
-      // card de lembrete, pra já cair direto no "Enviar todos".
+      // card de lembrete, pra já cair direto no "Enviar todos". Dispara
+      // também o toast in-page (_mostrarToastLembreteAG), independente
+      // de a Notification nativa conseguir aparecer ou não.
       function _dispararNotificacaoLembreteAG(pendentes) {
+        _mostrarToastLembreteAG(pendentes);
         if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
         var n = new Notification("Lembrete diário de antecipação", {
           body: pendentes.length + " base" + (pendentes.length !== 1 ? "s" : "") + " ainda sem o lembrete de hoje enviado.",
