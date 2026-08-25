@@ -3216,6 +3216,70 @@
         if (abaSalva === "apoio" && !_tpListaApoio.length) abaSalva = "rodoviaria";
         if (abaSalva === "rodoviaria" && !lista.length) abaSalva = "apoio";
         _selecionarAbaTP(abaSalva);
+
+        // Vincula o esquema de cada ponto de apoio automaticamente (sem
+        // esperar clique em "Ver esquema") — assim que o roteiro chega,
+        // quem já bate com a parada prevista já nasce marcado "Dentro do
+        // esquema" sozinho (ver _aplicarEsquemaAoItem/_autoJustificarDentroEsquemaTP).
+        _autoVincularEsquemasApoio();
+      }
+
+      // Tenta achar, pra cada veículo com ponto(s) de apoio pendente(s), o
+      // esquema certo sozinho — usa o mesmo texto (item.linha, vindo do
+      // CSV) que já preenche a busca quando o usuário abre "Ver esquema"
+      // manualmente. Só vincula quando a busca aponta pra EXATAMENTE 1
+      // esquema (mesmo critério de match de _filtrarEsquema/_filtrarEsquemaGrupo)
+      // — ambíguo (0 ou 2+ resultados) fica pro usuário decidir na mão,
+      // igual sempre foi. Roda 1x por veículo (não por ponto), reaproveitando
+      // o roteiro pra todos os pontos daquele veículo (_carregarRoteiro já
+      // cacheia por esquemaId).
+      function _autoVincularEsquemasApoio() {
+        var pendentesPorVeiculo = {};
+        _relatorioItens.forEach(function (item, idx) {
+          if (!item || item.modo !== "apoio" || item._esquemaInfo) return;
+          var v = item.veiculo || "";
+          (pendentesPorVeiculo[v] || (pendentesPorVeiculo[v] = [])).push(idx);
+        });
+        var veiculos = Object.keys(pendentesPorVeiculo);
+        if (!veiculos.length) return;
+
+        _carregarEsquemas(function (esquemas, err) {
+          if (err || !esquemas || !esquemas.length) return;
+
+          veiculos.forEach(function (veiculo) {
+            var idxs = pendentesPorVeiculo[veiculo];
+            var primeiro = _relatorioItens[idxs[0]];
+            var termo = (primeiro && primeiro.linha && primeiro.linha !== "—") ? primeiro.linha : "";
+            if (!termo) return; // sem linha registrada no CSV — sem termo seguro pra buscar sozinho
+
+            var tokens = _normTP(termo).split(" ").filter(Boolean);
+            if (!tokens.length) return;
+            var candidatos = esquemas.filter(function (e) {
+              return tokens.every(function (t) {
+                var tDigitos = t.replace(/\D/g, "");
+                return e._nome.includes(t) || e._cod.includes(t) || e._horario.includes(t) ||
+                  (tDigitos.length >= 3 && e._horarioDigitos.includes(tDigitos)) ||
+                  e._locais.some(function (l) { return l.includes(t); });
+              });
+            });
+            if (candidatos.length !== 1) return;
+
+            _carregarRoteiro(candidatos[0].id, function (json, errRoteiro) {
+              if (errRoteiro || !json || !json.found) return;
+              var pontoAnteriorMatch = null;
+              idxs.forEach(function (idx) {
+                var it = _relatorioItens[idx];
+                // Já vinculado nesse meio-tempo (ex.: usuário clicou "Ver
+                // esquema" manualmente antes desta busca automática voltar)
+                // — não sobrescreve.
+                if (!it || it._esquemaInfo) return;
+                var pontoMatch = _aplicarEsquemaAoItem(idx, json, pontoAnteriorMatch);
+                if (pontoMatch) pontoAnteriorMatch = pontoMatch;
+                _atualizarCardApoioPosEsquema(idx);
+              });
+            });
+          });
+        });
       }
 
       // Lembra a última região escolhida no filtro (localStorage) — assim
