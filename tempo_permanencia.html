@@ -1557,6 +1557,19 @@
       // não colidem com as de rodoviária — dá pra misturar os dois no
       // mesmo cache sem risco e sem precisar espalhar "if (modo===apoio)"
       // por todo lugar que já lê _statusAnalisadoCache/_justificativaCache.
+      // Fila de callbacks de quem chamou enquanto a carga já estava em
+      // andamento — null quando não tem carga rolando. Importante: NÃO dá
+      // pra marcar _statusAnalisadoCache como "pronto" (não-null) antes das
+      // 2 respostas voltarem — outro código já assume que "cache não-null"
+      // = "dados de verdade carregados" (_aplicarStatusPersistido, por
+      // exemplo, só faz algo se _statusAnalisadoCache.size > 0). Se a
+      // página tivesse marcado o Set vazio como "pronto" cedo demais,
+      // qualquer chamada concorrente (ex.: accordion renderizando antes das
+      // 2 respostas voltarem) via cache vazio e nunca reaplicava depois —
+      // era por isso que os pontos de apoio pareciam "não salvar" ao
+      // recarregar a página.
+      var _statusCarregandoCallbacks = null;
+
       function _carregarStatusAnalisado(cb) {
         if (_statusAnalisadoCache) { if (cb) cb(); return; }
         if (!(window.google && google.script && google.script.run)) {
@@ -1565,14 +1578,30 @@
           if (cb) cb();
           return;
         }
-        _statusAnalisadoCache = new Set();
-        _justificativaCache = new Map();
+        if (_statusCarregandoCallbacks) {
+          // já tem uma carga em andamento — só entra na fila, sem disparar
+          // uma 2ª leva de requisições à toa.
+          if (cb) _statusCarregandoCallbacks.push(cb);
+          return;
+        }
+        _statusCarregandoCallbacks = cb ? [cb] : [];
+
+        var chaves = new Set();
+        var justs = new Map();
         var pendentes = 2;
-        var concluir = function () { pendentes--; if (pendentes === 0 && cb) cb(); };
+        var concluir = function () {
+          pendentes--;
+          if (pendentes > 0) return;
+          _statusAnalisadoCache = chaves;
+          _justificativaCache = justs;
+          var callbacks = _statusCarregandoCallbacks || [];
+          _statusCarregandoCallbacks = null;
+          callbacks.forEach(function (f) { f(); });
+        };
         var mesclar = function (json) {
           var parsed = _parseStatusPermanencia(json);
-          parsed.chaves.forEach(function (c) { _statusAnalisadoCache.add(c); });
-          parsed.justs.forEach(function (v, k) { _justificativaCache.set(k, v); });
+          parsed.chaves.forEach(function (c) { chaves.add(c); });
+          parsed.justs.forEach(function (v, k) { justs.set(k, v); });
         };
 
         google.script.run
@@ -1598,26 +1627,37 @@
         if (analisado) { _statusAnalisadoCache.add(item.chave); _justificativaCache.set(item.chave, justificativa); }
         else { _statusAnalisadoCache.delete(item.chave); _justificativaCache.delete(item.chave); }
         if (!(window.google && google.script && google.script.run)) return;
-        var chamada = google.script.run
-          .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); });
-        (item.modo === "apoio" ? chamada.marcarStatusPermanenciaApoio : chamada.marcarStatusPermanencia)
-          .call(chamada, {
-            chave: item.chave,
-            veiculo: item.veiculo,
-            ponto: item.ponto,
-            entrada: item.entrada,
-            analisado: analisado,
-            motivo: justificativa.motivo || "",
-            qtdEmbarque: justificativa.qtdEmbarque || "",
-            qtdDesembarque: justificativa.qtdDesembarque || "",
-            apoioRodoviaria: justificativa.apoioRodoviaria || "",
-            observacao: justificativa.observacao || "",
-            linhaCod: justificativa.linhaCod || "",
-            linhaNome: justificativa.linhaNome || "",
-            linhaTripId: justificativa.linhaTripId || "",
-            horarioSessao: justificativa.horarioSessao || "",
-            pontoSessao: justificativa.pontoSessao || "",
-          });
+
+        var payload = {
+          chave: item.chave,
+          veiculo: item.veiculo,
+          ponto: item.ponto,
+          entrada: item.entrada,
+          analisado: analisado,
+          motivo: justificativa.motivo || "",
+          qtdEmbarque: justificativa.qtdEmbarque || "",
+          qtdDesembarque: justificativa.qtdDesembarque || "",
+          apoioRodoviaria: justificativa.apoioRodoviaria || "",
+          observacao: justificativa.observacao || "",
+          linhaCod: justificativa.linhaCod || "",
+          linhaNome: justificativa.linhaNome || "",
+          linhaTripId: justificativa.linhaTripId || "",
+          horarioSessao: justificativa.horarioSessao || "",
+          pontoSessao: justificativa.pontoSessao || "",
+        };
+        // Chamada explícita por modo (em vez de resolver o nome do método
+        // por variável com .call()) — google.script.run é um proxy
+        // especial do Apps Script, então preferir o jeito direto de
+        // sempre, igual todo outro lugar do arquivo chama.
+        if (item.modo === "apoio") {
+          google.script.run
+            .withFailureHandler(function (err) { console.error("[status] falha ao salvar (apoio):", err); })
+            .marcarStatusPermanenciaApoio(payload);
+        } else {
+          google.script.run
+            .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); })
+            .marcarStatusPermanencia(payload);
+        }
       }
 
       // ─────────────────────────────────────────────────────────
@@ -5140,8 +5180,14 @@
         // (só a aba rodoviária preenche isso). Entra numa tabela própria e
         // separada no PDF (ver resumo-analise.template.ts), então nem
         // precisa de agrupamento por veículo aqui — só a lista plana.
+        // DENTRO_ESQUEMA fica de fora — foi resolvido sozinho
+        // (_autoJustificarDentroEsquemaTP), não é excedência de verdade,
+        // não faz sentido aparecer no resumo do dia.
         var itensApoioAnalisados = _tpListaApoio.filter(function (item) {
-          return item.regiao === regiaoNome && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave);
+          if (!item.chave || !_statusAnalisadoCache || !_statusAnalisadoCache.has(item.chave)) return false;
+          if (item.regiao !== regiaoNome) return false;
+          var just = _justificativaCache && _justificativaCache.get(item.chave);
+          return !just || just.motivo !== "DENTRO_ESQUEMA";
         }).map(function (item) {
           var j = _resumoDiaJustificativaDe(item);
           return {
