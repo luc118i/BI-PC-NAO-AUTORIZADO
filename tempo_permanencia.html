@@ -1894,6 +1894,16 @@
         // Reset dos campos — justificativa é individual, não repete a do
         // ponto anterior da fila.
         document.querySelectorAll('#justOpcoes input[name="justMotivo"]').forEach(function (r) { r.checked = false; });
+
+        // Motivos disponíveis mudam conforme o tipo do ponto — rodoviária
+        // mantém as 4 opções de sempre, ponto de apoio troca pelas
+        // específicas (OCORRENCIA é compartilhado entre os dois). Ver
+        // MOTIVOS_DESCARTE/MOTIVOS_APOIO.
+        var motivosPermitidos = atual.modo === "apoio" ? MOTIVOS_APOIO : MOTIVOS_DESCARTE;
+        document.querySelectorAll("#justOpcoes .just-opcao").forEach(function (op) {
+          var m = op.getAttribute("data-motivo");
+          op.classList.toggle("hidden", motivosPermitidos.indexOf(m) === -1);
+        });
         document.getElementById("justQtdEmbarque").value = "";
         document.getElementById("justQtdDesembarque").value = "";
         document.getElementById("justApoioRodoviaria").value = "";
@@ -2335,28 +2345,53 @@
         EMBARQUE: "Muito embarque/desembarque",
         OCORRENCIA: "Teve ocorrência",
         RELATORIO_GERADO: "Culpa do motorista",
+        // Específicos de ponto de apoio (posto/restaurante/outro) — ver
+        // MOTIVOS_APOIO logo abaixo. OCORRENCIA é compartilhado com
+        // rodoviária (mesmo motivo, mesmo campo "Descreva a ocorrência").
+        BANHEIRO: "Necessidade fisiológica",
+        FILA_ATENDIMENTO: "Fila no caixa/atendimento",
+        HORARIO_NECESSARIO: "Parada necessária pelo horário",
       };
+      // Rodoviária — usado hoje só pro dashboard "Motivos de análise" (que
+      // só tem dado de rodoviária, ver TEMPO_PERMANENCIA_STATUS) e pelo
+      // filtro #tpMotivoSel. Não confundir com quais opções aparecem no
+      // MODAL de justificativa — isso é controlado por _mostrarProximaJustificativa
+      // (item.modo), que usa esta lista + MOTIVOS_APOIO abaixo.
       var MOTIVOS_DESCARTE = ["ANTECIPADO", "INICIO_VIAGEM", "EMBARQUE", "OCORRENCIA"];
+      // Ponto de apoio — mesma ideia, lista própria (não entra no
+      // dashboard/gráficos de rodoviária, que não veem dado de apoio).
+      var MOTIVOS_APOIO = ["OCORRENCIA", "BANHEIRO", "FILA_ATENDIMENTO", "HORARIO_NECESSARIO"];
       var MOTIVO_CORES = {
         ANTECIPADO: "#f0c040",
         INICIO_VIAGEM: "#3b82c4",
         EMBARQUE: "#22c97a",
         OCORRENCIA: "#8b5cf6",
         RELATORIO_GERADO: "#e05050",
+        BANHEIRO: "#14b8a6",
+        FILA_ATENDIMENTO: "#f97316",
+        HORARIO_NECESSARIO: "#64748b",
       };
 
-      // Preenche o filtro "Tipo de justificativa" (#tpMotivoSel) com um
-      // <option> por motivo de MOTIVO_LABELS — a opção "Ainda não
-      // analisado" já vem fixa no HTML. Chamado 1x no window.onload.
-      function _popularFiltroMotivo() {
-        var sel = document.getElementById("tpMotivoSel");
+      // Preenche um <select> de filtro com 1 <option> por motivo da lista
+      // dada — a opção "Ainda não analisado" já vem fixa no HTML de cada
+      // um. Usa MOTIVOS_DESCARTE (rodoviária, #tpMotivoSel) ou
+      // MOTIVOS_APOIO (#tpMotivoSelApoio) — não Object.keys(MOTIVO_LABELS)
+      // direto, senão motivo de uma aba vazava pro filtro da outra.
+      // Chamado 1x no window.onload.
+      function _popularSelectMotivos(selectId, motivos) {
+        var sel = document.getElementById(selectId);
         if (!sel) return;
-        Object.keys(MOTIVO_LABELS).forEach(function (m) {
+        motivos.forEach(function (m) {
           var opt = document.createElement("option");
           opt.value = m;
-          opt.textContent = MOTIVO_LABELS[m];
+          opt.textContent = MOTIVO_LABELS[m] || m;
           sel.appendChild(opt);
         });
+      }
+
+      function _popularFiltroMotivo() {
+        _popularSelectMotivos("tpMotivoSel", MOTIVOS_DESCARTE);
+        _popularSelectMotivos("tpMotivoSelApoio", MOTIVOS_APOIO);
       }
 
       function _carregarJustificativasPermanencia() {
@@ -6635,6 +6670,29 @@
                 <span class="just-opcao-texto">
                   <span class="just-opcao-titulo">Teve alguma ocorrência</span>
                   <span class="just-opcao-sub">Pane, problema com passageiro, fiscalização, etc.</span>
+                </span>
+              </label>
+              <!-- Específicas de ponto de apoio — escondidas/mostradas em
+                   _mostrarProximaJustificativa() conforme item.modo. -->
+              <label class="just-opcao hidden" data-motivo="BANHEIRO">
+                <input type="radio" name="justMotivo" value="BANHEIRO" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Necessidade fisiológica</span>
+                  <span class="just-opcao-sub">Passageiro(s) precisaram usar o banheiro — parada mais longa por necessidade deles, não do motorista.</span>
+                </span>
+              </label>
+              <label class="just-opcao hidden" data-motivo="FILA_ATENDIMENTO">
+                <input type="radio" name="justMotivo" value="FILA_ATENDIMENTO" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Fila no caixa/atendimento</span>
+                  <span class="just-opcao-sub">Posto/restaurante cheio — demora pra pagar ou ser atendido.</span>
+                </span>
+              </label>
+              <label class="just-opcao hidden" data-motivo="HORARIO_NECESSARIO">
+                <input type="radio" name="justMotivo" value="HORARIO_NECESSARIO" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Parada necessária pelo horário</span>
+                  <span class="just-opcao-sub">Devido ao horário da viagem, foi necessário parar neste ponto — mesmo fora do roteiro previsto no esquema.</span>
                 </span>
               </label>
             </div>
