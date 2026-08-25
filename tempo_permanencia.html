@@ -4894,6 +4894,20 @@
       // com tudo que já foi ANALISADO na região — relatório gerado
       // (culpa do motorista) ou descartado por justificativa. Não mexe
       // em nada pendente nem cria ocorrência nenhuma.
+      // Monta a justificativa (motivo/detalhe) de um item já analisado —
+      // mesma lógica pra rodoviária e ponto de apoio, só o item muda.
+      function _resumoDiaJustificativaDe(item) {
+        var just = (_justificativaCache && _justificativaCache.get(item.chave)) || {};
+        var motivoLabel = MOTIVO_LABELS[just.motivo] || just.motivo || "—";
+        var detalhe = "";
+        if (just.motivo === "EMBARQUE") {
+          detalhe = "Embarque: " + (just.qtdEmbarque || 0) + " · Desembarque: " + (just.qtdDesembarque || 0) +
+            " · Apoio rodoviária: " + (just.apoioRodoviaria === "SIM" ? "Sim" : just.apoioRodoviaria === "NAO" ? "Não" : "—");
+        }
+        if (just.observacao) detalhe += (detalhe ? " — " : "") + just.observacao;
+        return { motivo: just.motivo || "", motivoLabel: motivoLabel, detalhe: detalhe };
+      }
+
       function _gerarResumoDiaRegiao(ri, btnEl) {
         var gidxs = _regiaoGidxs[ri] || [];
         var todosIdxs = [];
@@ -4902,15 +4916,9 @@
         var itensAnalisados = todosIdxs.map(function (idx) {
           var item = _relatorioItens[idx];
           if (!item || !item.chave || !_statusAnalisadoCache || !_statusAnalisadoCache.has(item.chave)) return null;
-          var just = (_justificativaCache && _justificativaCache.get(item.chave)) || {};
-          var motivoLabel = MOTIVO_LABELS[just.motivo] || just.motivo || "—";
-          var detalhe = "";
-          if (just.motivo === "EMBARQUE") {
-            detalhe = "Embarque: " + (just.qtdEmbarque || 0) + " · Desembarque: " + (just.qtdDesembarque || 0) +
-              " · Apoio rodoviária: " + (just.apoioRodoviaria === "SIM" ? "Sim" : just.apoioRodoviaria === "NAO" ? "Não" : "—");
-          }
-          if (just.observacao) detalhe += (detalhe ? " — " : "") + just.observacao;
+          var j = _resumoDiaJustificativaDe(item);
           return {
+            modo: "rodoviaria",
             veiculo: item.veiculo || "",
             ponto: item.ponto || "",
             cidade: item.cidade || "",
@@ -4918,22 +4926,53 @@
             entrada: _fmtHM(item.entrada),
             saida: _fmtHM(item.saida),
             excedenteMin: Math.round(item.excedenteSeg / 60),
-            motivo: just.motivo || "",
-            motivoLabel: motivoLabel,
-            motivoCor: MOTIVO_CORES[just.motivo] || "",
-            detalhe: detalhe,
+            motivo: j.motivo,
+            motivoLabel: j.motivoLabel,
+            motivoCor: MOTIVO_CORES[j.motivo] || "",
+            detalhe: j.detalhe,
           };
         }).filter(Boolean);
 
-        if (!itensAnalisados.length) {
+        var regiaoNome = btnEl.closest(".acc-regiao").querySelector(":scope > summary .acc-prefixo").textContent;
+
+        // Ponto de apoio analisado na mesma região — direto de
+        // _tpListaApoio (tem "regiao" em cada item), não via _regiaoGidxs
+        // (só a aba rodoviária preenche isso). Entra numa tabela própria e
+        // separada no PDF (ver resumo-analise.template.ts), então nem
+        // precisa de agrupamento por veículo aqui — só a lista plana.
+        var itensApoioAnalisados = _tpListaApoio.filter(function (item) {
+          return item.regiao === regiaoNome && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave);
+        }).map(function (item) {
+          var j = _resumoDiaJustificativaDe(item);
+          return {
+            modo: "apoio",
+            veiculo: item.veiculo || "",
+            ponto: item.ponto || "",
+            cidade: item.cidade || "",
+            uf: item.uf || "",
+            entrada: _fmtHM(item.entrada),
+            saida: _fmtHM(item.saida),
+            permanenciaMin: Math.round(item.permanenciaSeg / 60),
+            permitidoMin: item.permitidoSeg != null ? Math.round(item.permitidoSeg / 60) : null,
+            excedenteMin: item.excedenteSeg != null ? Math.round(item.excedenteSeg / 60) : null,
+            foraDoRoteiro: !!item._foraDoRoteiro,
+            motivo: j.motivo,
+            motivoLabel: j.motivoLabel,
+            motivoCor: MOTIVO_CORES[j.motivo] || "",
+            detalhe: j.detalhe,
+          };
+        });
+
+        if (!itensAnalisados.length && !itensApoioAnalisados.length) {
           _alertarAcao("Nenhuma excedência analisada nesta região ainda.", { titulo: "📋 Resumo do dia" });
           return;
         }
 
-        var regiaoNome = btnEl.closest(".acc-regiao").querySelector(":scope > summary .acc-prefixo").textContent;
-        var dataLabel = _fmtData(_relatorioItens[todosIdxs[0]].entrada) || "";
+        var primeiroComData = itensAnalisados.length ? _relatorioItens[todosIdxs[0]] :
+          _tpListaApoio.filter(function (item) { return item.regiao === regiaoNome; })[0];
+        var dataLabel = primeiroComData ? (_fmtData(primeiroComData.entrada) || "") : "";
 
-        _abrirResumoDiaFiltro(itensAnalisados, regiaoNome, dataLabel, btnEl);
+        _abrirResumoDiaFiltro(itensAnalisados.concat(itensApoioAnalisados), regiaoNome, dataLabel, btnEl);
       }
 
       // ── Filtro por motivo — "Resumo do dia" ─────────────────────
@@ -5020,6 +5059,14 @@
 
         function restaurarBtn() { btnEl.disabled = false; btnEl.innerHTML = textoOrig; }
 
+        // Divide de volta em duas listas pro payload — vieram juntas só
+        // pra passar pelo mesmo filtro de motivo (ver _gerarResumoDiaRegiao/
+        // _abrirResumoDiaFiltro). Cada uma vira sua própria tabela no PDF
+        // (ver resumo-analise.template.ts — itens = rodoviária, itensApoio
+        // = ponto de apoio, tabela separada e exclusiva).
+        var itensRodoviaria = itensAnalisados.filter(function (it) { return it.modo !== "apoio"; });
+        var itensApoio = itensAnalisados.filter(function (it) { return it.modo === "apoio"; });
+
         // Gerado pela mesma API (Node/Puppeteer) dos outros relatórios —
         // não pelo Apps Script — porque só o Chrome headless do
         // Puppeteer sabe repetir o rodapé (razão social/CNPJ) com
@@ -5035,7 +5082,8 @@
                 regiao: regiaoNome,
                 dataLabel: dataLabel,
                 analisadoPor: _authLogado() ? _obterUsuarioAtual() : "",
-                itens: itensAnalisados,
+                itens: itensRodoviaria,
+                itensApoio: itensApoio,
                 accessToken: cred.accessToken,
                 folderId: cred.folderId,
               }),
