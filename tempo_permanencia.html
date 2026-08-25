@@ -1841,7 +1841,15 @@
       // cabeçalhos de grupo.
       function _aplicarStatusPersistido() {
         if (!_statusAnalisadoCache || !_statusAnalisadoCache.size) return;
-        document.querySelectorAll("#tpAccordions .perm-item").forEach(function (el) {
+        // As duas abas — #tpAccordions (rodoviária) e #tpAccordionsApoio
+        // (ponto de apoio) — cada .perm-item tem [data-chave] único (chave
+        // de apoio vem prefixada "APOIO|", ver _detectarExcedenciasApoio),
+        // então dá pra reaplicar o cache combinado num único seletor. Sem
+        // o "#tpAccordionsApoio" aqui, o status de ponto de apoio ficava
+        // salvo certinho na planilha, mas nunca era reaplicado na tela
+        // depois de recarregar a página/reprocessar o CSV — parecia "não
+        // salvou", mas só não estava sendo reexibido.
+        document.querySelectorAll("#tpAccordions .perm-item, #tpAccordionsApoio .perm-item").forEach(function (el) {
           var chave = el.getAttribute("data-chave");
           if (!chave || !_statusAnalisadoCache.has(chave)) return;
           el.classList.add("riscado");
@@ -1872,8 +1880,8 @@
             }
           }
         });
-        document.querySelectorAll("#tpAccordions details.acc-group").forEach(function (d) { _atualizarContador(d); });
-        document.querySelectorAll("#tpAccordions details.acc-prefixo-group").forEach(function (d) {
+        document.querySelectorAll("#tpAccordions details.acc-group, #tpAccordionsApoio details.acc-group").forEach(function (d) { _atualizarContador(d); });
+        document.querySelectorAll("#tpAccordions details.acc-prefixo-group, #tpAccordionsApoio details.acc-prefixo-group").forEach(function (d) {
           _atualizarEstadoGrupoPorDetails(d);
           _restaurarEsquemaVinculadoGrupo(d);
         });
