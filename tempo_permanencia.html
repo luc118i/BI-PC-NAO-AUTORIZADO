@@ -3484,7 +3484,7 @@
             return fetch(RIZER_AGENT_URL + "/whatsapp/send", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ phone: phone, message: mensagem, attachBanner: false }),
+              body: JSON.stringify({ phone: phone, message: mensagem, banner: "ponto-apoio" }),
             })
               .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
               .then(function (res) {
