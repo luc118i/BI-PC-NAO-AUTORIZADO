@@ -1545,6 +1545,7 @@
             linhaTripId: r.linhaTripId || "",
             horarioSessao: r.horarioSessao || "",
             pontoSessao: r.pontoSessao || "",
+            perguntaMotorista: r.perguntaMotorista || "",
           });
         });
         return { chaves: chaves, justs: justs };
@@ -1644,6 +1645,7 @@
           linhaTripId: justificativa.linhaTripId || "",
           horarioSessao: justificativa.horarioSessao || "",
           pontoSessao: justificativa.pontoSessao || "",
+          perguntaMotorista: item._perguntaEnviada ? (item._perguntaPulada ? "PULADA" : "ENVIADA") : "",
         };
         // Chamada explícita por modo (em vez de resolver o nome do método
         // por variável com .call()) — google.script.run é um proxy
@@ -1864,10 +1866,10 @@
           // modal de Gerar Relatório (_tentarAutoSelecionarLinhaAtual) e
           // pelo campo "sessionTime" da ocorrência (_criarOcorrencia),
           // sem precisar reabrir "Ver esquema" pra buscar de novo.
-          if (just && just.linhaCod) {
+          if (just) {
             var idx = el.getAttribute("data-idx");
             var item = idx != null ? _relatorioItens[idx] : null;
-            if (item && !item._esquemaInfo) {
+            if (item && just.linhaCod && !item._esquemaInfo) {
               item._esquemaInfo = {
                 codLinha: just.linhaCod,
                 nomeLinha: just.linhaNome || "",
@@ -1877,6 +1879,13 @@
                 pontoSessao: just.pontoSessao || null,
                 tripId: just.linhaTripId || "",
               };
+            }
+            // Restaura se o motorista já foi questionado (ou a pergunta
+            // foi pulada) sobre esta excedência — reflete no PDF do
+            // relatório gerado a partir daqui (ver _criarOcorrencia).
+            if (item && just.perguntaMotorista) {
+              item._perguntaEnviada = true;
+              item._perguntaPulada = just.perguntaMotorista === "PULADA";
             }
           }
         });
@@ -3565,6 +3574,7 @@
         ).then(function (ok) {
           if (!ok) return;
           item._perguntaEnviada = true;
+          item._perguntaPulada = true;
           _atualizarCardApoioPosPergunta(idx);
         });
       }
@@ -3711,7 +3721,7 @@
                 }
                 _setPergStatus('<span style="color:var(--verde)">' + _icon("check") + '</span> Mensagem enviada!', "var(--verde)");
                 var itemEnviado = _relatorioItens[_pergItemIdx];
-                if (itemEnviado) { itemEnviado._perguntaEnviada = true; _atualizarCardApoioPosPergunta(_pergItemIdx); }
+                if (itemEnviado) { itemEnviado._perguntaEnviada = true; itemEnviado._perguntaPulada = false; _atualizarCardApoioPosPergunta(_pergItemIdx); }
                 setTimeout(_fecharPerguntaMotorista, 1200);
               });
           })
@@ -6091,6 +6101,11 @@
           excedenteMin: Math.round(item.excedenteSeg / 60),
           lat: item.lat != null ? item.lat : null,
           lng: item.lng != null ? item.lng : null,
+          // Se o motorista foi questionado (WhatsApp) sobre esta
+          // excedência antes de gerar o relatório, ou se a pergunta foi
+          // pulada — aparece no PDF (ver excesso-parada.template.ts,
+          // motoristaQuestionadoLabel()).
+          motoristaQuestionado: item._perguntaEnviada ? (item._perguntaPulada ? "PULADA" : "ENVIADA") : null,
           // Ocorrência de Excesso de Permanência não passa por medida
           // disciplinar (advertência/suspensão) — só fica registrada,
           // então já cria marcada como "REGISTRO" em vez de sem tratativa.

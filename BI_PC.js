@@ -551,6 +551,7 @@ var TEMPO_PERMANENCIA_STATUS_HEADER = [
   "CHAVE", "VEICULO", "PONTO", "ENTRADA", "STATUS", "ATUALIZADO_EM",
   "MOTIVO", "QTD_EMBARQUE", "QTD_DESEMBARQUE", "APOIO_RODOVIARIA", "OBSERVACAO",
   "LINHA_COD", "LINHA_NOME", "LINHA_TRIP_ID", "HORARIO_SESSAO", "PONTO_SESSAO",
+  "PERGUNTA_MOTORISTA",
 ];
 
 // Antes disto, marcarStatusPermanencia() lançava erro se a aba não
@@ -617,6 +618,7 @@ function getStatusPermanencia() {
       linhaTripId: String(r[13] || "").trim(),
       horarioSessao: String(r[14] || "").trim(),
       pontoSessao: String(r[15] || "").trim(),
+      perguntaMotorista: String(r[16] || "").trim(),
     }));
 
   return JSON.stringify(registros);
@@ -624,7 +626,8 @@ function getStatusPermanencia() {
 
 // payload: { chave, veiculo, ponto, entrada, analisado, motivo,
 //            qtdEmbarque, qtdDesembarque, apoioRodoviaria, observacao,
-//            linhaCod, linhaNome, linhaTripId, horarioSessao, pontoSessao }
+//            linhaCod, linhaNome, linhaTripId, horarioSessao, pontoSessao,
+//            perguntaMotorista }
 function marcarStatusPermanencia(payload) {
   const chave = String((payload && payload.chave) || "").trim();
   if (!chave) throw new Error("chave é obrigatória.");
@@ -649,6 +652,7 @@ function marcarStatusPermanencia(payload) {
     payload.analisado ? payload.linhaTripId || "" : "",
     payload.analisado ? payload.horarioSessao || "" : "",
     payload.analisado ? payload.pontoSessao || "" : "",
+    payload.analisado ? payload.perguntaMotorista || "" : "",
   ];
 
   const lastRow = aba.getLastRow();
@@ -725,6 +729,7 @@ function getStatusPermanenciaApoio() {
       linhaTripId: String(r[13] || "").trim(),
       horarioSessao: String(r[14] || "").trim(),
       pontoSessao: String(r[15] || "").trim(),
+      perguntaMotorista: String(r[16] || "").trim(),
     }));
 
   return JSON.stringify(registros);
@@ -753,6 +758,7 @@ function marcarStatusPermanenciaApoio(payload) {
     payload.analisado ? payload.linhaTripId || "" : "",
     payload.analisado ? payload.horarioSessao || "" : "",
     payload.analisado ? payload.pontoSessao || "" : "",
+    payload.analisado ? payload.perguntaMotorista || "" : "",
   ];
 
   const lastRow = aba.getLastRow();
