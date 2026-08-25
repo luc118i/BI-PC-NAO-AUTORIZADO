@@ -3289,28 +3289,41 @@
       function _montarMensagemPerguntaApoio(item, nomeMotorista) {
         var primeiroNome = (nomeMotorista || "").trim().split(/\s+/)[0] || "";
         var saudacao = primeiroNome ? "Olá, " + primeiroNome + "." : "Olá.";
-        var linha = (item._esquemaInfo && (item._esquemaInfo.nomeLinha || item._esquemaInfo.codLinha)) || "—";
+        var esq = item._esquemaInfo || {};
+        var codLinha = esq.codLinha || "";
+        var nomeLinha = esq.nomeLinha || "";
+        var linhaTxt = (codLinha || nomeLinha) ? ((codLinha ? codLinha + " — " : "") + (nomeLinha || "—")) : "—";
+        var sentidoTxt = esq.sentido ? " (" + esq.sentido + ")" : "";
+        var horarioTxt = esq.horario || "—";
         var dataFmt = _fmtData(item.entrada) || "—";
         var realMin = Math.round(item.permanenciaSeg / 60);
-        var corpo;
 
+        var ficha = [
+          "• *Linha:* " + linhaTxt + sentidoTxt,
+          "• *Horário de sessão:* " + horarioTxt,
+          "• *Veículo:* " + item.veiculo,
+          "• *Data:* " + dataFmt,
+        ];
+
+        var titulo, introducao, pergunta;
         if (item._foraDoRoteiro) {
-          corpo = "*PARADA FORA DO ESQUEMA — PONTO DE APOIO*\n\n" +
-            saudacao + "\n\n" +
-            "Identificamos que na viagem " + linha + " do dia " + dataFmt + ", o veículo *" + item.veiculo + "* fez uma parada de *" +
-            realMin + " min* em *" + item.ponto + "*, local que não consta no roteiro programado da linha.\n\n" +
-            "Poderia nos informar o motivo dessa parada?";
+          titulo = "⚠️ *PARADA FORA DO ESQUEMA — PONTO DE APOIO*";
+          introducao = "Identificamos uma parada em local fora do roteiro programado:";
+          ficha.push("• *Local:* " + item.ponto + " (não consta no roteiro)");
+          ficha.push("• *Permanência:* " + realMin + " min");
+          pergunta = "Poderia nos informar o motivo dessa parada?";
         } else {
-          var previstoMin = item._esquemaInfo && item._esquemaInfo.tempoLocal != null ? item._esquemaInfo.tempoLocal : Math.round(item.permitidoSeg / 60);
+          var previstoMin = esq.tempoLocal != null ? esq.tempoLocal : Math.round(item.permitidoSeg / 60);
           var diffMin = realMin - previstoMin;
-          corpo = "*EXCESSO DE PERMANÊNCIA — PONTO DE APOIO*\n\n" +
-            saudacao + "\n\n" +
-            "Identificamos que na viagem " + linha + " do dia " + dataFmt + ", o veículo *" + item.veiculo + "* permaneceu *" +
-            realMin + " min* em *" + item.ponto + "*, acima do tempo previsto no esquema (*" + previstoMin + " min* — excedeu em *" + diffMin + " min*).\n\n" +
-            "Poderia nos informar o motivo dessa parada mais longa?";
+          titulo = "⚠️ *EXCESSO DE PERMANÊNCIA — PONTO DE APOIO*";
+          introducao = "Identificamos uma permanência acima do previsto no esquema:";
+          ficha.push("• *Local:* " + item.ponto);
+          ficha.push("• *Permanência:* " + realMin + " min (previsto: " + previstoMin + " min — excedeu em " + diffMin + " min)");
+          pergunta = "Poderia nos informar o motivo dessa parada mais longa?";
         }
 
-        return corpo + "\n\nAguardamos seu retorno.\n\n_Equipe de Monitoramento Operacional_";
+        return titulo + "\n\n" + saudacao + "\n\n" + introducao + "\n\n" + ficha.join("\n") +
+          "\n\n" + pergunta + "\n\nAguardamos seu retorno.\n\n_Equipe de Monitoramento Operacional_";
       }
 
       var _pergItemIdx = null;
