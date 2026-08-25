@@ -200,6 +200,14 @@ function getPCs() {
 // Col D (índice 3)  → nome/descrição do ponto (usado pro match)
 // Col Y (índice 24) → Latitude
 // Col Z (índice 25) → Longitude
+//
+// Sem coluna própria de UF/Região nesta aba — resolvida por lat/long
+// (_comFallbackUfRegiao/ufRegiaoPorCoordenada_, mesmo fallback de
+// getPCs()) pra "Excedências nos pontos de apoio" conseguir agrupar por
+// região. Só funciona pro ponto que estiver CADASTRADO aqui com lat/long
+// preenchida — ponto sem cadastro nesta aba (comum, já que a detecção
+// traz qualquer parada do CSV, cadastrada ou não) cai em "Não
+// identificada" mesmo, não tem de onde tirar a coordenada.
 function getPontosControle() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const aba = ss.getSheetByName("PONTOS_CONTROLE");
@@ -212,12 +220,19 @@ function getPontosControle() {
 
   const pontos = data
     .filter((r) => String(r[3] || "").trim() !== "")
-    .map((r) => ({
-      descResumida: String(r[2] || "").trim(),
-      descCompleta: String(r[3] || "").trim(),
-      lat: _coordOuNull(r[24], 90),
-      lng: _coordOuNull(r[25], 180),
-    }));
+    .map((r) => {
+      const lat = _coordOuNull(r[24], 90);
+      const lng = _coordOuNull(r[25], 180);
+      const ufRegiao = _comFallbackUfRegiao("", "", lat, lng);
+      return {
+        descResumida: String(r[2] || "").trim(),
+        descCompleta: String(r[3] || "").trim(),
+        uf: ufRegiao.uf,
+        regiao: ufRegiao.regiao,
+        lat: lat,
+        lng: lng,
+      };
+    });
 
   return JSON.stringify(pontos);
 }
@@ -621,6 +636,110 @@ function marcarStatusPermanencia(payload) {
   const agora = new Date();
   // Reverter (analisado=false) limpa a justificativa (e a linha/sessão)
   // junto — não faz sentido guardar dado de uma análise desfeita.
+  const valoresLinha = [
+    status,
+    agora,
+    payload.analisado ? payload.motivo || "" : "",
+    payload.analisado ? payload.qtdEmbarque || "" : "",
+    payload.analisado ? payload.qtdDesembarque || "" : "",
+    payload.analisado ? payload.apoioRodoviaria || "" : "",
+    payload.analisado ? payload.observacao || "" : "",
+    payload.analisado ? payload.linhaCod || "" : "",
+    payload.analisado ? payload.linhaNome || "" : "",
+    payload.analisado ? payload.linhaTripId || "" : "",
+    payload.analisado ? payload.horarioSessao || "" : "",
+    payload.analisado ? payload.pontoSessao || "" : "",
+  ];
+
+  const lastRow = aba.getLastRow();
+  let linhaExistente = -1;
+  if (lastRow >= 2) {
+    const chavesExistentes = aba.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < chavesExistentes.length; i++) {
+      if (String(chavesExistentes[i][0]).trim() === chave) {
+        linhaExistente = i + 2;
+        break;
+      }
+    }
+  }
+
+  if (linhaExistente > 0) {
+    aba.getRange(linhaExistente, 5, 1, valoresLinha.length).setValues([valoresLinha]);
+  } else {
+    aba.appendRow([
+      chave,
+      payload.veiculo || "",
+      payload.ponto || "",
+      payload.entrada || "",
+    ].concat(valoresLinha));
+  }
+
+  return { ok: true };
+}
+
+// ── Status — excedências em PONTO DE APOIO (posto/restaurante/outro) ──
+// Aba própria "TEMPO_PERMANENCIA_APOIO_STATUS", mesma estrutura de
+// TEMPO_PERMANENCIA_STATUS acima, só que separada — a aba "Excedências
+// nos pontos de apoio" (tempo_permanencia.html) usa uma comparação
+// diferente (esquema/tempoLocal, não a tabela fixa por cidade), então a
+// persistência de status fica em canal próprio pra não misturar contagens
+// com a análise de rodoviária. Ver getStatusPermanencia()/
+// marcarStatusPermanencia() acima — mesma lógica, espelhada.
+function _abaStatusPermanenciaApoio(ss) {
+  var aba = ss.getSheetByName("TEMPO_PERMANENCIA_APOIO_STATUS");
+  if (!aba) {
+    aba = ss.insertSheet("TEMPO_PERMANENCIA_APOIO_STATUS");
+    aba.appendRow(TEMPO_PERMANENCIA_STATUS_HEADER);
+    return aba;
+  }
+  if (aba.getLastColumn() < TEMPO_PERMANENCIA_STATUS_HEADER.length) {
+    aba.getRange(1, 1, 1, TEMPO_PERMANENCIA_STATUS_HEADER.length).setValues([TEMPO_PERMANENCIA_STATUS_HEADER]);
+  }
+  return aba;
+}
+
+function getStatusPermanenciaApoio() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = ss.getSheetByName("TEMPO_PERMANENCIA_APOIO_STATUS");
+  if (!aba) return JSON.stringify([]);
+
+  const lastRow = aba.getLastRow();
+  if (lastRow < 2) return JSON.stringify([]);
+
+  const data = aba.getRange(2, 1, lastRow - 1, TEMPO_PERMANENCIA_STATUS_HEADER.length).getValues();
+  const registros = data
+    .filter(
+      (r) =>
+        String(r[0] || "").trim() !== "" &&
+        String(r[4] || "").trim().toUpperCase() === "ANALISADO",
+    )
+    .map((r) => ({
+      chave: String(r[0]).trim(),
+      motivo: String(r[6] || "").trim(),
+      qtdEmbarque: String(r[7] || "").trim(),
+      qtdDesembarque: String(r[8] || "").trim(),
+      apoioRodoviaria: String(r[9] || "").trim(),
+      observacao: String(r[10] || "").trim(),
+      linhaCod: String(r[11] || "").trim(),
+      linhaNome: String(r[12] || "").trim(),
+      linhaTripId: String(r[13] || "").trim(),
+      horarioSessao: String(r[14] || "").trim(),
+      pontoSessao: String(r[15] || "").trim(),
+    }));
+
+  return JSON.stringify(registros);
+}
+
+// payload: mesmo formato de marcarStatusPermanencia() acima.
+function marcarStatusPermanenciaApoio(payload) {
+  const chave = String((payload && payload.chave) || "").trim();
+  if (!chave) throw new Error("chave é obrigatória.");
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const aba = _abaStatusPermanenciaApoio(ss);
+
+  const status = payload.analisado ? "ANALISADO" : "";
+  const agora = new Date();
   const valoresLinha = [
     status,
     agora,

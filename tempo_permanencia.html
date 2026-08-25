@@ -234,6 +234,16 @@
       .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--laranja3); color: var(--laranja); letter-spacing: 0.03em; }
       .hidden { display: none !important; }
 
+      /* ── ABAS (Excedências nas rodoviárias / nos pontos de apoio) ── */
+      .perm-tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--borda2); }
+      .perm-tab-btn {
+        background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer;
+        font-family: var(--font); font-size: 13.5px; font-weight: 700; color: var(--texto3);
+        letter-spacing: -0.005em; padding: 0 2px 10px; transition: color var(--transition), border-color var(--transition);
+      }
+      .perm-tab-btn:hover { color: var(--texto2); }
+      .perm-tab-btn.ativo { color: var(--texto); border-bottom-color: var(--laranja); }
+
       /* ── FILTROS ─────────────────────────────────────────── */
       .filtro-bar { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
       .filtro-bar input[type="text"], .filtro-bar input[type="number"], .filtro-bar select {
@@ -300,6 +310,7 @@
       .perm-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: var(--texto2); }
       .perm-meta b { color: var(--texto); font-weight: 600; }
       .perm-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid; letter-spacing: 0.02em; white-space: nowrap; }
+      .perm-badge-pendente { color: var(--texto3); border-color: var(--borda2); font-weight: 600; }
       .perm-item.riscado { opacity: 0.35; }
       .perm-item.riscado .perm-local-nome,
       .perm-item.riscado .perm-meta b { text-decoration: line-through; }
@@ -324,6 +335,14 @@
       }
       .perm-esquema-btn:hover { border-color: var(--azul, #4f8ef7); color: var(--azul, #4f8ef7); background: rgba(79,142,247,0.1); }
       .perm-esquema-btn:disabled { opacity: 0.5; cursor: wait; }
+      .perm-esquema-btn.ativo { border-color: var(--verde); color: var(--verde); }
+
+      /* ── Link "pular" a pergunta ao motorista (escape manual da trava) ── */
+      .perm-pular-pergunta-btn {
+        font-family: "Barlow", sans-serif; font-size: 10.5px; font-weight: 600; color: var(--texto3);
+        background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0 2px;
+      }
+      .perm-pular-pergunta-btn:hover { color: var(--laranja); }
       .perm-esquema-panel {
         flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm);
         background: var(--preto3); border: 1px solid var(--borda2);
@@ -352,12 +371,14 @@
          saiu antes do horário (não atrasou a partida), vermelho quando
          saiu depois (atraso real na partida, mesmo se chegou cedo). */
       .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; }
-      .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-left: 3px solid var(--amarelo); }
-      .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-left: 3px solid var(--vermelho); }
-      .esquema-sessao-linha.ok { background: rgba(34,201,122,0.10); border-left: 3px solid var(--verde); }
+      .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-bottom: 3px solid var(--amarelo); }
+      .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-bottom: 3px solid var(--vermelho); }
+      .esquema-sessao-linha.excedeu { background: rgba(224,142,42,0.10); border-bottom: 3px solid var(--laranja); }
+      .esquema-sessao-linha.ok { background: rgba(34,201,122,0.10); border-bottom: 3px solid var(--verde); }
       .esquema-sessao-linha .esquema-sessao-icone { flex-shrink: 0; }
       .esquema-sessao-linha.cedo .esquema-sessao-icone { color: var(--amarelo); }
       .esquema-sessao-linha.atraso .esquema-sessao-icone { color: var(--vermelho); }
+      .esquema-sessao-linha.excedeu .esquema-sessao-icone { color: var(--laranja); }
       .esquema-sessao-linha.ok .esquema-sessao-icone { color: var(--verde); }
       .perm-esquema-editar-btn {
         flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--cinza2); background: transparent;
@@ -895,30 +916,57 @@
         </div>
         <div class="kpi" style="--kpi-c: var(--vermelho)">
           <div class="kpi-stripe"></div>
-          <div class="kpi-label">Maior excedente</div>
+          <div class="kpi-label" id="kMaiorLabel">Maior excedente</div>
           <div class="kpi-value" id="kMaior">—</div>
-          <div class="kpi-sub">acima do permitido</div>
+          <div class="kpi-sub" id="kMaiorSub">acima do permitido</div>
         </div>
       </div>
 
       <!-- Filtros + resultado -->
       <div class="card hidden" id="tpResultCard">
-        <div class="card-title">Excedências por prefixo</div>
-        <div class="filtro-bar">
-          <input type="text" id="tpBusca" placeholder="Buscar por prefixo, linha ou local..." oninput="_renderTPFiltrado()" />
-          <select id="tpRegiaoSel" onchange="_salvarRegiaoFiltro(this.value);_renderTPFiltrado()">
-            <option value="">Todas as regiões</option>
-          </select>
-          <select id="tpMotivoSel" onchange="_renderTPFiltrado()" title="Filtra pelo motivo da justificativa de análise">
-            <option value="">Todos os motivos</option>
-            <option value="PENDENTE">Ainda não analisado</option>
-          </select>
-          <div class="filtro-excedente">
-            <label for="tpExcedenteMin">Excedente mín. (min)</label>
-            <input type="number" id="tpExcedenteMin" min="0" step="5" value="10" oninput="_renderTPFiltrado()" />
-          </div>
+        <div class="perm-tabs">
+          <button type="button" class="perm-tab-btn ativo" id="tpTabBtnRodoviaria" onclick="_selecionarAbaTP('rodoviaria')">Excedências nas rodoviárias</button>
+          <button type="button" class="perm-tab-btn" id="tpTabBtnApoio" onclick="_selecionarAbaTP('apoio')">Excedências nos pontos de apoio</button>
         </div>
-        <div id="tpAccordions" style="margin-top:12px"></div>
+
+        <div id="tpAbaRodoviaria">
+          <div class="filtro-bar">
+            <input type="text" id="tpBusca" placeholder="Buscar por prefixo, linha ou local..." oninput="_renderTPAmbasAbas()" />
+            <select id="tpRegiaoSel" onchange="_salvarRegiaoFiltro(this.value);_renderTPAmbasAbas()">
+              <option value="">Todas as regiões</option>
+            </select>
+            <select id="tpMotivoSel" onchange="_renderTPAmbasAbas()" title="Filtra pelo motivo da justificativa de análise">
+              <option value="">Todos os motivos</option>
+              <option value="PENDENTE">Ainda não analisado</option>
+            </select>
+            <div class="filtro-excedente">
+              <label for="tpExcedenteMin">Excedente mín. (min)</label>
+              <input type="number" id="tpExcedenteMin" min="0" step="5" value="10" oninput="_salvarExcedenteMinFiltro(this.value, false);_renderTPAmbasAbas()" />
+            </div>
+          </div>
+          <div id="tpAccordions" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Pontos de apoio (posto/restaurante/outro) — comparação com o
+             esquema (tempoLocal), não com a tabela fixa por cidade. Ver
+             _detectarExcedenciasApoio()/_renderTPApoioFiltrado(). -->
+        <div id="tpAbaApoio" class="hidden">
+          <div class="filtro-bar">
+            <input type="text" id="tpBuscaApoio" placeholder="Buscar por prefixo, linha ou local..." oninput="_renderTPAmbasAbas()" />
+            <select id="tpRegiaoSelApoio" onchange="_salvarRegiaoFiltro(this.value);_renderTPAmbasAbas()">
+              <option value="">Todas as regiões</option>
+            </select>
+            <select id="tpMotivoSelApoio" onchange="_renderTPAmbasAbas()" title="Filtra pelo motivo da justificativa de análise">
+              <option value="">Todos os motivos</option>
+              <option value="PENDENTE">Ainda não analisado</option>
+            </select>
+            <div class="filtro-excedente">
+              <label for="tpExcedenteMinApoio">Permanência/excedente mín. (min)</label>
+              <input type="number" id="tpExcedenteMinApoio" min="0" step="5" value="30" oninput="_salvarExcedenteMinFiltro(this.value, true);_renderTPAmbasAbas()" />
+            </div>
+          </div>
+          <div id="tpAccordionsApoio" style="margin-top:12px"></div>
+        </div>
       </div>
 
     </div><!-- /main -->
@@ -1502,6 +1550,13 @@
         return { chaves: chaves, justs: justs };
       }
 
+      // Um Set/Map só, compartilhado pelas duas abas — chaves de itens de
+      // ponto de apoio nascem prefixadas com "APOIO|" (ver
+      // _detectarExcedenciasApoio) e vêm de uma aba própria da planilha
+      // (TEMPO_PERMANENCIA_APOIO_STATUS/getStatusPermanenciaApoio), então
+      // não colidem com as de rodoviária — dá pra misturar os dois no
+      // mesmo cache sem risco e sem precisar espalhar "if (modo===apoio)"
+      // por todo lugar que já lê _statusAnalisadoCache/_justificativaCache.
       function _carregarStatusAnalisado(cb) {
         if (_statusAnalisadoCache) { if (cb) cb(); return; }
         if (!(window.google && google.script && google.script.run)) {
@@ -1510,15 +1565,25 @@
           if (cb) cb();
           return;
         }
+        _statusAnalisadoCache = new Set();
+        _justificativaCache = new Map();
+        var pendentes = 2;
+        var concluir = function () { pendentes--; if (pendentes === 0 && cb) cb(); };
+        var mesclar = function (json) {
+          var parsed = _parseStatusPermanencia(json);
+          parsed.chaves.forEach(function (c) { _statusAnalisadoCache.add(c); });
+          parsed.justs.forEach(function (v, k) { _justificativaCache.set(k, v); });
+        };
+
         google.script.run
-          .withSuccessHandler(function (json) {
-            var parsed = _parseStatusPermanencia(json);
-            _statusAnalisadoCache = parsed.chaves;
-            _justificativaCache = parsed.justs;
-            if (cb) cb();
-          })
-          .withFailureHandler(function () { _statusAnalisadoCache = new Set(); _justificativaCache = new Map(); if (cb) cb(); })
+          .withSuccessHandler(function (json) { mesclar(json); concluir(); })
+          .withFailureHandler(function () { concluir(); })
           .getStatusPermanencia();
+
+        google.script.run
+          .withSuccessHandler(function (json) { mesclar(json); concluir(); })
+          .withFailureHandler(function () { concluir(); })
+          .getStatusPermanenciaApoio();
       }
 
       // justificativa: null ao reverter; { motivo, qtdEmbarque, qtdDesembarque,
@@ -1533,9 +1598,10 @@
         if (analisado) { _statusAnalisadoCache.add(item.chave); _justificativaCache.set(item.chave, justificativa); }
         else { _statusAnalisadoCache.delete(item.chave); _justificativaCache.delete(item.chave); }
         if (!(window.google && google.script && google.script.run)) return;
-        google.script.run
-          .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); })
-          .marcarStatusPermanencia({
+        var chamada = google.script.run
+          .withFailureHandler(function (err) { console.error("[status] falha ao salvar:", err); });
+        (item.modo === "apoio" ? chamada.marcarStatusPermanenciaApoio : chamada.marcarStatusPermanencia)
+          .call(chamada, {
             chave: item.chave,
             veiculo: item.veiculo,
             ponto: item.ponto,
@@ -1972,11 +2038,32 @@
         PR: "Sul", RS: "Sul", SC: "Sul",
       };
 
+      // Puxa a UF de dentro do próprio nome do ponto — sem depender de
+      // cadastro nenhum (PONTOS_CONTROLE não tem todo ponto do CSV, e o
+      // CSV não traz lat/long). Os nomes de ponto já seguem o padrão
+      // "CIDADE - UF" ou "CIDADE/UF" em algum lugar do texto (mesma
+      // convenção usada em TEMPO_PERMANENCIA_REF, só que aqui sem tabela
+      // fixa) — ex.: "SALVADOR - BA / NOVO TERMINAL", "BREJOES/BA -
+      // POSTO POEIRAO", "IBOTIRAMA - BA". Separa por qualquer caractere
+      // que não seja letra (espaço, /, -, vírgula, dígito) e procura um
+      // token de exatamente 2 letras que seja uma UF válida. Ponto sem
+      // UF no nome (ex.: "POSTO DDD 242") continua sem região — não tem
+      // como adivinhar, mas pelo menos não depende mais de cadastro.
+      function _extrairUfDoNome(pontoNome) {
+        var tokens = _normTP(pontoNome).split(/[^A-Z]+/).filter(Boolean);
+        for (var i = 0; i < tokens.length; i++) {
+          if (tokens[i].length === 2 && UF_REGIAO[tokens[i]]) return tokens[i];
+        }
+        return null;
+      }
+
       function _resolverRegiao(pontoNome, ufRef) {
         var pc = _matchPC(pontoNome);
         if (pc && pc.regiao) return pc.regiao;
         if (pc && pc.uf && UF_REGIAO[pc.uf]) return UF_REGIAO[pc.uf];
         if (ufRef && UF_REGIAO[ufRef]) return UF_REGIAO[ufRef];
+        var ufDoNome = _extrairUfDoNome(pontoNome);
+        if (ufDoNome) return UF_REGIAO[ufDoNome];
         return "Não identificada";
       }
 
@@ -2082,7 +2169,10 @@
         if (!comparacao) {
           return '<div style="' + (estiloExtra || "margin-top:6px") + '">' + textoHtml + '</div>';
         }
-        var icone = comparacao === "cedo" ? "alertTriangle" : comparacao === "atraso" ? "alertOctagon" : "check";
+        var icone = comparacao === "cedo" ? "alertTriangle"
+          : comparacao === "atraso" ? "alertOctagon"
+          : comparacao === "excedeu" ? "clock"
+          : "check";
         return '<div class="esquema-sessao-linha ' + comparacao + '" style="margin-top:6px">' +
           '<span class="esquema-sessao-icone">' + _icon(icone, 14) + '</span><span>' + textoHtml + '</span>' +
         '</div>';
@@ -2676,7 +2766,8 @@
             _carregarPCs(function () {
               _carregarGaragensTP(function () {
                 var excedencias = _detectarExcedencias(rows);
-                _renderTP(excedencias);
+                var excedenciasApoio = _detectarExcedenciasApoio(rows);
+                _renderTP(excedencias, excedenciasApoio);
               });
             });
           } catch (ex) {
@@ -2742,8 +2833,14 @@
       }
 
       function _ehRodoviaria(pontoNome) {
+        var n = _normTP(pontoNome);
         // cobre RODOVIARIA / RODOVIÁRIA / RODOVIÁRIO (já sem acento aqui)
-        return _normTP(pontoNome).includes("RODOVI");
+        // e TERMINAL (ex.: "SALVADOR - BA / NOVO TERMINAL") — nome que
+        // não menciona "RODOVI..." mas ainda assim é terminal de
+        // passageiros, não ponto de apoio. Não usa "ROD." sozinho porque
+        // aparece em nome de restaurante de rodovia (ex.: "ROD. CHURR.
+        // GRUPO DOIS IRMÃOS"), que É ponto de apoio de verdade.
+        return n.includes("RODOVI") || n.includes("TERMINAL");
       }
 
       function _detectarExcedencias(rows) {
@@ -2784,14 +2881,124 @@
         return lista;
       }
 
+      // ─────────────────────────────────────────────────────────
+      //  Excedências em PONTO DE APOIO (posto/restaurante/outro — nem
+      //  garagem, nem rodoviária) — aba "Excedências nos pontos de apoio".
+      //  Diferente de _detectarExcedencias() acima: não existe tabela de
+      //  referência por cidade pra ponto de apoio, então "permitidoSeg"/
+      //  "excedenteSeg" nascem null e só são calculados quando o usuário
+      //  vincula o esquema do veículo (ver _aplicarEsquemaAoItem) — o
+      //  roteiro traz, por ponto, "tempoLocal" (parada prevista em
+      //  minutos), que é o "tempo que está no esquema" pra comparar.
+      //  LIMITE_PONTO_APOIO_ANALISE_MIN é o corte pra ENTRAR nesta lista
+      //  — não confundir com LIMITE_PONTO_APOIO_MIN_TP (40min), que é de
+      //  outro indicador (badge dentro do card de rodoviária).
+      //  Traz TODA parada que não seja garagem/rodoviária (sem exigir
+      //  cadastro em PONTOS_CONTROLE nem checar Tipo) — o filtro por
+      //  "Ponto de Controle - 12" foi tentado e revertido: sumia com
+      //  pontos que deveriam entrar. pcMatch aqui é só pra enriquecer
+      //  (cidade/uf/região/lat/lng) quando existir, não pra decidir se
+      //  entra ou não.
+      // ─────────────────────────────────────────────────────────
+      var LIMITE_PONTO_APOIO_ANALISE_MIN = 30;
+
+      function _detectarExcedenciasApoio(rows) {
+        var lista = [];
+        rows.forEach(function (r) {
+          if (!r.ponto) return;
+          if (_ehGaragem(r.ponto)) return;
+          if (_ehRodoviaria(r.ponto)) return; // isso aqui é só ponto de apoio — rodoviária tem a própria aba
+          var segReal = _parseDurSeg(r.parada);
+          if (segReal > 2 * 3600) return; // acima de 2h — provável pernoite/erro de leitura, descarta da análise
+          if (segReal <= LIMITE_PONTO_APOIO_ANALISE_MIN * 60) return;
+          // filtro de excedente/permanência mínima adicional é aplicado dinamicamente em _renderTPApoioFiltrado
+
+          var pcMatch = _matchPC(r.ponto);
+
+          lista.push({
+            modo: "apoio",
+            // Prefixo "APOIO|" garante que a chave nunca colide com a de
+            // um item de rodoviária — os dois compartilham o mesmo cache
+            // de status no cliente (ver _carregarStatusAnalisado), mas
+            // persistem em abas separadas da planilha.
+            chave: "APOIO|" + (r.veiculo || "—") + "|" + (r.entrada || "") + "|" + _normTP(r.ponto),
+            veiculo: r.veiculo || "—",
+            linha: r.linha || "—",
+            ponto: r.ponto,
+            descResumida: pcMatch ? (pcMatch.descResumida || pcMatch.descCompleta || "") : "",
+            cidade: pcMatch ? (pcMatch.descResumida || "") : "",
+            uf: pcMatch ? pcMatch.uf : "",
+            regiao: _resolverRegiao(r.ponto, pcMatch ? pcMatch.uf : null),
+            entrada: r.entrada,
+            saida: r.saida,
+            permanenciaSeg: segReal,
+            // Só ficam conhecidos depois do esquema vinculado (tempoLocal
+            // do ponto no roteiro) — ver _aplicarEsquemaAoItem.
+            permitidoSeg: null,
+            excedenteSeg: null,
+            lat: pcMatch ? pcMatch.lat : null,
+            lng: pcMatch ? pcMatch.lng : null,
+          });
+        });
+        lista.sort(function (a, b) { return b.permanenciaSeg - a.permanenciaSeg; });
+        return lista;
+      }
+
       var _tpLista = [];
+      var _tpListaApoio = [];
       var _tpRowsRaw = []; // todas as linhas do CSV do dia (não só excedências) — ver _statusGaragemGrupoTP
 
-      function _renderTP(lista) {
+      // Aba ativa dentro de #tpResultCard — 'rodoviaria' (Excedências por
+      // prefixo) ou 'apoio' (Excedências nos pontos de apoio). Lembrada em
+      // localStorage, mesma ideia de TP_REGIAO_FILTRO_KEY.
+      var TP_ABA_KEY = "tp_aba_ativa";
+      var _tpAba = "rodoviaria";
+
+      function _carregarAbaTP() {
+        try { return localStorage.getItem(TP_ABA_KEY) || "rodoviaria"; } catch (e) { return "rodoviaria"; }
+      }
+
+      function _selecionarAbaTP(aba) {
+        _tpAba = aba;
+        try { localStorage.setItem(TP_ABA_KEY, aba); } catch (e) { /* localStorage indisponível — segue sem persistir */ }
+
+        document.getElementById("tpTabBtnRodoviaria").classList.toggle("ativo", aba === "rodoviaria");
+        document.getElementById("tpTabBtnApoio").classList.toggle("ativo", aba === "apoio");
+        document.getElementById("tpAbaRodoviaria").classList.toggle("hidden", aba !== "rodoviaria");
+        document.getElementById("tpAbaApoio").classList.toggle("hidden", aba !== "apoio");
+
+        // Não precisa reconstruir o accordion (os dois já estão montados
+        // — ver _renderTPAmbasAbas()), só o KPI row (compartilhado entre
+        // as duas abas) pra refletir os dados da aba que ficou visível.
+        _atualizarResumoAbaAtiva();
+      }
+
+      function _atualizarResumoAbaAtiva() {
+        if (_tpAba === "apoio") _atualizarResumo(_tpFiltradaApoioAtual || [], "apoio");
+        else _atualizarResumo(_tpFiltradaRodoviariaAtual || [], "rodoviaria");
+      }
+
+      // _relatorioItens/_grupoEsquemaIdxs/_regiaoGidxs são globais
+      // compartilhados pelas duas abas (índice único por item, usado nos
+      // onclick já embutidos no HTML renderizado) — _renderTPFiltrado()
+      // reseta esses globais do zero a cada chamada, então SEMPRE
+      // reconstrói as duas abas juntas aqui, nessa ordem, senão a aba que
+      // não foi rechamada fica com data-idx apontando pra um
+      // _relatorioItens já esvaziado (clique nela quebraria ou pegaria o
+      // item errado). Chamada por todo filtro (busca/região/motivo/
+      // excedente mín.) das duas abas — ver oninput/onchange no HTML.
+      function _renderTPAmbasAbas() {
+        _renderTPFiltrado();
+        _renderTPApoioFiltrado();
+        _atualizarResumoAbaAtiva();
+      }
+
+      function _renderTP(lista, listaApoio) {
         _tpLista = lista;
+        _tpListaApoio = listaApoio || [];
         var statusEl = document.getElementById("tpStatus");
 
-        if (!lista.length) {
+        if (!lista.length && !_tpListaApoio.length) {
           statusEl.innerHTML = '<span style="color:var(--verde)">' + _icon("check") + '</span> Nenhuma permanência excedeu o tempo máximo permitido.';
           document.getElementById("tpKpis").classList.add("hidden");
           document.getElementById("tpResultCard").classList.add("hidden");
@@ -2799,13 +3006,19 @@
           return;
         }
 
+        var total = lista.length + _tpListaApoio.length;
         statusEl.innerHTML = '<span style="color:var(--verde)">' + _icon("check") + '</span> Arquivo processado com sucesso. ' +
-          '<span class="tag">' + lista.length + ' excedência' + (lista.length !== 1 ? 's' : '') + ' no total</span>';
+          '<span class="tag">' + total + ' excedência' + (total !== 1 ? 's' : '') + ' no total</span>';
 
         var regioes = new Set(lista.map(function (r) { return r.regiao; }));
         var regiaoSel = document.getElementById("tpRegiaoSel");
         regiaoSel.innerHTML = '<option value="">Todas as regiões</option>' +
           Array.from(regioes).sort().map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
+
+        var regioesApoio = new Set(_tpListaApoio.map(function (r) { return r.regiao; }));
+        var regiaoSelApoio = document.getElementById("tpRegiaoSelApoio");
+        regiaoSelApoio.innerHTML = '<option value="">Todas as regiões</option>' +
+          Array.from(regioesApoio).sort().map(function (rg) { return '<option value="' + rg.replace(/"/g, "") + '">' + rg + '</option>'; }).join("");
 
         document.getElementById("tpKpis").classList.remove("hidden");
         var resultCard = document.getElementById("tpResultCard");
@@ -2814,13 +3027,27 @@
         // fique visível — é o que o usuário realmente veio ver.
         setTimeout(function () { resultCard.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
         document.getElementById("tpBusca").value = "";
+        document.getElementById("tpBuscaApoio").value = "";
         // Reaplica a região salva do arquivo anterior — só se ela existir
         // entre as regiões deste novo arquivo, senão cai pra "Todas".
         var regiaoSalva = _carregarRegiaoFiltro();
         regiaoSel.value = (regiaoSalva && regioes.has(regiaoSalva)) ? regiaoSalva : "";
+        regiaoSelApoio.value = (regiaoSalva && regioesApoio.has(regiaoSalva)) ? regiaoSalva : "";
         document.getElementById("tpMotivoSel").value = "";
-        document.getElementById("tpExcedenteMin").value = 10;
-        _renderTPFiltrado();
+        document.getElementById("tpMotivoSelApoio").value = "";
+        document.getElementById("tpExcedenteMin").value = _carregarExcedenteMinFiltro(false);
+        document.getElementById("tpExcedenteMinApoio").value = _carregarExcedenteMinFiltro(true);
+
+        // Popula as duas abas (accordion + filtros) de antemão, pra trocar
+        // de aba depois não ficar vazio até o usuário mexer num filtro.
+        _renderTPAmbasAbas();
+
+        // Reaplica a aba salva — só se ainda fizer sentido (rodoviária sem
+        // achado nenhum cai pra apoio, e vice-versa).
+        var abaSalva = _carregarAbaTP();
+        if (abaSalva === "apoio" && !_tpListaApoio.length) abaSalva = "rodoviaria";
+        if (abaSalva === "rodoviaria" && !lista.length) abaSalva = "apoio";
+        _selecionarAbaTP(abaSalva);
       }
 
       // Lembra a última região escolhida no filtro (localStorage) — assim
@@ -2845,11 +3072,43 @@
         }
       }
 
-      function _atualizarResumo(lista) {
+      // Mesma ideia acima, mas pro campo "Excedente mín."/"Permanência/
+      // excedente mín." — cada aba guarda o próprio valor (rodoviária
+      // parte de 10min, apoio de LIMITE_PONTO_APOIO_ANALISE_MIN=30min por
+      // padrão), pra quem sempre usa um limite diferente não precisar
+      // redigitar toda vez que processa um CSV novo.
+      var TP_EXCEDENTE_MIN_KEY = "tp_excedente_min";
+      var TP_EXCEDENTE_MIN_APOIO_KEY = "tp_excedente_min_apoio";
+
+      function _salvarExcedenteMinFiltro(valor, apoio) {
+        try {
+          var key = apoio ? TP_EXCEDENTE_MIN_APOIO_KEY : TP_EXCEDENTE_MIN_KEY;
+          if (valor !== "" && valor != null) localStorage.setItem(key, valor);
+          else localStorage.removeItem(key);
+        } catch (e) {
+          // localStorage indisponível (modo privado, etc.) — segue sem persistir
+        }
+      }
+
+      function _carregarExcedenteMinFiltro(apoio) {
+        var padrao = apoio ? LIMITE_PONTO_APOIO_ANALISE_MIN : 10;
+        try {
+          var salvo = localStorage.getItem(apoio ? TP_EXCEDENTE_MIN_APOIO_KEY : TP_EXCEDENTE_MIN_KEY);
+          return salvo != null && salvo !== "" ? salvo : padrao;
+        } catch (e) {
+          return padrao;
+        }
+      }
+
+      // modo: 'rodoviaria' (default) ou 'apoio' — nos itens de ponto de
+      // apoio "excedenteSeg" pode estar null (ainda sem esquema vinculado),
+      // então o KPI "Maior excedente" vira "Maior permanência" nessa aba,
+      // olhando só pra quem já tem excedente calculado (senão pra
+      // permanência real de todo mundo).
+      function _atualizarResumo(lista, modo) {
         var veiculos = new Set(lista.map(function (r) { return r.veiculo; }));
         var linhas = new Set(lista.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
         var regioes = new Set(lista.map(function (r) { return r.regiao; }));
-        var maior = lista.length ? lista[0].excedenteSeg : 0;
         var dataArq = lista.length ? (_fmtData(lista[0].entrada) || "—") : "—";
 
         document.getElementById("kExcedencias").textContent = lista.length;
@@ -2857,7 +3116,29 @@
         document.getElementById("kVeiculos").textContent = veiculos.size;
         document.getElementById("kLinhas").textContent = linhas.size;
         document.getElementById("kRegioes").textContent = regioes.size;
-        document.getElementById("kMaior").textContent = lista.length ? ("+" + _fmtMin(Math.round(maior / 60))) : "—";
+
+        var labelEl = document.getElementById("kMaiorLabel");
+        var subEl = document.getElementById("kMaiorSub");
+        var maiorEl = document.getElementById("kMaior");
+        if (modo === "apoio") {
+          var comExcedente = lista.filter(function (r) { return r.excedenteSeg != null; });
+          if (comExcedente.length) {
+            var maiorExc = comExcedente.reduce(function (m, r) { return Math.max(m, r.excedenteSeg); }, 0);
+            labelEl.textContent = "Maior excedente";
+            subEl.textContent = "acima da parada prevista no esquema";
+            maiorEl.textContent = "+" + _fmtMin(Math.round(maiorExc / 60));
+          } else {
+            var maiorPerm = lista.length ? lista.reduce(function (m, r) { return Math.max(m, r.permanenciaSeg); }, 0) : 0;
+            labelEl.textContent = "Maior permanência";
+            subEl.textContent = "esquema ainda não vinculado";
+            maiorEl.textContent = lista.length ? _fmtMin(Math.round(maiorPerm / 60)) : "—";
+          }
+        } else {
+          var maior = lista.length ? lista.reduce(function (m, r) { return Math.max(m, r.excedenteSeg); }, 0) : 0;
+          labelEl.textContent = "Maior excedente";
+          subEl.textContent = "acima do permitido";
+          maiorEl.textContent = lista.length ? ("+" + _fmtMin(Math.round(maior / 60))) : "—";
+        }
       }
 
       function _corExcedente(seg) {
@@ -2874,12 +3155,57 @@
       var _grupoEsquemaIdxs = {}; // gidx → [idx, ...] dos itens daquele grupo (prefixo)
       var _regiaoGidxs = {};      // ri (índice da região renderizada) → [gidx, ...] dos veículos dentro dela
 
-      function _renderItemHtml(r) {
+      // Pendente de esquema = item de ponto de apoio sem excedente
+      // calculado ainda (permitidoSeg/excedenteSeg null — ver
+      // _detectarExcedenciasApoio/_aplicarEsquemaAoItem).
+      function _htmlBadgeExcedente(r) {
+        if (r.excedenteSeg == null) {
+          return '<span class="perm-badge perm-badge-pendente" data-role="badge" title="Vincule o esquema deste veículo (botão \'Ver esquema\') pra comparar com a parada prevista no roteiro">' +
+            'Permanência: ' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + ' — vincule o esquema</span>';
+        }
+        if (r.excedenteSeg < 0) {
+          return '<span class="perm-badge" data-role="badge" style="color:var(--verde);border-color:var(--verde)">' +
+            '-' + _fmtMin(Math.round(Math.abs(r.excedenteSeg) / 60)) + ' (dentro do esquema)</span>';
+        }
         var cor = _corExcedente(r.excedenteSeg);
+        return '<span class="perm-badge" data-role="badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>';
+      }
+
+      function _renderItemHtml(r) {
         var idx = _relatorioItens.length;
         _relatorioItens.push(r);
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
         var pontoEsc = String(r.descResumida || r.ponto || "").replace(/'/g, "\\'");
+        var pendenteEsquema = r.modo === "apoio" && r.permitidoSeg == null;
+        // Ponto de apoio: induz a perguntar pro motorista ANTES de gerar o
+        // relatório — "Gerar Relatório" só libera depois de r._perguntaEnviada
+        // (marcado por _enviarPerguntaMotorista ou pelo link "pular" abaixo).
+        // Trava só em memória (não sobrevive a F5/reprocessar CSV, de
+        // propósito — ver decisão do usuário). Rodoviária não tem essa
+        // trava (segue liberado direto, como sempre foi).
+        var precisaPerguntarAntes = r.modo === "apoio" && !pendenteEsquema && !r._perguntaEnviada;
+        var btnGerarHtml;
+        if (pendenteEsquema) {
+          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente">' + _icon("file") + ' Gerar Relatório</button>';
+        } else if (precisaPerguntarAntes) {
+          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Pergunte ao motorista o motivo primeiro (ou pule ao lado)">' + _icon("file") + ' Gerar Relatório</button>' +
+            '<button type="button" class="perm-pular-pergunta-btn" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">pular</button>';
+        } else {
+          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>';
+        }
+        // "Perguntar ao motorista" — só ponto de apoio (rodoviária não tem
+        // esse botão, ver decisão do usuário), e só depois do esquema
+        // vinculado (precisa saber se é "excedeu" ou "fora do roteiro" pra
+        // montar a mensagem certa — ver _montarMensagemPerguntaApoio). Vem
+        // ANTES de "Gerar Relatório" na ordem dos botões — é o passo que
+        // deve acontecer primeiro.
+        var btnPerguntarHtml = "";
+        if (r.modo === "apoio") {
+          btnPerguntarHtml = pendenteEsquema
+            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
+            : '<button type="button" class="perm-esquema-btn' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_abrirPerguntaMotorista(' + idx + ')">' +
+              (r._perguntaEnviada ? _icon("check") : _icon("clipboard")) + ' ' + (r._perguntaEnviada ? "Motorista questionado" : "Perguntar ao motorista") + '</button>';
+        }
         return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para justificar e marcar como analisado (ou reverter, se já analisado)">' +
           '<div class="perm-local">' +
             '<div class="perm-local-nome">' +
@@ -2892,15 +3218,343 @@
             '<span>Chegada<br><b>' + _fmtHM(r.entrada) + '</b></span>' +
             '<span>Saída<br><b>' + _fmtHM(r.saida) + '</b></span>' +
             '<span>Permanência<br><b>' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + '</b></span>' +
-            '<span>Permitido<br><b>' + _fmtMin(Math.round(r.permitidoSeg / 60)) + '</b></span>' +
+            '<span>Permitido<br><b data-role="permitido">' + (r.permitidoSeg != null ? _fmtMin(Math.round(r.permitidoSeg / 60)) : "—") + '</b></span>' +
             '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
           '</div>' +
           '<button type="button" class="perm-esquema-btn" onclick="event.stopPropagation();_verEsquema(' + idx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
-          '<button type="button" class="perm-gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
-          '<span class="perm-badge" style="color:' + cor + ';border-color:' + cor + '">+' + _fmtMin(Math.round(r.excedenteSeg / 60)) + '</span>' +
+          btnPerguntarHtml +
+          btnGerarHtml +
+          _htmlBadgeExcedente(r) +
           _htmlExcessoPontoApoioTP(r) +
           '<div class="perm-esquema-panel hidden" id="esquema-' + idx + '"></div>' +
         '</div>';
+      }
+
+      // Depois que o esquema é vinculado a um item de ponto de apoio (ver
+      // _aplicarEsquemaAoItem), atualiza no local o "Permitido"/badge/botão
+      // "Gerar Relatório" daquele card, sem precisar reconstruir a lista
+      // inteira (o que perderia o accordion aberto/scroll do usuário).
+      function _atualizarCardApoioPosEsquema(idx) {
+        var item = _relatorioItens[idx];
+        var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+        if (!item || !el || item.modo !== "apoio" || item.permitidoSeg == null) return;
+
+        var permitidoEl = el.querySelector('[data-role="permitido"]');
+        if (permitidoEl) permitidoEl.textContent = _fmtMin(Math.round(item.permitidoSeg / 60));
+
+        var badgeEl = el.querySelector('[data-role="badge"]');
+        if (badgeEl) badgeEl.outerHTML = _htmlBadgeExcedente(item);
+
+        var gerarBtn = el.querySelector('[data-role="gerar-btn"]');
+        if (gerarBtn && gerarBtn.hasAttribute("disabled")) {
+          if (item._perguntaEnviada) {
+            gerarBtn.removeAttribute("disabled");
+            gerarBtn.removeAttribute("title");
+            gerarBtn.setAttribute("onclick", "event.stopPropagation();abrirModalRelatorio(" + idx + ")");
+          } else {
+            // Esquema acabou de ser vinculado, mas ainda falta perguntar
+            // ao motorista — troca só a mensagem do disabled (era "vincule
+            // o esquema", agora é "pergunte antes") e acrescenta o link
+            // "pular", que _renderItemHtml já colocaria se o item tivesse
+            // nascido assim (ver ali — mesmo texto/onclick).
+            gerarBtn.title = "Pergunte ao motorista o motivo primeiro (ou pule ao lado)";
+            if (!el.querySelector('[data-role="pular-pergunta-btn"]')) {
+              gerarBtn.insertAdjacentHTML("afterend",
+                '<button type="button" class="perm-pular-pergunta-btn" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">pular</button>');
+            }
+          }
+        }
+
+        var perguntarBtn = el.querySelector('[data-role="perguntar-btn"]');
+        if (perguntarBtn && perguntarBtn.hasAttribute("disabled")) {
+          perguntarBtn.removeAttribute("disabled");
+          perguntarBtn.removeAttribute("title");
+          perguntarBtn.setAttribute("onclick", "event.stopPropagation();_abrirPerguntaMotorista(" + idx + ")");
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      //  "Perguntar ao motorista" (ponto de apoio) — manda uma mensagem
+      //  via WhatsApp (RIZER Agent local, mesmo agente/porta usado por
+      //  tempo_antecipacao_garagens.html) perguntando o motivo do excesso
+      //  ou da parada fora do esquema, direto pro motorista, ANTES de
+      //  decidir se gera relatório ou descarta por justificativa.
+      // ═══════════════════════════════════════════════════════════
+      var RIZER_AGENT_URL = "http://127.0.0.1:3334";
+
+      // Monta a mensagem (editável depois no textarea) — dois textos
+      // diferentes conforme item._foraDoRoteiro (ver _aplicarEsquemaAoItem):
+      // "excedeu o previsto" tem um número pra comparar, "fora do roteiro"
+      // não tem nenhuma previsão cadastrada pra aquele ponto.
+      function _montarMensagemPerguntaApoio(item, nomeMotorista) {
+        var primeiroNome = (nomeMotorista || "").trim().split(/\s+/)[0] || "";
+        var saudacao = primeiroNome ? "Olá, " + primeiroNome + "." : "Olá.";
+        var linha = (item._esquemaInfo && (item._esquemaInfo.nomeLinha || item._esquemaInfo.codLinha)) || "—";
+        var dataFmt = _fmtData(item.entrada) || "—";
+        var realMin = Math.round(item.permanenciaSeg / 60);
+        var corpo;
+
+        if (item._foraDoRoteiro) {
+          corpo = "*PARADA FORA DO ESQUEMA — PONTO DE APOIO*\n\n" +
+            saudacao + "\n\n" +
+            "Identificamos que na viagem " + linha + " do dia " + dataFmt + ", o veículo *" + item.veiculo + "* fez uma parada de *" +
+            realMin + " min* em *" + item.ponto + "*, local que não consta no roteiro programado da linha.\n\n" +
+            "Poderia nos informar o motivo dessa parada?";
+        } else {
+          var previstoMin = item._esquemaInfo && item._esquemaInfo.tempoLocal != null ? item._esquemaInfo.tempoLocal : Math.round(item.permitidoSeg / 60);
+          var diffMin = realMin - previstoMin;
+          corpo = "*EXCESSO DE PERMANÊNCIA — PONTO DE APOIO*\n\n" +
+            saudacao + "\n\n" +
+            "Identificamos que na viagem " + linha + " do dia " + dataFmt + ", o veículo *" + item.veiculo + "* permaneceu *" +
+            realMin + " min* em *" + item.ponto + "*, acima do tempo previsto no esquema (*" + previstoMin + " min* — excedeu em *" + diffMin + " min*).\n\n" +
+            "Poderia nos informar o motivo dessa parada mais longa?";
+        }
+
+        return corpo + "\n\nAguardamos seu retorno.\n\n_Equipe de Monitoramento Operacional_";
+      }
+
+      var _pergItemIdx = null;
+      var _pergMotoristaSelecionado = null; // { id, code, name, base, phone }
+      var _pergBuscaMotoristaSeq = 0;
+
+      function _abrirPerguntaMotorista(idx) {
+        var item = _relatorioItens[idx];
+        if (!item) return;
+        _pergItemIdx = idx;
+        _pergMotoristaSelecionado = null;
+
+        document.getElementById("pergResumoItem").innerHTML =
+          '<b>' + item.veiculo + '</b> · ' + item.ponto + ' · ' + (_fmtData(item.entrada) || "—");
+        document.getElementById("pergMotoristaBusca").value = "";
+        document.getElementById("pergMotoristaBusca").classList.remove("hidden");
+        document.getElementById("pergMotoristaLista").classList.add("hidden");
+        document.getElementById("pergMotoristaLista").innerHTML = "";
+        document.getElementById("pergMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("pergTelefone").value = "";
+        document.getElementById("pergMensagem").value = _montarMensagemPerguntaApoio(item, "");
+        document.getElementById("pergStatus").innerHTML = "";
+
+        document.getElementById("perguntaMotoristaModal").classList.remove("hidden");
+      }
+
+      // Pula a pergunta e libera "Gerar Relatório" direto — pra quando não
+      // tem telefone cadastrado, WhatsApp do motorista offline, ou o
+      // motivo já foi apurado por outro canal (ligação, presencial etc.).
+      // Pede confirmação porque é o "furo" da trava — não queremos que
+      // vire hábito sem querer, um clique errado no botão errado.
+      function _pularPerguntaMotorista(idx) {
+        var item = _relatorioItens[idx];
+        if (!item) return;
+        _confirmarAcao(
+          "Pular a pergunta ao motorista e liberar \"Gerar Relatório\" direto pra esta ocorrência?",
+          { titulo: "Pular pergunta ao motorista", textoOk: "Pular e liberar" },
+        ).then(function (ok) {
+          if (!ok) return;
+          item._perguntaEnviada = true;
+          _atualizarCardApoioPosPergunta(idx);
+        });
+      }
+
+      // Reflete no card, sem reconstruir a lista inteira (perderia
+      // accordion aberto/scroll): tira a trava do "Gerar Relatório" e
+      // marca "Perguntar ao motorista" como já feito — chamada tanto no
+      // envio com sucesso quanto no "pular".
+      function _atualizarCardApoioPosPergunta(idx) {
+        var item = _relatorioItens[idx];
+        var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+        if (!item || !el || !item._perguntaEnviada) return;
+
+        var gerarBtn = el.querySelector('[data-role="gerar-btn"]');
+        if (gerarBtn && gerarBtn.hasAttribute("disabled")) {
+          gerarBtn.removeAttribute("disabled");
+          gerarBtn.removeAttribute("title");
+          gerarBtn.setAttribute("onclick", "event.stopPropagation();abrirModalRelatorio(" + idx + ")");
+        }
+        var pularBtn = el.querySelector('[data-role="pular-pergunta-btn"]');
+        if (pularBtn) pularBtn.remove();
+
+        var perguntarBtn = el.querySelector('[data-role="perguntar-btn"]');
+        if (perguntarBtn) {
+          perguntarBtn.classList.add("ativo");
+          perguntarBtn.innerHTML = _icon("check") + " Motorista questionado";
+        }
+      }
+
+      function _fecharPerguntaMotorista() {
+        document.getElementById("perguntaMotoristaModal").classList.add("hidden");
+      }
+
+      function _buscarMotoristaPergunta(termo) {
+        var lista = document.getElementById("pergMotoristaLista");
+        termo = (termo || "").trim();
+        if (!termo) { lista.classList.add("hidden"); lista.innerHTML = ""; return; }
+
+        var seq = ++_pergBuscaMotoristaSeq;
+        fetch(REPORTS_API_URL + "/drivers?search=" + encodeURIComponent(termo) + "&limit=20")
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (seq !== _pergBuscaMotoristaSeq) return;
+            var itens = (json && json.data) || [];
+            if (!itens.length) {
+              lista.innerHTML = '<div class="oc-autocomplete-empty">Nenhum motorista encontrado.</div>';
+              lista.classList.remove("hidden");
+              return;
+            }
+            lista.innerHTML = itens.map(function (d, i) {
+              return '<div class="oc-autocomplete-item" onclick="_selecionarMotoristaPergunta(' + i + ')">' +
+                d.code + ' — ' + d.name +
+                (d.base ? '<span class="oc-ac-sub">' + d.base + '</span>' : '') +
+              '</div>';
+            }).join("");
+            lista.classList.remove("hidden");
+            window._pergMotoristaOpcoes = itens;
+          })
+          .catch(function () {
+            lista.innerHTML = '<div class="oc-autocomplete-empty">Erro ao buscar motoristas.</div>';
+            lista.classList.remove("hidden");
+          });
+      }
+
+      function _selecionarMotoristaPergunta(i) {
+        var d = window._pergMotoristaOpcoes[i];
+        if (!d) return;
+        _pergMotoristaSelecionado = d;
+
+        document.getElementById("pergMotoristaLista").classList.add("hidden");
+        document.getElementById("pergMotoristaBusca").classList.add("hidden");
+        var sel = document.getElementById("pergMotoristaSelecionada");
+        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
+          '<button type="button" onclick="_limparMotoristaPergunta()" title="Trocar">' + _icon("x") + '</button>';
+        sel.classList.remove("hidden");
+
+        document.getElementById("pergTelefone").value = d.phone || "";
+
+        var item = _relatorioItens[_pergItemIdx];
+        if (item) document.getElementById("pergMensagem").value = _montarMensagemPerguntaApoio(item, d.name);
+      }
+
+      function _limparMotoristaPergunta() {
+        _pergMotoristaSelecionado = null;
+        document.getElementById("pergMotoristaSelecionada").classList.add("hidden");
+        document.getElementById("pergMotoristaBusca").classList.remove("hidden");
+        document.getElementById("pergMotoristaBusca").value = "";
+        document.getElementById("pergMotoristaBusca").focus();
+      }
+
+      // Só dígitos, com DDI — assume Brasil (55) quando o número já não vem
+      // com DDI (10/11 dígitos = DDD + número local). Mesma heurística do
+      // formatPhoneForWhatsApp() do app web (Gerador de Relatórios).
+      function _formatarTelefoneWhatsAppTP(rawPhone) {
+        var digits = String(rawPhone || "").replace(/\D/g, "");
+        if (!digits) return null;
+        if (digits.length === 10 || digits.length === 11) return "55" + digits;
+        return digits;
+      }
+
+      function _setPergStatus(html, cor) {
+        var el = document.getElementById("pergStatus");
+        el.innerHTML = html;
+        el.style.color = cor || "";
+      }
+
+      function _enviarPerguntaMotorista() {
+        var telefoneRaw = document.getElementById("pergTelefone").value;
+        var mensagem = document.getElementById("pergMensagem").value;
+        var phone = _formatarTelefoneWhatsAppTP(telefoneRaw);
+
+        if (!phone) { _setPergStatus("Informe um telefone válido.", "var(--vermelho)"); return; }
+        if (!mensagem.trim()) { _setPergStatus("A mensagem não pode ficar vazia.", "var(--vermelho)"); return; }
+
+        var btn = document.getElementById("pergBtnEnviar");
+        btn.disabled = true;
+        _setPergStatus('<span class="det-spinner"></span> Verificando conexão com o WhatsApp...', "");
+
+        fetch(RIZER_AGENT_URL + "/whatsapp/status")
+          .then(function (r) { return r.json(); })
+          .then(function (state) {
+            if (state.status !== "connected") {
+              btn.disabled = false;
+              _setPergStatus('WhatsApp não conectado. <a href="#" onclick="event.preventDefault();_abrirConexaoWhatsAppTP()" style="color:var(--laranja)">Conectar agora</a>', "var(--amarelo)");
+              return;
+            }
+            _setPergStatus('<span class="det-spinner"></span> Enviando mensagem...', "");
+            return fetch(RIZER_AGENT_URL + "/whatsapp/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ phone: phone, message: mensagem, attachBanner: false }),
+            })
+              .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+              .then(function (res) {
+                btn.disabled = false;
+                if (!res.ok) {
+                  console.error("[pergunta-motorista] falha ao enviar:", res.body);
+                  _setPergStatus("Falha ao enviar: " + (res.body && res.body.error || "erro desconhecido"), "var(--vermelho)");
+                  return;
+                }
+                _setPergStatus('<span style="color:var(--verde)">' + _icon("check") + '</span> Mensagem enviada!', "var(--verde)");
+                var itemEnviado = _relatorioItens[_pergItemIdx];
+                if (itemEnviado) { itemEnviado._perguntaEnviada = true; _atualizarCardApoioPosPergunta(_pergItemIdx); }
+                setTimeout(_fecharPerguntaMotorista, 1200);
+              });
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            _setPergStatus('Não consegui falar com o RIZER Agent. Confira se ele está aberto (ícone na bandeja do Windows).', "var(--vermelho)");
+            console.error("[pergunta-motorista] erro:", err);
+          });
+      }
+
+      // ── Conectar WhatsApp (QR code) — mesmo padrão de
+      //    tempo_antecipacao_garagens.html (_abrirConexaoWhatsAppAG). O
+      //    RIZER Agent roda local (server-side), então uma sessão já
+      //    conectada por aquela tela também vale aqui, sem reconectar.
+      var _whatsappQrPollTimerTP = null;
+
+      function _abrirConexaoWhatsAppTP() {
+        document.getElementById("whatsappQrModalTP").classList.remove("hidden");
+        document.getElementById("whatsappQrConteudoTP").innerHTML =
+          '<span class="det-spinner"></span><span style="font-size:12.5px;color:var(--texto2)">Conectando ao RIZER Agent...</span>';
+
+        fetch(RIZER_AGENT_URL + "/whatsapp/connect", { method: "POST" })
+          .then(function () { _pollStatusWhatsAppTP(); })
+          .catch(function () {
+            document.getElementById("whatsappQrConteudoTP").innerHTML =
+              '<span style="font-size:12.5px;color:var(--vermelho)">Não consegui falar com o RIZER Agent. Confira se ele está aberto (ícone na bandeja do Windows).</span>';
+          });
+      }
+
+      function _pollStatusWhatsAppTP() {
+        clearTimeout(_whatsappQrPollTimerTP);
+        fetch(RIZER_AGENT_URL + "/whatsapp/status")
+          .then(function (r) { return r.json(); })
+          .then(function (state) {
+            var conteudo = document.getElementById("whatsappQrConteudoTP");
+            if (!conteudo) return; // modal fechada nesse meio tempo
+            if (state.status === "connected") {
+              conteudo.innerHTML = '<span style="font-size: 32px;color:var(--verde)">✓</span><span style="font-size:13px;color:var(--verde);font-weight:600">WhatsApp conectado!</span>';
+              setTimeout(_fecharConexaoWhatsAppTP, 1200);
+              return;
+            }
+            if (state.qrDataUrl) {
+              conteudo.innerHTML =
+                '<img src="' + state.qrDataUrl + '" alt="QR Code WhatsApp" style="width:220px;height:220px;border-radius:8px;background:#fff;padding:8px" />' +
+                '<span style="font-size:12px;color:var(--texto2)">Abra o WhatsApp no celular → Aparelhos conectados → escaneie o código</span>';
+            } else if (state.status === "error") {
+              conteudo.innerHTML = '<span style="font-size:12.5px;color:var(--vermelho)">Erro ao conectar: ' + (state.error || "desconhecido") + '</span>';
+            } else {
+              conteudo.innerHTML = '<span class="det-spinner"></span><span style="font-size:12.5px;color:var(--texto2)">Gerando QR code...</span>';
+            }
+            _whatsappQrPollTimerTP = setTimeout(_pollStatusWhatsAppTP, 2000);
+          })
+          .catch(function () {
+            var conteudo = document.getElementById("whatsappQrConteudoTP");
+            if (conteudo) conteudo.innerHTML = '<span style="font-size:12.5px;color:var(--vermelho)">Não consegui falar com o RIZER Agent. Confira se ele está aberto.</span>';
+          });
+      }
+
+      function _fecharConexaoWhatsAppTP() {
+        clearTimeout(_whatsappQrPollTimerTP);
+        document.getElementById("whatsappQrModalTP").classList.add("hidden");
       }
 
       // ── Ver esquema — busca manual no catálogo de esquemas do
@@ -3115,7 +3769,30 @@
           sentido: json.esquema.sentido || "",
           horarioSessao: pontoMatch ? (pontoMatch.horarioComercial || null) : null,
           pontoSessao: pontoMatch ? pontoMatch.nome : null,
+          tempoLocal: pontoMatch && pontoMatch.tempoLocal != null ? pontoMatch.tempoLocal : null,
         };
+        // Item de PONTO DE APOIO: só agora dá pra saber o "permitido" —
+        // vem da parada prevista (tempoLocal, minutos) do ponto casado no
+        // roteiro, não de uma tabela fixa (ver _detectarExcedenciasApoio,
+        // que nasce com permitidoSeg/excedenteSeg null). Pode dar negativo
+        // (permaneceu MENOS que o previsto) — fica registrado como está,
+        // não é tratado como excedência.
+        if (item.modo === "apoio" && item._esquemaInfo.tempoLocal != null) {
+          item.permitidoSeg = item._esquemaInfo.tempoLocal * 60;
+          item.excedenteSeg = item.permanenciaSeg - item.permitidoSeg;
+          item._foraDoRoteiro = false;
+        } else if (item.modo === "apoio" && !pontoMatch) {
+          // Parada em local que NEM CONSTA no roteiro do esquema vinculado
+          // — não é "sem dado ainda" (isso seria pontoMatch achado mas sem
+          // tempoLocal cadastrado), é uma parada fora do roteiro mesmo.
+          // Sem previsão nenhuma pra ela, conta a permanência inteira como
+          // excedente (permitido = 0), não só como um aviso informativo.
+          // _foraDoRoteiro fica marcado no item pra _montarMensagemPerguntaApoio
+          // escolher o texto certo (excedeu vs. fora do roteiro).
+          item.permitidoSeg = 0;
+          item.excedenteSeg = item.permanenciaSeg;
+          item._foraDoRoteiro = true;
+        }
         // Guarda os "não passou por" (indicador B, só a perna desde a
         // ocorrência anterior — não acumula) no próprio item —
         // _textoAutoAntecipado usa isso pra enriquecer a observação
@@ -3136,6 +3813,35 @@
       // linha salva na análise". Pontos ainda pendentes já salvam
       // sozinhos ao gerar relatório/justificar depois, então não
       // precisam disso.
+      // Compara a permanência real do item (ponto de apoio) com a parada
+      // prevista (tempoLocal) do ponto casado no roteiro — "o tempo que
+      // está no esquema". Só se aplica a item.modo === "apoio"; pra
+      // rodoviária, _htmlLinhaSessao já cobre a comparação de sessão.
+      function _htmlComparacaoApoio(item, pontoMatch) {
+        if (item.modo !== "apoio" || !pontoMatch || pontoMatch.tempoLocal == null) return "";
+        var previstoMin = pontoMatch.tempoLocal;
+        var realMin = Math.round(item.permanenciaSeg / 60);
+        var diffMin = realMin - previstoMin;
+        var texto = 'Parada prevista no esquema: <b>' + previstoMin + ' min</b> · Permanência real: <b>' + realMin + ' min</b>';
+        var cmp;
+        if (diffMin > 0) { texto += ' — excedeu em <b>' + diffMin + ' min</b>'; cmp = "excedeu"; }
+        else { texto += ' — dentro do esquema' + (diffMin < 0 ? ' (' + Math.abs(diffMin) + ' min a menos)' : ''); cmp = "ok"; }
+        return _htmlLinhaSessao(texto, cmp);
+      }
+
+      // Ponto de apoio que NEM CONSTA no roteiro do esquema vinculado — ver
+      // _aplicarEsquemaAoItem, que já zera o "permitido" (permanência
+      // inteira vira excedente) pra esse caso. Aqui é só a mensagem
+      // explicando o porquê, no lugar do aviso puramente informativo de
+      // antes ("local não encontrado", sem dizer que isso virou excedente).
+      function _htmlForaDoRoteiroApoio(item) {
+        if (item.modo !== "apoio") return "";
+        var realMin = Math.round(item.permanenciaSeg / 60);
+        var texto = 'Local <b>não consta no roteiro</b> deste esquema — sem parada prevista pra comparar, ' +
+          'a permanência inteira (<b>' + realMin + ' min</b>) conta como excedente.';
+        return _htmlLinhaSessao(texto, "atraso");
+      }
+
       function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml, idx) {
         var salvoHtml = "";
         if (idx != null && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave)) {
@@ -3153,13 +3859,22 @@
           _htmlParadasIrregularesTP(item, json.pontos || [], null);
 
         if (pontoMatch) {
-          var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
-            (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '');
-          var cmp = pontoMatch.horarioComercial ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial) : null;
-          if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão';
-          if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão';
-          if (cmp === "ok") textoSessao += ' — saiu <b>no horário</b> de sessão';
-          html += _htmlLinhaSessao(textoSessao, cmp);
+          // Ponto de apoio não tem "horário de sessão" (é conceito de
+          // rodoviária — horário previsto de SAÍDA); só a comparação de
+          // parada prevista importa, já coberta por _htmlComparacaoApoio
+          // logo abaixo.
+          if (item.modo !== "apoio") {
+            var textoSessao = 'Horário de sessão em <b>' + pontoMatch.nome + '</b>: <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+              (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '');
+            var cmp = pontoMatch.horarioComercial ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial) : null;
+            if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão';
+            if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão';
+            if (cmp === "ok") textoSessao += ' — saiu <b>no horário</b> de sessão';
+            html += _htmlLinhaSessao(textoSessao, cmp);
+          }
+          html += _htmlComparacaoApoio(item, pontoMatch);
+        } else if (item.modo === "apoio") {
+          html += _htmlForaDoRoteiroApoio(item);
         } else {
           html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
         }
@@ -3221,6 +3936,7 @@
 
           var pontoMatch = _aplicarEsquemaAoItem(idx, json);
           corpo.innerHTML = _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtn, idx);
+          _atualizarCardApoioPosEsquema(idx);
         });
       }
 
@@ -3344,6 +4060,7 @@
               var item = _relatorioItens[idx];
               if (!item) return "";
               var pontoMatch = _aplicarEsquemaAoItem(idx, json, pontoAnteriorMatch);
+              _atualizarCardApoioPosEsquema(idx);
 
               // Pré-preenche o painel individual do item — abrir "Ver esquema"
               // ali já mostra o resultado vinculado aqui, sem buscar de novo.
@@ -3358,12 +4075,19 @@
               }
 
               var pontoEscLinha = String(item.descResumida || item.ponto || "").replace(/'/g, "\\'");
+              // Ponto de apoio não tem "horário de sessão" (isso é conceito
+              // de rodoviária — horário previsto de SAÍDA) — só mostra a
+              // parada prevista, que é o que de fato se compara ali (ver
+              // _htmlComparacaoApoio, que já cobre real x previsto embaixo).
+              var ehApoioLinha = item.modo === "apoio";
               var textoLinha = '<b><span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span></b>: ' +
                 (pontoMatch
-                  ? ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
-                    (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : ''))
+                  ? (ehApoioLinha
+                      ? (pontoMatch.tempoLocal != null ? 'parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : 'sem parada prevista cadastrada no esquema')
+                      : ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+                        (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '')))
                   : 'local não encontrado no roteiro deste esquema');
-              var cmpLinha = pontoMatch && pontoMatch.horarioComercial
+              var cmpLinha = (!ehApoioLinha && pontoMatch && pontoMatch.horarioComercial)
                 ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial)
                 : null;
               if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
@@ -3380,6 +4104,8 @@
               if (pontoMatch) pontoAnteriorMatch = pontoMatch;
 
               return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)") +
+                _htmlComparacaoApoio(item, pontoMatch) +
+                (!pontoMatch ? _htmlForaDoRoteiroApoio(item) : "") +
                 naoPercorridoHtml + irregularHtml;
             }).join("");
 
@@ -3509,6 +4235,9 @@
         return !!just && just.motivo === motivoFiltro;
       }
 
+      var _tpFiltradaRodoviariaAtual = [];
+      var _tpFiltradaApoioAtual = [];
+
       function _renderTPFiltrado() {
         _relatorioItens = [];
         _grupoEsquemaIdxs = {};
@@ -3527,7 +4256,7 @@
           return _normTP(r.veiculo).includes(busca) || _normTP(r.linha).includes(busca) || _normTP(r.ponto).includes(busca);
         });
 
-        _atualizarResumo(filtrada);
+        _tpFiltradaRodoviariaAtual = filtrada;
 
         // Nível 1: região · Nível 2: prefixo (veículo)
         var regioes = {};
@@ -3610,6 +4339,132 @@
                   '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
                   '<span class="motivo-tag hidden" data-role="motivo-tag-grupo"></span>' +
                   _htmlBadgeGaragemTP(grupo) +
+                  '<button type="button" class="acc-mini-btn" id="esquema-grupo-btn-' + gidx + '" title="Vincular um esquema a todas as ocorrências deste veículo de uma vez" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
+                  '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();abrirModalRelatorioGrupo(' + gidx + ')">' + _icon("file") + ' Gerar Relatório</button>' +
+                  '<button type="button" class="acc-mini-btn acc-btn-analisado" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_riscarGrupo(this)">' + _icon("check") + ' Analisado</button>' +
+                '</div>' +
+              '</summary>' +
+              '<div class="acc-body">' +
+                '<div class="perm-esquema-panel hidden" id="esquema-grupo-' + gidx + '"></div>';
+
+            grupo.forEach(function (r) { html += _renderItemHtml(r); });
+
+            _grupoEsquemaIdxs[gidx] = [];
+            for (var _i = startIdx; _i < _relatorioItens.length; _i++) _grupoEsquemaIdxs[gidx].push(_i);
+
+            html += '</div></details>';
+          });
+
+          html += '</div></details>';
+        });
+
+        el.innerHTML = html;
+        _aplicarStatusPersistido();
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Excedências em ponto de apoio — mesmo esqueleto de
+      //  _renderTPFiltrado() acima (região → prefixo → item), sem os
+      //  botões de ação em massa por região ("Resumo do dia"/"Relatório
+      //  em massa" — fora de escopo na 1ª versão desta aba). O filtro
+      //  "excedente mín." aqui vale pra permanência real enquanto o
+      //  esquema não foi vinculado (excedenteSeg == null) e pro excedente
+      //  de verdade (vs. tempoLocal) depois que foi.
+      // ─────────────────────────────────────────────────────────
+      function _renderTPApoioFiltrado() {
+        var busca = _normTP(document.getElementById("tpBuscaApoio").value);
+        var regiaoFiltro = document.getElementById("tpRegiaoSelApoio").value;
+        var motivoFiltro = document.getElementById("tpMotivoSelApoio").value;
+        var excedenteMinInput = parseInt(document.getElementById("tpExcedenteMinApoio").value, 10);
+        var excedenteMinSeg = (isFinite(excedenteMinInput) && excedenteMinInput > 0) ? excedenteMinInput * 60 : 0;
+
+        var filtrada = _tpListaApoio.filter(function (r) {
+          var segReferencia = r.excedenteSeg != null ? r.excedenteSeg : r.permanenciaSeg;
+          if (segReferencia < excedenteMinSeg) return false;
+          if (regiaoFiltro && r.regiao !== regiaoFiltro) return false;
+          if (motivoFiltro && !_passaFiltroMotivo(r, motivoFiltro)) return false;
+          if (!busca) return true;
+          return _normTP(r.veiculo).includes(busca) || _normTP(r.linha).includes(busca) || _normTP(r.ponto).includes(busca);
+        });
+
+        _tpFiltradaApoioAtual = filtrada;
+
+        // Nível 1: região · Nível 2: prefixo (veículo) — mesma lógica de
+        // agrupamento/ordenação de _renderTPFiltrado, só que os itens
+        // desta aba entram direto em _relatorioItens/_grupoEsquemaIdxs
+        // compartilhados (índices continuam globais e únicos).
+        var regioes = {};
+        var ordemRegioes = [];
+        filtrada.forEach(function (r) {
+          if (!regioes[r.regiao]) { regioes[r.regiao] = []; ordemRegioes.push(r.regiao); }
+          regioes[r.regiao].push(r);
+        });
+        var _maiorRefRegiao = function (itens) {
+          return itens.reduce(function (m, r) { return Math.max(m, r.excedenteSeg != null ? r.excedenteSeg : r.permanenciaSeg); }, 0);
+        };
+        ordemRegioes.sort(function (a, b) { return _maiorRefRegiao(regioes[b]) - _maiorRefRegiao(regioes[a]); });
+
+        var el = document.getElementById("tpAccordionsApoio");
+        if (!ordemRegioes.length) {
+          el.innerHTML = '<div class="estado-vazio">Nenhum resultado para os filtros aplicados.</div>';
+          return;
+        }
+
+        var html = "";
+        ordemRegioes.forEach(function (regiao, ri) {
+          var itensRegiao = regioes[regiao];
+          var veiculosRegiao = new Set(itensRegiao.map(function (r) { return r.veiculo; }));
+
+          var grupos = {};
+          var ordemGrupos = [];
+          itensRegiao.forEach(function (r) {
+            if (!grupos[r.veiculo]) { grupos[r.veiculo] = []; ordemGrupos.push(r.veiculo); }
+            grupos[r.veiculo].push(r);
+          });
+          Object.keys(grupos).forEach(function (veiculo) {
+            grupos[veiculo].sort(function (a, b) {
+              var da = _parseDataHoraTP(a.entrada), db = _parseDataHoraTP(b.entrada);
+              if (da && db) return da - db;
+              return String(a.entrada).localeCompare(String(b.entrada));
+            });
+          });
+          ordemGrupos.sort(function (a, b) { return _maiorRefRegiao(grupos[b]) - _maiorRefRegiao(grupos[a]); });
+
+          html += '<details class="acc-group acc-regiao"' + (ri === 0 ? ' open' : '') + '>' +
+            '<summary class="acc-summary">' +
+              '<div class="acc-left">' +
+                '<span class="acc-chevron"></span>' +
+                '<span class="acc-prefixo">' + regiao + '</span>' +
+                '<span class="acc-sub">' + veiculosRegiao.size + ' veículo' + (veiculosRegiao.size !== 1 ? 's' : '') + '</span>' +
+              '</div>' +
+              '<div class="acc-right">' +
+                '<span class="acc-count" data-total="' + itensRegiao.length + '">' + itensRegiao.length + ' ocorrência' + (itensRegiao.length !== 1 ? 's' : '') + '</span>' +
+              '</div>' +
+            '</summary>' +
+            '<div class="acc-body">';
+
+          ordemGrupos.forEach(function (veiculo, gi) {
+            var grupo = grupos[veiculo];
+            var linhasGrupo = new Set(grupo.map(function (r) { return r.linha; }).filter(function (l) { return l && l !== "—"; }));
+            var veiculoEsc = veiculo.replace(/'/g, "");
+            var gidx = _grupoEsquemaCounter++;
+            var startIdx = _relatorioItens.length;
+
+            html += '<details class="acc-group acc-prefixo-group"' + (ri === 0 && gi === 0 ? ' open' : '') + '>' +
+              '<summary class="acc-summary">' +
+                '<div class="acc-left">' +
+                  '<span class="acc-chevron"></span>' +
+                  '<span class="acc-prefixo acc-prefixo-copy" ' +
+                    'onclick="event.preventDefault();event.stopPropagation();_copiarPrefixo(this,\'' + veiculoEsc + '\')" ' +
+                    'title="Clique para copiar prefixo">' + veiculo + '</span>' +
+                  '<span class="acc-sub">' + (linhasGrupo.size ? Array.from(linhasGrupo).join(", ") : "") + '</span>' +
+                '</div>' +
+                '<div class="acc-right">' +
+                  '<span class="acc-count" data-total="' + grupo.length + '">' + grupo.length + ' ocorrência' + (grupo.length !== 1 ? 's' : '') + '</span>' +
+                  '<span class="motivo-tag hidden" data-role="motivo-tag-grupo"></span>' +
                   '<button type="button" class="acc-mini-btn" id="esquema-grupo-btn-' + gidx + '" title="Vincular um esquema a todas as ocorrências deste veículo de uma vez" ' +
                     'onclick="event.preventDefault();event.stopPropagation();_verEsquemaGrupo(' + gidx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
                   '<button type="button" class="acc-mini-btn" title="Gerar um relatório para cada ocorrência deste veículo de uma vez" ' +
@@ -3850,6 +4705,19 @@
       function abrirModalRelatorio(idx) {
         var item = _relatorioItens[idx];
         if (!item) return;
+        // Ponto de apoio sem esquema vinculado ainda não tem excedente
+        // calculado — o botão já nasce desabilitado nesse caso (ver
+        // _renderItemHtml), isso aqui é só defensivo.
+        if (item.modo === "apoio" && item.permitidoSeg == null) {
+          _alertarAcao("Vincule o esquema deste veículo primeiro (botão \"Ver esquema\") — sem a parada prevista não dá pra calcular o excedente.");
+          return;
+        }
+        // Idem — trava "pergunte antes de gerar" já nasce no botão (ver
+        // _renderItemHtml/_pularPerguntaMotorista), isso aqui é defensivo.
+        if (item.modo === "apoio" && !item._perguntaEnviada) {
+          _alertarAcao("Pergunte ao motorista o motivo primeiro (botão \"Perguntar ao motorista\"), ou use o link \"pular\" no card.");
+          return;
+        }
 
         _relModoGrupo = false;
         _relGrupoIdxs = [];
@@ -3877,14 +4745,38 @@
       // fora automaticamente, pra não gerar relatório duplicado pra quem
       // já foi resolvido (justificado ou reportado antes).
       function abrirModalRelatorioGrupo(gidx) {
-        var idxs = (_grupoEsquemaIdxs[gidx] || []).filter(function (idx) {
+        var idxsTodos = (_grupoEsquemaIdxs[gidx] || []).filter(function (idx) {
           if (!_relatorioItens[idx]) return false;
           var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
           return !el || !el.classList.contains("riscado");
         });
+        // Ponto de apoio sem esquema vinculado ainda não tem excedente
+        // calculado (permitidoSeg null) — não dá pra criar a ocorrência
+        // sem isso, então fica de fora do relatório em grupo até o
+        // usuário vincular o esquema (botão "Ver esquema" do grupo). Já
+        // com esquema vinculado, ainda fica de fora até perguntar ao
+        // motorista (ou pular — mesma trava do botão individual, ver
+        // _pularPerguntaMotorista/_perguntaEnviada).
+        var idxsSemEsquema = idxsTodos.filter(function (idx) {
+          var it = _relatorioItens[idx];
+          return it.modo === "apoio" && it.permitidoSeg == null;
+        });
+        var idxsSemPergunta = idxsTodos.filter(function (idx) {
+          var it = _relatorioItens[idx];
+          return it.modo === "apoio" && it.permitidoSeg != null && !it._perguntaEnviada;
+        });
+        var idxs = idxsTodos.filter(function (idx) {
+          var it = _relatorioItens[idx];
+          return !(it.modo === "apoio" && (it.permitidoSeg == null || !it._perguntaEnviada));
+        });
         if (!idxs.length) {
           if (_massaAtiva) { _avancarMassaRegiao(); return; }
-          _alertarAcao("Todas as ocorrências deste veículo já foram analisadas.");
+          var msg = idxsSemEsquema.length
+            ? "Vincule o esquema deste veículo primeiro (botão \"Ver esquema\") — sem a parada prevista não dá pra calcular o excedente."
+            : idxsSemPergunta.length
+              ? "Pergunte ao motorista o motivo primeiro (ou pule, item a item, no card de cada ocorrência)."
+              : "Todas as ocorrências deste veículo já foram analisadas.";
+          _alertarAcao(msg);
           return;
         }
 
@@ -5617,6 +6509,64 @@
         <div class="oc-footer">
           <button class="btn btn-ghost" id="confirmBtnCancelar" onclick="_confirmResponder(false)">Cancelar</button>
           <button class="btn btn-primary" id="confirmBtnOk" onclick="_confirmResponder(true)">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODAL CONECTAR WHATSAPP (QR code do RIZER Agent) ────────
+         Mesmo padrão de tempo_antecipacao_garagens.html — o RIZER Agent
+         roda local (server-side, fora da aba do navegador), então uma
+         conexão feita ali já vale aqui também (não precisa reconectar por
+         tela). -->
+    <div class="oc-overlay hidden" id="whatsappQrModalTP" onclick="if(event.target===this)_fecharConexaoWhatsAppTP()">
+      <div class="oc-panel" style="max-width:340px">
+        <div class="oc-header">
+          <h3>Conectar WhatsApp</h3>
+          <button class="oc-close" onclick="_fecharConexaoWhatsAppTP()">✕</button>
+        </div>
+        <div class="oc-body" style="align-items:center;text-align:center">
+          <div id="whatsappQrConteudoTP" style="min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%">
+            <span class="det-spinner"></span>
+            <span style="font-size:12.5px;color:var(--texto2)">Conectando ao RIZER Agent...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODAL "Perguntar ao motorista" (ponto de apoio) ──────────
+         Pergunta o motivo do excesso/parada fora do esquema direto pro
+         motorista via WhatsApp (RIZER Agent) — ver _abrirPerguntaMotorista. -->
+    <div class="oc-overlay hidden" id="perguntaMotoristaModal" onclick="if(event.target===this)_fecharPerguntaMotorista()">
+      <div class="oc-panel" style="max-width:520px">
+        <div class="oc-header">
+          <h3>Perguntar ao motorista</h3>
+          <button class="oc-close" onclick="_fecharPerguntaMotorista()">✕</button>
+        </div>
+        <div class="oc-body">
+          <div id="pergResumoItem" style="font-size:12.5px;color:var(--texto2);margin-bottom:4px">—</div>
+
+          <div class="oc-field" id="pergMotoristaField">
+            <label>Motorista</label>
+            <input type="text" id="pergMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotoristaPergunta(this.value)" />
+            <div class="oc-autocomplete-list hidden" id="pergMotoristaLista"></div>
+            <div class="oc-selecionado hidden" id="pergMotoristaSelecionada"></div>
+          </div>
+
+          <div class="oc-field">
+            <label>Telefone (WhatsApp)</label>
+            <input type="text" id="pergTelefone" placeholder="(DD) 9XXXX-XXXX" />
+          </div>
+
+          <div class="oc-field">
+            <label>Mensagem</label>
+            <textarea id="pergMensagem" rows="10" style="font-family:var(--font);font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
+          </div>
+
+          <div class="det-status" id="pergStatus" style="margin-top:0"></div>
+        </div>
+        <div class="oc-footer">
+          <button class="btn btn-ghost" onclick="_fecharPerguntaMotorista()">Cancelar</button>
+          <button class="btn btn-primary" id="pergBtnEnviar" onclick="_enviarPerguntaMotorista()">Enviar via WhatsApp</button>
         </div>
       </div>
     </div>
