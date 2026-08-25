@@ -1755,6 +1755,25 @@
         if (item) _persistirStatus(item, analisado, justificativa);
       }
 
+      // Ponto de apoio cujo esquema confirma que a permanência ficou
+      // DENTRO do previsto (excedenteSeg <= 0) — não é excedência de
+      // verdade, então marca analisado sozinho, sem esperar o usuário
+      // perceber e clicar (ver chamada em _aplicarEsquemaAoItem). Mesmo
+      // mecanismo de "Gerar Relatório"/justificativa manual (_aplicarAnalisado
+      // — risca o card, persiste, atualiza grupo), só que automático e com
+      // motivo "DENTRO_ESQUEMA" (não aparece como opção no modal, só serve
+      // de registro — ver MOTIVO_LABELS). Não faz nada se o item já foi
+      // analisado por outro caminho (não sobrescreve uma justificativa que
+      // a pessoa já tenha dado na mão).
+      function _autoJustificarDentroEsquemaTP(idx) {
+        var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+        if (!el || el.classList.contains("riscado")) return;
+        _aplicarAnalisado(el, true, {
+          motivo: "DENTRO_ESQUEMA",
+          observacao: "Permanência dentro do tempo previsto no esquema — resolvido automaticamente.",
+        });
+      }
+
       // Entrada usada pelo clique direto num .perm-item (e pelos botões de
       // grupo). Marcar como analisado SEMPRE passa pela modal de
       // justificativa. Reverter pede confirmação — a linha inteira é
@@ -2351,6 +2370,12 @@
         BANHEIRO: "Necessidade fisiológica",
         FILA_ATENDIMENTO: "Fila no caixa/atendimento",
         HORARIO_NECESSARIO: "Parada necessária pelo horário",
+        // Só automático — nunca aparece como opção clicável no modal (ver
+        // MOTIVOS_APOIO, que não inclui esse) — aplicado sozinho por
+        // _autoJustificarDentroEsquemaTP quando o esquema confirma que a
+        // permanência não excedeu de verdade. Fica de fora de
+        // MOTIVOS_APOIO de propósito.
+        DENTRO_ESQUEMA: "Dentro do esquema",
       };
       // Rodoviária — usado hoje só pro dashboard "Motivos de análise" (que
       // só tem dado de rodoviária, ver TEMPO_PERMANENCIA_STATUS) e pelo
@@ -2360,7 +2385,11 @@
       var MOTIVOS_DESCARTE = ["ANTECIPADO", "INICIO_VIAGEM", "EMBARQUE", "OCORRENCIA"];
       // Ponto de apoio — mesma ideia, lista própria (não entra no
       // dashboard/gráficos de rodoviária, que não veem dado de apoio).
+      // Só motivos ESCOLHÍVEIS no modal — DENTRO_ESQUEMA não entra aqui
+      // (é automático, ver acima), mas ainda aparece no filtro
+      // #tpMotivoSelApoio (ver MOTIVOS_APOIO_FILTRO logo abaixo).
       var MOTIVOS_APOIO = ["OCORRENCIA", "BANHEIRO", "FILA_ATENDIMENTO", "HORARIO_NECESSARIO"];
+      var MOTIVOS_APOIO_FILTRO = MOTIVOS_APOIO.concat(["DENTRO_ESQUEMA"]);
       var MOTIVO_CORES = {
         ANTECIPADO: "#f0c040",
         INICIO_VIAGEM: "#3b82c4",
@@ -2370,6 +2399,7 @@
         BANHEIRO: "#14b8a6",
         FILA_ATENDIMENTO: "#f97316",
         HORARIO_NECESSARIO: "#64748b",
+        DENTRO_ESQUEMA: "#22c97a",
       };
 
       // Preenche um <select> de filtro com 1 <option> por motivo da lista
@@ -2391,7 +2421,7 @@
 
       function _popularFiltroMotivo() {
         _popularSelectMotivos("tpMotivoSel", MOTIVOS_DESCARTE);
-        _popularSelectMotivos("tpMotivoSelApoio", MOTIVOS_APOIO);
+        _popularSelectMotivos("tpMotivoSelApoio", MOTIVOS_APOIO_FILTRO);
       }
 
       function _carregarJustificativasPermanencia() {
@@ -3937,6 +3967,11 @@
           item.permitidoSeg = item._esquemaInfo.tempoLocal * 60;
           item.excedenteSeg = item.permanenciaSeg - item.permitidoSeg;
           item._foraDoRoteiro = false;
+          // Ficou dentro do esquema de verdade (não só "menos ruim") —
+          // não é excedência, resolve sozinho: marca analisado com
+          // justificativa automática, sem depender do usuário perceber e
+          // clicar (ver _autoJustificarDentroEsquemaTP).
+          if (item.excedenteSeg <= 0) _autoJustificarDentroEsquemaTP(idx);
         } else if (item.modo === "apoio" && !pontoMatch) {
           // Parada em local que NEM CONSTA no roteiro do esquema vinculado
           // — não é "sem dado ainda" (isso seria pontoMatch achado mas sem
