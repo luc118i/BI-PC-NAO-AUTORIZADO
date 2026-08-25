@@ -3330,7 +3330,6 @@
         document.getElementById("pergMotoristaLista").classList.add("hidden");
         document.getElementById("pergMotoristaLista").innerHTML = "";
         document.getElementById("pergMotoristaSelecionada").classList.add("hidden");
-        document.getElementById("pergTelefone").value = "";
         document.getElementById("pergMensagem").value = _montarMensagemPerguntaApoio(item, "");
         document.getElementById("pergStatus").innerHTML = "";
 
@@ -3423,11 +3422,15 @@
         document.getElementById("pergMotoristaLista").classList.add("hidden");
         document.getElementById("pergMotoristaBusca").classList.add("hidden");
         var sel = document.getElementById("pergMotoristaSelecionada");
-        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + '</span>' +
+        // Telefone vem junto (API já cadastra) — mostra ao lado do nome;
+        // sem telefone cadastrado, avisa em vermelho aqui mesmo, já que não
+        // tem mais campo separado pra digitar um na mão.
+        var telefoneTxt = d.phone
+          ? '<span class="oc-ac-sub">' + d.phone + '</span>'
+          : '<span class="oc-ac-sub" style="color:var(--vermelho)">sem telefone cadastrado</span>';
+        sel.innerHTML = '<span>' + d.code + ' — ' + d.name + (d.base ? " (" + d.base + ")" : "") + telefoneTxt + '</span>' +
           '<button type="button" onclick="_limparMotoristaPergunta()" title="Trocar">' + _icon("x") + '</button>';
         sel.classList.remove("hidden");
-
-        document.getElementById("pergTelefone").value = d.phone || "";
 
         var item = _relatorioItens[_pergItemIdx];
         if (item) document.getElementById("pergMensagem").value = _montarMensagemPerguntaApoio(item, d.name);
@@ -3458,11 +3461,11 @@
       }
 
       function _enviarPerguntaMotorista() {
-        var telefoneRaw = document.getElementById("pergTelefone").value;
         var mensagem = document.getElementById("pergMensagem").value;
-        var phone = _formatarTelefoneWhatsAppTP(telefoneRaw);
 
-        if (!phone) { _setPergStatus("Informe um telefone válido.", "var(--vermelho)"); return; }
+        if (!_pergMotoristaSelecionado) { _setPergStatus("Selecione o motorista.", "var(--vermelho)"); return; }
+        var phone = _formatarTelefoneWhatsAppTP(_pergMotoristaSelecionado.phone);
+        if (!phone) { _setPergStatus("Esse motorista não tem telefone cadastrado — cadastre no Gerador de Relatórios antes de perguntar por aqui.", "var(--vermelho)"); return; }
         if (!mensagem.trim()) { _setPergStatus("A mensagem não pode ficar vazia.", "var(--vermelho)"); return; }
 
         var btn = document.getElementById("pergBtnEnviar");
@@ -6549,12 +6552,10 @@
             <label>Motorista</label>
             <input type="text" id="pergMotoristaBusca" placeholder="Buscar por matrícula, nome ou base..." autocomplete="off" oninput="_buscarMotoristaPergunta(this.value)" />
             <div class="oc-autocomplete-list hidden" id="pergMotoristaLista"></div>
+            <!-- Telefone vem junto do motorista selecionado (já cadastrado
+                 na API) — sem campo de telefone separado pra digitar. Sem
+                 telefone cadastrado, avisa aqui mesmo (ver _selecionarMotoristaPergunta). -->
             <div class="oc-selecionado hidden" id="pergMotoristaSelecionada"></div>
-          </div>
-
-          <div class="oc-field">
-            <label>Telefone (WhatsApp)</label>
-            <input type="text" id="pergTelefone" placeholder="(DD) 9XXXX-XXXX" />
           </div>
 
           <div class="oc-field">
