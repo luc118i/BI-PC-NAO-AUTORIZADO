@@ -3206,6 +3206,10 @@
       // _detectarExcedenciasApoio/_aplicarEsquemaAoItem).
       function _htmlBadgeExcedente(r) {
         if (r.excedenteSeg == null) {
+          if (r._esquemaSemParadaPrevista) {
+            return '<span class="perm-badge perm-badge-pendente" data-role="badge" title="O ponto está no roteiro do esquema, mas sem \'parada prevista\' cadastrada — não dá pra calcular o excedente automaticamente. Avalie manualmente (clique no card pra justificar).">' +
+              'Permanência: ' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + ' — sem parada prevista no esquema</span>';
+          }
           return '<span class="perm-badge perm-badge-pendente" data-role="badge" title="Vincule o esquema deste veículo (botão \'Ver esquema\') pra comparar com a parada prevista no roteiro">' +
             'Permanência: ' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + ' — vincule o esquema</span>';
         }
@@ -3237,11 +3241,22 @@
         // propósito — ver decisão do usuário). Rodoviária não tem essa
         // trava (segue liberado direto, como sempre foi).
         var precisaPerguntarAntes = r.modo === "apoio" && !pendenteEsquema && !dentroDoEsquema && !r._perguntaEnviada;
+        // Título do botão desabilitado quando pendente — muda conforme o
+        // motivo real: esquema nem vinculado ainda, ou vinculado mas sem
+        // "parada prevista" cadastrada pra esse ponto (ver
+        // _aplicarEsquemaAoItem/_esquemaSemParadaPrevista) — o 2º caso não
+        // é resolvido vinculando de novo, é falta de cadastro na origem.
+        var tituloPendenteGerar = r._esquemaSemParadaPrevista
+          ? "Ponto no roteiro sem parada prevista cadastrada no esquema — avalie manualmente (clique no card pra justificar)"
+          : "Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente";
+        var tituloPendentePerguntar = r._esquemaSemParadaPrevista
+          ? "Ponto no roteiro sem parada prevista cadastrada no esquema — não dá pra montar a pergunta automaticamente"
+          : "Vincule o esquema deste veículo primeiro";
         var btnGerarHtml;
         if (dentroDoEsquema) {
           btnGerarHtml = "";
         } else if (pendenteEsquema) {
-          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente">' + _icon("file") + ' Gerar Relatório</button>';
+          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="' + tituloPendenteGerar + '">' + _icon("file") + ' Gerar Relatório</button>';
         } else if (precisaPerguntarAntes) {
           btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Pergunte ao motorista o motivo primeiro (ou pule ao lado)">' + _icon("file") + ' Gerar Relatório</button>' +
             '<button type="button" class="perm-pular-pergunta-btn" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">pular</button>';
@@ -3257,7 +3272,7 @@
         var btnPerguntarHtml = "";
         if (r.modo === "apoio" && !dentroDoEsquema) {
           btnPerguntarHtml = pendenteEsquema
-            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
+            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="' + tituloPendentePerguntar + '">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
             : '<button type="button" class="perm-esquema-btn' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_abrirPerguntaMotorista(' + idx + ')">' +
               (r._perguntaEnviada ? _icon("check") : _icon("clipboard")) + ' ' + (r._perguntaEnviada ? "Motorista questionado" : "Perguntar ao motorista") + '</button>';
         }
@@ -3292,7 +3307,26 @@
       function _atualizarCardApoioPosEsquema(idx) {
         var item = _relatorioItens[idx];
         var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
-        if (!item || !el || item.modo !== "apoio" || item.permitidoSeg == null) return;
+        if (!item || !el || item.modo !== "apoio") return;
+
+        // Esquema vinculado, mas o ponto não tem "parada prevista"
+        // cadastrada (ver _aplicarEsquemaAoItem) — permitidoSeg continua
+        // null (não dá pra calcular), então só corrige a mensagem da
+        // badge/dos botões desabilitados (estava dizendo "vincule o
+        // esquema", que já não é mais verdade) — não tem excedente pra
+        // habilitar nada.
+        if (item.permitidoSeg == null) {
+          if (item._esquemaSemParadaPrevista) {
+            var badgeElSemPrevista = el.querySelector('[data-role="badge"]');
+            if (badgeElSemPrevista) badgeElSemPrevista.outerHTML = _htmlBadgeExcedente(item);
+            var msgSemPrevista = "Ponto no roteiro sem parada prevista cadastrada no esquema — avalie manualmente (clique no card pra justificar)";
+            var gerarBtnSemPrevista = el.querySelector('[data-role="gerar-btn"]');
+            if (gerarBtnSemPrevista) gerarBtnSemPrevista.title = msgSemPrevista;
+            var perguntarBtnSemPrevista = el.querySelector('[data-role="perguntar-btn"]');
+            if (perguntarBtnSemPrevista) perguntarBtnSemPrevista.title = "Ponto no roteiro sem parada prevista cadastrada no esquema — não dá pra montar a pergunta automaticamente";
+          }
+          return;
+        }
 
         var permitidoEl = el.querySelector('[data-role="permitido"]');
         if (permitidoEl) permitidoEl.textContent = _fmtMin(Math.round(item.permitidoSeg / 60));
@@ -3879,6 +3913,15 @@
           item.permitidoSeg = 0;
           item.excedenteSeg = item.permanenciaSeg;
           item._foraDoRoteiro = true;
+        } else if (item.modo === "apoio" && pontoMatch) {
+          // 3º caso: o ponto ESTÁ no roteiro (achou pontoMatch), mas o
+          // esquema não tem "parada prevista" (tempoLocal) cadastrada pra
+          // ele — não dá pra calcular o excedente automaticamente (não é
+          // "esquema não vinculado" nem "fora do roteiro"). Fica pendente
+          // mesmo (permitidoSeg continua null), só marca o motivo certo
+          // pra badge/tooltip não dizerem "vincule o esquema" — ele já
+          // está vinculado, só falta esse dado cadastrado na origem.
+          item._esquemaSemParadaPrevista = true;
         }
         // Guarda os "não passou por" (indicador B, só a perna desde a
         // ocorrência anterior — não acumula) no próprio item —
