@@ -2758,7 +2758,7 @@
         var reader = new FileReader();
         reader.onload = function (e) {
           try {
-            var rows = _parseCSVRastrTP(e.target.result);
+            var rows = _mesclarParadasContiguasTP(_parseCSVRastrTP(e.target.result));
             // Guarda todas as linhas do CSV (não só as excedências) — o
             // indicador de garagem (_statusGaragemGrupoTP) precisa achar a
             // parada de garagem do veículo, que _detectarExcedencias descarta.
@@ -2826,6 +2826,52 @@
           });
         }
         return rows;
+      }
+
+      // ─────────────────────────────────────────────────────────
+      //  Funde paradas "partidas ao meio" pelo próprio rastreador — às
+      //  vezes o mesmo veículo gera 2 (ou mais) leituras seguidas no
+      //  MESMO ponto, onde a saída de uma bate exatamente com a entrada
+      //  da próxima (ex.: RODOVIARIA DE ARACAJU 04:17→04:47 e depois
+      //  04:47→05:38 — é 1 parada só de 04:17 a 05:38, não duas). Sem
+      //  isso, a excedência conta 2x (uma vez em cada leitura) e ainda
+      //  mostra o mesmo local duplicado no card, confuso pro analista.
+      //  Critério: mesmo veículo, mesmo ponto (normalizado) e a saída de
+      //  uma leitura bate com a entrada da próxima dentro de uma
+      //  tolerância pequena (ruído de poucos segundos entre os dois
+      //  registros) — não funde se houver qualquer intervalo de verdade
+      //  entre elas (aí são 2 paradas de fato, só coincidiu o local).
+      // ─────────────────────────────────────────────────────────
+      var TOLERANCIA_FUSAO_PARADA_SEG = 3;
+
+      function _fmtSegParaHMS(totalSeg) {
+        totalSeg = Math.max(0, Math.round(totalSeg));
+        var h = Math.floor(totalSeg / 3600);
+        var m = Math.floor((totalSeg % 3600) / 60);
+        var s = totalSeg % 60;
+        function pad(n) { return String(n).padStart(2, "0"); }
+        return pad(h) + ":" + pad(m) + ":" + pad(s);
+      }
+
+      function _mesclarParadasContiguasTP(rows) {
+        var out = [];
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i];
+          var last = out[out.length - 1];
+          var podeFundir = last && r.veiculo && last.veiculo === r.veiculo &&
+            r.ponto && _normTP(last.ponto) === _normTP(r.ponto);
+          if (podeFundir) {
+            var saidaAnterior = _parseDataHoraTP(last.saida);
+            var entradaAtual = _parseDataHoraTP(r.entrada);
+            if (saidaAnterior && entradaAtual && Math.abs(entradaAtual - saidaAnterior) / 1000 <= TOLERANCIA_FUSAO_PARADA_SEG) {
+              last.saida = r.saida;
+              last.parada = _fmtSegParaHMS(_parseDurSeg(last.parada) + _parseDurSeg(r.parada));
+              continue;
+            }
+          }
+          out.push({ veiculo: r.veiculo, ponto: r.ponto, entrada: r.entrada, saida: r.saida, parada: r.parada, linha: r.linha, intervalo: r.intervalo });
+        }
+        return out;
       }
 
       function _ehGaragem(pontoNome) {
