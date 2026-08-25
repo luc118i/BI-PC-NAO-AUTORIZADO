@@ -3311,10 +3311,6 @@
       // _detectarExcedenciasApoio/_aplicarEsquemaAoItem).
       function _htmlBadgeExcedente(r) {
         if (r.excedenteSeg == null) {
-          if (r._esquemaSemParadaPrevista) {
-            return '<span class="perm-badge perm-badge-pendente" data-role="badge" title="O ponto está no roteiro do esquema, mas sem \'parada prevista\' cadastrada — não dá pra calcular o excedente automaticamente. Avalie manualmente (clique no card pra justificar).">' +
-              'Permanência: ' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + ' — sem parada prevista no esquema</span>';
-          }
           return '<span class="perm-badge perm-badge-pendente" data-role="badge" title="Vincule o esquema deste veículo (botão \'Ver esquema\') pra comparar com a parada prevista no roteiro">' +
             'Permanência: ' + _fmtMin(Math.round(r.permanenciaSeg / 60)) + ' — vincule o esquema</span>';
         }
@@ -3331,6 +3327,11 @@
         _relatorioItens.push(r);
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
         var pontoEsc = String(r.descResumida || r.ponto || "").replace(/'/g, "\\'");
+        // Único jeito de ficar pendente agora é o esquema nem ter sido
+        // vinculado ainda — ponto sem "parada prevista" cadastrada nesse
+        // esquema específico (_esquemaSemParadaPrevista) já usa um
+        // fallback de 30min (ver _aplicarEsquemaAoItem), então tem
+        // permitidoSeg normalmente, segue o fluxo de sempre.
         var pendenteEsquema = r.modo === "apoio" && r.permitidoSeg == null;
         // Esquema vinculado e a permanência ficou DENTRO do previsto
         // (excedenteSeg <= 0, ver badge verde "dentro do esquema") — não é
@@ -3346,17 +3347,7 @@
         // propósito — ver decisão do usuário). Rodoviária não tem essa
         // trava (segue liberado direto, como sempre foi).
         var precisaPerguntarAntes = r.modo === "apoio" && !pendenteEsquema && !dentroDoEsquema && !r._perguntaEnviada;
-        // Título do botão desabilitado quando pendente — muda conforme o
-        // motivo real: esquema nem vinculado ainda, ou vinculado mas sem
-        // "parada prevista" cadastrada pra esse ponto (ver
-        // _aplicarEsquemaAoItem/_esquemaSemParadaPrevista) — o 2º caso não
-        // é resolvido vinculando de novo, é falta de cadastro na origem.
-        var tituloPendenteGerar = r._esquemaSemParadaPrevista
-          ? "Ponto no roteiro sem parada prevista cadastrada no esquema — avalie manualmente (clique no card pra justificar)"
-          : "Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente";
-        var tituloPendentePerguntar = r._esquemaSemParadaPrevista
-          ? "Ponto no roteiro sem parada prevista cadastrada no esquema — não dá pra montar a pergunta automaticamente"
-          : "Vincule o esquema deste veículo primeiro";
+        var tituloPendenteGerar = "Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente";
         var btnGerarHtml;
         if (dentroDoEsquema) {
           btnGerarHtml = "";
@@ -3377,7 +3368,7 @@
         var btnPerguntarHtml = "";
         if (r.modo === "apoio" && !dentroDoEsquema) {
           btnPerguntarHtml = pendenteEsquema
-            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="' + tituloPendentePerguntar + '">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
+            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
             : '<button type="button" class="perm-esquema-btn' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_abrirPerguntaMotorista(' + idx + ')">' +
               (r._perguntaEnviada ? _icon("check") : _icon("clipboard")) + ' ' + (r._perguntaEnviada ? "Motorista questionado" : "Perguntar ao motorista") + '</button>';
         }
@@ -3414,24 +3405,12 @@
         var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
         if (!item || !el || item.modo !== "apoio") return;
 
-        // Esquema vinculado, mas o ponto não tem "parada prevista"
-        // cadastrada (ver _aplicarEsquemaAoItem) — permitidoSeg continua
-        // null (não dá pra calcular), então só corrige a mensagem da
-        // badge/dos botões desabilitados (estava dizendo "vincule o
-        // esquema", que já não é mais verdade) — não tem excedente pra
-        // habilitar nada.
-        if (item.permitidoSeg == null) {
-          if (item._esquemaSemParadaPrevista) {
-            var badgeElSemPrevista = el.querySelector('[data-role="badge"]');
-            if (badgeElSemPrevista) badgeElSemPrevista.outerHTML = _htmlBadgeExcedente(item);
-            var msgSemPrevista = "Ponto no roteiro sem parada prevista cadastrada no esquema — avalie manualmente (clique no card pra justificar)";
-            var gerarBtnSemPrevista = el.querySelector('[data-role="gerar-btn"]');
-            if (gerarBtnSemPrevista) gerarBtnSemPrevista.title = msgSemPrevista;
-            var perguntarBtnSemPrevista = el.querySelector('[data-role="perguntar-btn"]');
-            if (perguntarBtnSemPrevista) perguntarBtnSemPrevista.title = "Ponto no roteiro sem parada prevista cadastrada no esquema — não dá pra montar a pergunta automaticamente";
-          }
-          return;
-        }
+        // Sem pontoMatch nenhum (esquema ainda não tentado de verdade) —
+        // permitidoSeg continua null. Ponto sem "parada prevista"
+        // cadastrada nesse esquema já usa o fallback de 30min (ver
+        // _aplicarEsquemaAoItem/_esquemaSemParadaPrevista), então chega
+        // aqui com permitidoSeg preenchido normalmente.
+        if (item.permitidoSeg == null) return;
 
         var permitidoEl = el.querySelector('[data-role="permitido"]');
         if (permitidoEl) permitidoEl.textContent = _fmtMin(Math.round(item.permitidoSeg / 60));
@@ -3523,12 +3502,17 @@
           ficha.push("• *Permanência:* " + realMin + " min");
           pergunta = "Poderia nos informar o motivo dessa parada?";
         } else {
-          var previstoMin = esq.tempoLocal != null ? esq.tempoLocal : Math.round(item.permitidoSeg / 60);
+          // Sem "parada prevista" cadastrada nesse esquema específico, o
+          // previsto usado é o fallback de 30min (ver _aplicarEsquemaAoItem)
+          // — deixa isso explícito na mensagem, pra não parecer que existe
+          // um cadastro confirmado por trás do número.
+          var previstoMin = Math.round(item.permitidoSeg / 60);
           var diffMin = realMin - previstoMin;
+          var notaFallback = item._esquemaSemParadaPrevista ? " (padrão — sem cadastro específico nesse esquema)" : "";
           titulo = "⚠️ *EXCESSO DE PERMANÊNCIA — PONTO DE APOIO*";
           introducao = "Identificamos uma permanência acima do previsto no esquema:";
           ficha.push("• *Local:* " + item.ponto);
-          ficha.push("• *Permanência:* " + realMin + " min (previsto: " + previstoMin + " min — excedeu em " + diffMin + " min)");
+          ficha.push("• *Permanência:* " + realMin + " min (previsto: " + previstoMin + " min" + notaFallback + " — excedeu em " + diffMin + " min)");
           pergunta = "Poderia nos informar o motivo dessa parada mais longa?";
         }
 
@@ -4003,8 +3987,22 @@
         // que nasce com permitidoSeg/excedenteSeg null). Pode dar negativo
         // (permaneceu MENOS que o previsto) — fica registrado como está,
         // não é tratado como excedência.
-        if (item.modo === "apoio" && item._esquemaInfo.tempoLocal != null) {
-          item.permitidoSeg = item._esquemaInfo.tempoLocal * 60;
+        if (item.modo === "apoio" && pontoMatch) {
+          if (item._esquemaInfo.tempoLocal != null) {
+            item.permitidoSeg = item._esquemaInfo.tempoLocal * 60;
+            item._esquemaSemParadaPrevista = false;
+          } else {
+            // Ponto ESTÁ no roteiro, mas esse esquema específico não tem
+            // "parada prevista" (tempoLocal) cadastrada pra ele — comum
+            // quando o mesmo local físico é usado por vários esquemas e só
+            // alguns têm o tempo confirmado (ver investigação em BAPE0053009/
+            // CHURRASCARIA CACHOREIRA). Em vez de ficar pendente pra sempre,
+            // usa um padrão de fallback — mesma ideia/valor do corte de
+            // detecção (LIMITE_PONTO_APOIO_ANALISE_MIN), reaproveitado aqui
+            // como "tempo razoável assumido" na falta de cadastro.
+            item.permitidoSeg = LIMITE_PONTO_APOIO_ANALISE_MIN * 60;
+            item._esquemaSemParadaPrevista = true;
+          }
           item.excedenteSeg = item.permanenciaSeg - item.permitidoSeg;
           item._foraDoRoteiro = false;
           // Ficou dentro do esquema de verdade (não só "menos ruim") —
@@ -4023,15 +4021,6 @@
           item.permitidoSeg = 0;
           item.excedenteSeg = item.permanenciaSeg;
           item._foraDoRoteiro = true;
-        } else if (item.modo === "apoio" && pontoMatch) {
-          // 3º caso: o ponto ESTÁ no roteiro (achou pontoMatch), mas o
-          // esquema não tem "parada prevista" (tempoLocal) cadastrada pra
-          // ele — não dá pra calcular o excedente automaticamente (não é
-          // "esquema não vinculado" nem "fora do roteiro"). Fica pendente
-          // mesmo (permitidoSeg continua null), só marca o motivo certo
-          // pra badge/tooltip não dizerem "vincule o esquema" — ele já
-          // está vinculado, só falta esse dado cadastrado na origem.
-          item._esquemaSemParadaPrevista = true;
         }
         // Guarda os "não passou por" (indicador B, só a perna desde a
         // ocorrência anterior — não acumula) no próprio item —
@@ -4058,11 +4047,16 @@
       // está no esquema". Só se aplica a item.modo === "apoio"; pra
       // rodoviária, _htmlLinhaSessao já cobre a comparação de sessão.
       function _htmlComparacaoApoio(item, pontoMatch) {
-        if (item.modo !== "apoio" || !pontoMatch || pontoMatch.tempoLocal == null) return "";
-        var previstoMin = pontoMatch.tempoLocal;
+        if (item.modo !== "apoio" || !pontoMatch || item.permitidoSeg == null) return "";
+        var previstoMin = Math.round(item.permitidoSeg / 60);
         var realMin = Math.round(item.permanenciaSeg / 60);
         var diffMin = realMin - previstoMin;
-        var texto = 'Parada prevista no esquema: <b>' + previstoMin + ' min</b> · Permanência real: <b>' + realMin + ' min</b>';
+        // Sem cadastro de "parada prevista" nesse esquema específico — o
+        // número usado é um padrão de fallback (ver _aplicarEsquemaAoItem),
+        // não o que está de fato cadastrado ali. Deixa isso explícito, pra
+        // não parecer que tem um cadastro confirmado por trás.
+        var origemTxt = item._esquemaSemParadaPrevista ? ' <i>(padrão — sem cadastro específico nesse esquema)</i>' : '';
+        var texto = 'Parada prevista no esquema: <b>' + previstoMin + ' min</b>' + origemTxt + ' · Permanência real: <b>' + realMin + ' min</b>';
         var cmp;
         if (diffMin > 0) { texto += ' — excedeu em <b>' + diffMin + ' min</b>'; cmp = "excedeu"; }
         else { texto += ' — dentro do esquema' + (diffMin < 0 ? ' (' + Math.abs(diffMin) + ' min a menos)' : ''); cmp = "ok"; }
@@ -4323,7 +4317,9 @@
               var textoLinha = '<b><span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span></b>: ' +
                 (pontoMatch
                   ? (ehApoioLinha
-                      ? (pontoMatch.tempoLocal != null ? 'parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : 'sem parada prevista cadastrada no esquema')
+                      ? (item.permitidoSeg != null
+                          ? 'parada prevista: <b>' + Math.round(item.permitidoSeg / 60) + ' min</b>' + (item._esquemaSemParadaPrevista ? ' <i>(padrão)</i>' : '')
+                          : '')
                       : ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
                         (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '')))
                   : 'local não encontrado no roteiro deste esquema');
