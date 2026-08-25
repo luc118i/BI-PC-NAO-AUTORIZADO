@@ -3223,15 +3223,24 @@
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
         var pontoEsc = String(r.descResumida || r.ponto || "").replace(/'/g, "\\'");
         var pendenteEsquema = r.modo === "apoio" && r.permitidoSeg == null;
+        // Esquema vinculado e a permanência ficou DENTRO do previsto
+        // (excedenteSeg <= 0, ver badge verde "dentro do esquema") — não é
+        // excedência de verdade, então nem "Perguntar ao motorista" nem
+        // "Gerar Relatório" fazem sentido aqui (evita o usuário mandar
+        // mensagem por engano pra um caso que já resolveu sozinho ao
+        // vincular o esquema).
+        var dentroDoEsquema = r.modo === "apoio" && r.excedenteSeg != null && r.excedenteSeg <= 0;
         // Ponto de apoio: induz a perguntar pro motorista ANTES de gerar o
         // relatório — "Gerar Relatório" só libera depois de r._perguntaEnviada
         // (marcado por _enviarPerguntaMotorista ou pelo link "pular" abaixo).
         // Trava só em memória (não sobrevive a F5/reprocessar CSV, de
         // propósito — ver decisão do usuário). Rodoviária não tem essa
         // trava (segue liberado direto, como sempre foi).
-        var precisaPerguntarAntes = r.modo === "apoio" && !pendenteEsquema && !r._perguntaEnviada;
+        var precisaPerguntarAntes = r.modo === "apoio" && !pendenteEsquema && !dentroDoEsquema && !r._perguntaEnviada;
         var btnGerarHtml;
-        if (pendenteEsquema) {
+        if (dentroDoEsquema) {
+          btnGerarHtml = "";
+        } else if (pendenteEsquema) {
           btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Vincule o esquema deste veículo primeiro — sem a parada prevista não dá pra calcular o excedente">' + _icon("file") + ' Gerar Relatório</button>';
         } else if (precisaPerguntarAntes) {
           btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Pergunte ao motorista o motivo primeiro (ou pule ao lado)">' + _icon("file") + ' Gerar Relatório</button>' +
@@ -3246,7 +3255,7 @@
         // ANTES de "Gerar Relatório" na ordem dos botões — é o passo que
         // deve acontecer primeiro.
         var btnPerguntarHtml = "";
-        if (r.modo === "apoio") {
+        if (r.modo === "apoio" && !dentroDoEsquema) {
           btnPerguntarHtml = pendenteEsquema
             ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
             : '<button type="button" class="perm-esquema-btn' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_abrirPerguntaMotorista(' + idx + ')">' +
@@ -3290,6 +3299,22 @@
 
         var badgeEl = el.querySelector('[data-role="badge"]');
         if (badgeEl) badgeEl.outerHTML = _htmlBadgeExcedente(item);
+
+        // Ficou dentro do esquema (excedenteSeg <= 0) — não é excedência
+        // de verdade, então some com "Perguntar ao motorista"/"Gerar
+        // Relatório"/"pular" (nasceriam desabilitados só de enfeite,
+        // convidando a clicar por engano — ver _renderItemHtml). "Ver
+        // esquema" continua disponível, e o card ainda pode ser marcado
+        // analisado normalmente ao clicar nele.
+        if (item.excedenteSeg != null && item.excedenteSeg <= 0) {
+          var gerarBtnFora = el.querySelector('[data-role="gerar-btn"]');
+          if (gerarBtnFora) gerarBtnFora.remove();
+          var pularBtnFora = el.querySelector('[data-role="pular-pergunta-btn"]');
+          if (pularBtnFora) pularBtnFora.remove();
+          var perguntarBtnFora = el.querySelector('[data-role="perguntar-btn"]');
+          if (perguntarBtnFora) perguntarBtnFora.remove();
+          return;
+        }
 
         var gerarBtn = el.querySelector('[data-role="gerar-btn"]');
         if (gerarBtn && gerarBtn.hasAttribute("disabled")) {
@@ -4774,6 +4799,12 @@
           _alertarAcao("Vincule o esquema deste veículo primeiro (botão \"Ver esquema\") — sem a parada prevista não dá pra calcular o excedente.");
           return;
         }
+        // Idem — dentro do esquema não gera relatório nenhum, o botão nem
+        // aparece nesse caso (ver _renderItemHtml/_atualizarCardApoioPosEsquema).
+        if (item.modo === "apoio" && item.excedenteSeg != null && item.excedenteSeg <= 0) {
+          _alertarAcao("Essa permanência ficou dentro do esquema — não há excedência pra gerar relatório.");
+          return;
+        }
         // Idem — trava "pergunte antes de gerar" já nasce no botão (ver
         // _renderItemHtml/_pularPerguntaMotorista), isso aqui é defensivo.
         if (item.modo === "apoio" && !item._perguntaEnviada) {
@@ -4823,13 +4854,21 @@
           var it = _relatorioItens[idx];
           return it.modo === "apoio" && it.permitidoSeg == null;
         });
+        // Dentro do esquema (excedenteSeg <= 0) não é excedência de
+        // verdade — fica de fora do grupo sempre, não só até perguntar
+        // (não tem o que perguntar/relatar aqui — ver _renderItemHtml).
+        var idxsDentroEsquema = idxsTodos.filter(function (idx) {
+          var it = _relatorioItens[idx];
+          return it.modo === "apoio" && it.permitidoSeg != null && it.excedenteSeg <= 0;
+        });
         var idxsSemPergunta = idxsTodos.filter(function (idx) {
           var it = _relatorioItens[idx];
-          return it.modo === "apoio" && it.permitidoSeg != null && !it._perguntaEnviada;
+          return it.modo === "apoio" && it.permitidoSeg != null && it.excedenteSeg > 0 && !it._perguntaEnviada;
         });
         var idxs = idxsTodos.filter(function (idx) {
           var it = _relatorioItens[idx];
-          return !(it.modo === "apoio" && (it.permitidoSeg == null || !it._perguntaEnviada));
+          if (it.modo !== "apoio") return true;
+          return it.permitidoSeg != null && it.excedenteSeg > 0 && it._perguntaEnviada;
         });
         if (!idxs.length) {
           if (_massaAtiva) { _avancarMassaRegiao(); return; }
@@ -4837,7 +4876,9 @@
             ? "Vincule o esquema deste veículo primeiro (botão \"Ver esquema\") — sem a parada prevista não dá pra calcular o excedente."
             : idxsSemPergunta.length
               ? "Pergunte ao motorista o motivo primeiro (ou pule, item a item, no card de cada ocorrência)."
-              : "Todas as ocorrências deste veículo já foram analisadas.";
+              : idxsDentroEsquema.length
+                ? "As ocorrências deste veículo ficaram dentro do esquema — não há excedência pra gerar relatório."
+                : "Todas as ocorrências deste veículo já foram analisadas.";
           _alertarAcao(msg);
           return;
         }
