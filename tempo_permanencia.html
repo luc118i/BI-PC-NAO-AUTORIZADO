@@ -2983,10 +2983,20 @@
       //  Critério: mesmo veículo, mesmo ponto (normalizado) e a saída de
       //  uma leitura bate com a entrada da próxima dentro de uma
       //  tolerância pequena (ruído de poucos segundos entre os dois
-      //  registros) — não funde se houver qualquer intervalo de verdade
-      //  entre elas (aí são 2 paradas de fato, só coincidiu o local).
+      //  registros).
+      //
+      //  Além do ruído de segundos, o rastreador às vezes "quebra" uma
+      //  parada só em duas quando o veículo encosta, sai do cerca virtual
+      //  por alguns minutos (manobra, dá lugar pra outro carro, blip de
+      //  GPS) e volta pro MESMO ponto — o analista vê o mesmo local
+      //  duplicado em horários próximos e lê como bug (ver print do 24417
+      //  em RESTAURANTE 2 IRMAOS JEQUIE BA). Por isso, quando é o mesmo
+      //  ponto do mesmo veículo em leituras consecutivas, a janela de
+      //  fusão é maior (TOLERANCIA_REENTRADA_MESMO_PONTO_SEG). Continua
+      //  sem fundir revisitas de verdade (ida/volta no mesmo restaurante,
+      //  que ficam horas apart).
       // ─────────────────────────────────────────────────────────
-      var TOLERANCIA_FUSAO_PARADA_SEG = 3;
+      var TOLERANCIA_REENTRADA_MESMO_PONTO_SEG = 15 * 60;
 
       function _fmtSegParaHMS(totalSeg) {
         totalSeg = Math.max(0, Math.round(totalSeg));
@@ -3007,8 +3017,14 @@
           if (podeFundir) {
             var saidaAnterior = _parseDataHoraTP(last.saida);
             var entradaAtual = _parseDataHoraTP(r.entrada);
-            if (saidaAnterior && entradaAtual && Math.abs(entradaAtual - saidaAnterior) / 1000 <= TOLERANCIA_FUSAO_PARADA_SEG) {
+            // Só funde re-entrada pra FRENTE (entrada da 2ª leitura depois
+            // da saída da 1ª, com folga de 1min pra arredondamento) e
+            // dentro da janela — evita fundir par fora de ordem no CSV.
+            var gapSeg = (saidaAnterior && entradaAtual) ? (entradaAtual - saidaAnterior) / 1000 : null;
+            if (gapSeg != null && gapSeg >= -60 && gapSeg <= TOLERANCIA_REENTRADA_MESMO_PONTO_SEG) {
               last.saida = r.saida;
+              // Soma só o tempo REALMENTE parado nas duas leituras — não
+              // conta o intervalo em que o veículo esteve fora do ponto.
               last.parada = _fmtSegParaHMS(_parseDurSeg(last.parada) + _parseDurSeg(r.parada));
               continue;
             }
