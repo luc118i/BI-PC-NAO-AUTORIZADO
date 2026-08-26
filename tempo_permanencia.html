@@ -1984,6 +1984,9 @@
         document.getElementById("justQtdDesembarque").value = "";
         document.getElementById("justApoioRodoviaria").value = "";
         document.getElementById("justDescricaoOcorrencia").value = "";
+        document.getElementById("justLocalOperAlimentacao").checked = false;
+        document.getElementById("justLocalOperLimpeza").checked = false;
+        document.getElementById("justLocalOperOutro").value = "";
         document.getElementById("justObservacao").value = "";
         document.getElementById("justStatus").textContent = "";
         document.getElementById("justStatus").className = "oc-status";
@@ -2043,6 +2046,7 @@
         });
         document.getElementById("justCamposEmbarque").classList.toggle("hidden", motivo !== "EMBARQUE");
         document.getElementById("justCamposOcorrencia").classList.toggle("hidden", motivo !== "OCORRENCIA");
+        document.getElementById("justCamposLocalOper").classList.toggle("hidden", motivo !== "LOCAL_OPERACIONAL");
 
         // Sugere o texto só se a observação ainda estiver vazia — não
         // sobrescreve o que o usuário já tiver escrito/editado.
@@ -2078,6 +2082,20 @@
           var desc = document.getElementById("justDescricaoOcorrencia").value.trim();
           if (!desc) { statusEl.textContent = "Descreva a ocorrência."; statusEl.className = "oc-status err"; return; }
           justificativa.observacao = desc + (justificativa.observacao ? " — " + justificativa.observacao : "");
+        } else if (motivo === "LOCAL_OPERACIONAL") {
+          var atividades = [];
+          if (document.getElementById("justLocalOperAlimentacao").checked) atividades.push("alimentação");
+          if (document.getElementById("justLocalOperLimpeza").checked) atividades.push("limpeza");
+          var outroOper = document.getElementById("justLocalOperOutro").value.trim();
+          if (outroOper) atividades.push(outroOper);
+          if (!atividades.length) {
+            statusEl.textContent = "Marque ao menos uma atividade (alimentação, limpeza) ou informe outro.";
+            statusEl.className = "oc-status err";
+            return;
+          }
+          justificativa.localOperAtividades = atividades.join(", ");
+          justificativa.observacao = "Local operacional: " + atividades.join(", ") +
+            (justificativa.observacao ? " — " + justificativa.observacao : "");
         }
 
         // Aplica só ao ponto atual da fila (justificativa individual) e
@@ -2419,6 +2437,7 @@
         ANTECIPADO: "Chegou antecipadamente",
         INICIO_VIAGEM: "Início de viagem",
         EMBARQUE: "Muito embarque/desembarque",
+        LOCAL_OPERACIONAL: "Local operacional",
         OCORRENCIA: "Teve ocorrência",
         RELATORIO_GERADO: "Culpa do motorista",
         // Específicos de ponto de apoio (posto/restaurante/outro) — ver
@@ -2439,7 +2458,7 @@
       // filtro #tpMotivoSel. Não confundir com quais opções aparecem no
       // MODAL de justificativa — isso é controlado por _mostrarProximaJustificativa
       // (item.modo), que usa esta lista + MOTIVOS_APOIO abaixo.
-      var MOTIVOS_DESCARTE = ["ANTECIPADO", "INICIO_VIAGEM", "EMBARQUE", "OCORRENCIA"];
+      var MOTIVOS_DESCARTE = ["ANTECIPADO", "INICIO_VIAGEM", "EMBARQUE", "LOCAL_OPERACIONAL", "OCORRENCIA"];
       // Ponto de apoio — mesma ideia, lista própria (não entra no
       // dashboard/gráficos de rodoviária, que não veem dado de apoio).
       // Só motivos ESCOLHÍVEIS no modal — DENTRO_ESQUEMA não entra aqui
@@ -2451,6 +2470,7 @@
         ANTECIPADO: "#f0c040",
         INICIO_VIAGEM: "#3b82c4",
         EMBARQUE: "#22c97a",
+        LOCAL_OPERACIONAL: "#06b6d4",
         OCORRENCIA: "#8b5cf6",
         RELATORIO_GERADO: "#e05050",
         BANHEIRO: "#14b8a6",
@@ -6829,6 +6849,13 @@
                   <span class="just-opcao-sub">Volume de passageiros justificou o tempo parado no ponto.</span>
                 </span>
               </label>
+              <label class="just-opcao" data-motivo="LOCAL_OPERACIONAL">
+                <input type="radio" name="justMotivo" value="LOCAL_OPERACIONAL" onchange="_atualizarCamposJustificativa()" />
+                <span class="just-opcao-texto">
+                  <span class="just-opcao-titulo">Local operacional</span>
+                  <span class="just-opcao-sub">Ponto usado para alimentação e/ou limpeza da equipe — o tempo parado é atividade operacional prevista, não parada indevida.</span>
+                </span>
+              </label>
               <label class="just-opcao" data-motivo="OCORRENCIA">
                 <input type="radio" name="justMotivo" value="OCORRENCIA" onchange="_atualizarCamposJustificativa()" />
                 <span class="just-opcao-texto">
@@ -6889,6 +6916,25 @@
             <div class="oc-field">
               <label>Descreva a ocorrência *</label>
               <textarea id="justDescricaoOcorrencia" placeholder="O que aconteceu no ponto..."></textarea>
+            </div>
+          </div>
+
+          <!-- Campo condicional: local operacional -->
+          <div class="just-campos-extra hidden" id="justCamposLocalOper">
+            <div class="oc-field">
+              <label>O que foi feito no ponto? * (marque ao menos um)</label>
+              <label class="just-opcao" style="border:none;padding:4px 0">
+                <input type="checkbox" id="justLocalOperAlimentacao" />
+                <span class="just-opcao-texto"><span class="just-opcao-titulo">Alimentação</span></span>
+              </label>
+              <label class="just-opcao" style="border:none;padding:4px 0">
+                <input type="checkbox" id="justLocalOperLimpeza" />
+                <span class="just-opcao-texto"><span class="just-opcao-titulo">Limpeza</span></span>
+              </label>
+            </div>
+            <div class="oc-field">
+              <label>Outro (opcional)</label>
+              <input type="text" id="justLocalOperOutro" placeholder="Ex.: troca de turno, abastecimento..." />
             </div>
           </div>
 
