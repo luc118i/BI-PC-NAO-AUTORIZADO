@@ -318,31 +318,36 @@
 
       .estado-vazio { text-align: center; padding: 40px 20px; color: var(--texto3); font-size: 13px; }
 
-      /* ── Botão "Gerar Relatório" no item ─────────────────── */
-      .perm-gerar-btn {
-        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
-        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
-        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+      /* ── Menu de ações do item (kebab ⋮) — agrupa "Ver esquema",
+           "Perguntar ao motorista" e "Gerar Relatório"/"Pular pergunta"
+           num popover, pra não poluir a linha do card. Os <button> de
+           dentro mantêm os data-role de antes (gerar-btn / perguntar-btn /
+           pular-pergunta-btn), então _atualizarCardApoioPosEsquema e
+           _atualizarCardApoioPosPergunta continuam achando/mexendo neles. */
+      .perm-acoes { position: relative; flex-shrink: 0; }
+      .perm-acoes-btn {
+        width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--cinza2);
+        background: transparent; color: var(--texto2); cursor: pointer; transition: all 0.15s;
+        display: inline-flex; align-items: center; justify-content: center;
       }
-      .perm-gerar-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
-      .perm-gerar-btn:disabled { opacity: 0.5; cursor: wait; }
-
-      /* ── Botão "Ver esquema" + painel de busca inline ──────── */
-      .perm-esquema-btn {
-        font-family: "Barlow", sans-serif; font-size: 11px; font-weight: 600; padding: 5px 11px;
-        border-radius: 6px; border: 1px solid var(--cinza2); background: transparent; color: var(--texto2);
-        cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+      .perm-acoes-btn:hover { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .perm-acoes.aberto .perm-acoes-btn { border-color: var(--laranja); color: var(--laranja); background: var(--laranja4); }
+      .perm-acoes-menu {
+        position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 200px;
+        display: flex; flex-direction: column; gap: 1px; padding: 4px;
+        background: var(--preto2); border: 1px solid var(--borda2); border-radius: 8px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5);
       }
-      .perm-esquema-btn:hover { border-color: var(--azul, #4f8ef7); color: var(--azul, #4f8ef7); background: rgba(79,142,247,0.1); }
-      .perm-esquema-btn:disabled { opacity: 0.5; cursor: wait; }
-      .perm-esquema-btn.ativo { border-color: var(--verde); color: var(--verde); }
-
-      /* ── Link "pular" a pergunta ao motorista (escape manual da trava) ── */
-      .perm-pular-pergunta-btn {
-        font-family: "Barlow", sans-serif; font-size: 10.5px; font-weight: 600; color: var(--texto3);
-        background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0 2px;
+      .perm-acoes-menu.hidden { display: none; }
+      .perm-acao-item {
+        font-family: "Barlow", sans-serif; font-size: 12px; font-weight: 600; text-align: left;
+        padding: 8px 10px; border-radius: 5px; border: none; background: transparent; color: var(--texto2);
+        cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+        width: 100%; text-decoration: none; transition: background 0.12s, color 0.12s;
       }
-      .perm-pular-pergunta-btn:hover { color: var(--laranja); }
+      .perm-acao-item:hover:not(:disabled) { background: var(--preto3); color: var(--texto); }
+      .perm-acao-item:disabled { opacity: 0.45; cursor: not-allowed; }
+      .perm-acao-item.ativo { color: var(--verde); }
       .perm-esquema-panel {
         flex-basis: 100%; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-sm);
         background: var(--preto3); border: 1px solid var(--borda2);
@@ -366,16 +371,19 @@
       .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
       .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--borda2); }
       .perm-esquema-vinc { margin-top: 6px; font-size: 11px; color: var(--texto3); }
-      /* Cada parada vinculada é um bloco visual: mais espaço ENTRE blocos
-         (12px) do que DENTRO (nome→resultado ~3px) — deixa o painel
-         escaneável em vez de uma parede de linhas. Ver _htmlBlocoParadaApoio. */
+      /* Bloco de resultado no painel individual "Ver esquema" (_htmlEsquemaDetalhe)
+         — respiro entre o cabeçalho e a comparação. */
       .perm-esquema-parada { margin-top: 12px; }
-      .perm-esquema-parada-nome { font-size: 12px; margin-bottom: 3px; }
       .perm-esquema-parada > :first-child { margin-top: 0; }
-      /* resultado colado logo abaixo do nome da parada (par visual) */
-      .perm-esquema-parada-nome + .esquema-sessao-linha,
-      .perm-esquema-parada-nome + .esquema-linha-txt { margin-top: 2px; }
       .esquema-linha-txt { margin-top: 6px; }
+      /* Comparação previsto x real inline no card da ocorrência — full-width
+         numa linha própria (o card é flex-wrap), logo abaixo de
+         Chegada/Saída/... Preenchida por _atualizarCmpInline ao vincular o
+         esquema; :empty some enquanto não há esquema vinculado. */
+      .perm-item-cmp-slot { flex-basis: 100%; }
+      .perm-item-cmp-slot:empty { display: none; }
+      .perm-item-cmp-slot > .esquema-sessao-linha,
+      .perm-item-cmp-slot > .esquema-linha-txt { margin-top: 4px; font-size: 11px; }
 
       /* Saída real vs. horário de sessão do esquema (sessão = horário
          previsto de SAÍDA do veículo, não de chegada) — amarelo quando
@@ -2262,6 +2270,8 @@
         alertOctagon: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>',
         layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>',
         clipboard: '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path>',
+        moreVertical: '<circle cx="12" cy="5" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="19" r="1.4"></circle>',
+        skipForward: '<polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line>',
       };
       function _icon(nome, tamanho) {
         tamanho = tamanho || 14;
@@ -2269,6 +2279,31 @@
           'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block;flex-shrink:0">' +
           (_ICON_PATHS[nome] || "") + "</svg>";
       }
+
+      // ── Menu de ações (kebab ⋮) de cada .perm-item ───────────
+      // Fecha todos os menus abertos (menos `exceto`, se passado).
+      function _fecharAcoesMenus(exceto) {
+        document.querySelectorAll(".perm-acoes.aberto").forEach(function (c) {
+          if (c === exceto) return;
+          c.classList.remove("aberto");
+          var m = c.querySelector(".perm-acoes-menu");
+          if (m) m.classList.add("hidden");
+        });
+      }
+      function _toggleAcoesMenu(btnEl) {
+        var cont = btnEl.closest(".perm-acoes");
+        if (!cont) return;
+        var abrir = !cont.classList.contains("aberto");
+        _fecharAcoesMenus(cont);
+        cont.classList.toggle("aberto", abrir);
+        var menu = cont.querySelector(".perm-acoes-menu");
+        if (menu) menu.classList.toggle("hidden", !abrir);
+      }
+      // Clique fora de qualquer .perm-acoes fecha os menus. (Cliques dentro
+      // do kebab não chegam aqui — o container tem stopPropagation.)
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest(".perm-acoes")) _fecharAcoesMenus();
+      });
 
       function _parseHMtoMin(str) {
         var p = String(str || "").trim().split(":");
@@ -3502,12 +3537,12 @@
         if (dentroDoEsquema) {
           btnGerarHtml = "";
         } else if (pendenteEsquema) {
-          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="' + tituloPendenteGerar + '">' + _icon("file") + ' Gerar Relatório</button>';
+          btnGerarHtml = '<button type="button" class="perm-acao-item" data-role="gerar-btn" disabled title="' + tituloPendenteGerar + '">' + _icon("file") + ' Gerar Relatório</button>';
         } else if (precisaPerguntarAntes) {
-          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" disabled title="Pergunte ao motorista o motivo primeiro (ou pule ao lado)">' + _icon("file") + ' Gerar Relatório</button>' +
-            '<button type="button" class="perm-pular-pergunta-btn" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">pular</button>';
+          btnGerarHtml = '<button type="button" class="perm-acao-item" data-role="gerar-btn" disabled title="Pergunte ao motorista o motivo primeiro (ou use \'Pular pergunta\')">' + _icon("file") + ' Gerar Relatório</button>' +
+            '<button type="button" class="perm-acao-item" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_fecharAcoesMenus();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">' + _icon("skipForward") + ' Pular pergunta</button>';
         } else {
-          btnGerarHtml = '<button type="button" class="perm-gerar-btn" data-role="gerar-btn" onclick="event.stopPropagation();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>';
+          btnGerarHtml = '<button type="button" class="perm-acao-item" data-role="gerar-btn" onclick="event.stopPropagation();_fecharAcoesMenus();abrirModalRelatorio(' + idx + ')">' + _icon("file") + ' Gerar Relatório</button>';
         }
         // "Perguntar ao motorista" — só ponto de apoio (rodoviária não tem
         // esse botão, ver decisão do usuário), e só depois do esquema
@@ -3518,8 +3553,8 @@
         var btnPerguntarHtml = "";
         if (r.modo === "apoio" && !dentroDoEsquema) {
           btnPerguntarHtml = pendenteEsquema
-            ? '<button type="button" class="perm-esquema-btn" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
-            : '<button type="button" class="perm-esquema-btn' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_abrirPerguntaMotorista(' + idx + ')">' +
+            ? '<button type="button" class="perm-acao-item" data-role="perguntar-btn" disabled title="Vincule o esquema deste veículo primeiro">' + _icon("clipboard") + ' Perguntar ao motorista</button>'
+            : '<button type="button" class="perm-acao-item' + (r._perguntaEnviada ? " ativo" : "") + '" data-role="perguntar-btn" onclick="event.stopPropagation();_fecharAcoesMenus();_abrirPerguntaMotorista(' + idx + ')">' +
               (r._perguntaEnviada ? _icon("check") : _icon("clipboard")) + ' ' + (r._perguntaEnviada ? "Motorista questionado" : "Perguntar ao motorista") + '</button>';
         }
         return '<div class="perm-item" data-idx="' + idx + '" data-chave="' + chaveAttr + '" onclick="_setItemAnalisado(this, !this.classList.contains(\'riscado\'))" title="Clique para justificar e marcar como analisado (ou reverter, se já analisado)">' +
@@ -3537,11 +3572,17 @@
             '<span>Permitido<br><b data-role="permitido">' + (r.permitidoSeg != null ? _fmtMin(Math.round(r.permitidoSeg / 60)) : "—") + '</b></span>' +
             '<span>Data<br><b>' + (_fmtData(r.entrada) || "—") + '</b></span>' +
           '</div>' +
-          '<button type="button" class="perm-esquema-btn" onclick="event.stopPropagation();_verEsquema(' + idx + ', this)">' + _icon("clock") + ' Ver esquema</button>' +
-          btnPerguntarHtml +
-          btnGerarHtml +
+          '<div class="perm-acoes" onclick="event.stopPropagation()">' +
+            '<button type="button" class="perm-acoes-btn" title="Ações" aria-label="Ações" onclick="_toggleAcoesMenu(this)">' + _icon("moreVertical", 16) + '</button>' +
+            '<div class="perm-acoes-menu hidden">' +
+              '<button type="button" class="perm-acao-item" onclick="_fecharAcoesMenus();_verEsquema(' + idx + ')">' + _icon("clock") + ' Ver esquema</button>' +
+              btnPerguntarHtml +
+              btnGerarHtml +
+            '</div>' +
+          '</div>' +
           _htmlBadgeExcedente(r) +
           _htmlExcessoPontoApoioTP(r) +
+          '<div class="perm-item-cmp-slot" data-role="cmp"></div>' +
           '<div class="perm-esquema-panel hidden" id="esquema-' + idx + '"></div>' +
         '</div>';
       }
@@ -3589,17 +3630,17 @@
           if (item._perguntaEnviada) {
             gerarBtn.removeAttribute("disabled");
             gerarBtn.removeAttribute("title");
-            gerarBtn.setAttribute("onclick", "event.stopPropagation();abrirModalRelatorio(" + idx + ")");
+            gerarBtn.setAttribute("onclick", "event.stopPropagation();_fecharAcoesMenus();abrirModalRelatorio(" + idx + ")");
           } else {
             // Esquema acabou de ser vinculado, mas ainda falta perguntar
             // ao motorista — troca só a mensagem do disabled (era "vincule
-            // o esquema", agora é "pergunte antes") e acrescenta o link
-            // "pular", que _renderItemHtml já colocaria se o item tivesse
-            // nascido assim (ver ali — mesmo texto/onclick).
-            gerarBtn.title = "Pergunte ao motorista o motivo primeiro (ou pule ao lado)";
+            // o esquema", agora é "pergunte antes") e acrescenta o item
+            // "Pular pergunta" no menu, que _renderItemHtml já colocaria se
+            // o item tivesse nascido assim (ver ali — mesmo texto/onclick).
+            gerarBtn.title = "Pergunte ao motorista o motivo primeiro (ou use 'Pular pergunta')";
             if (!el.querySelector('[data-role="pular-pergunta-btn"]')) {
               gerarBtn.insertAdjacentHTML("afterend",
-                '<button type="button" class="perm-pular-pergunta-btn" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">pular</button>');
+                '<button type="button" class="perm-acao-item" data-role="pular-pergunta-btn" onclick="event.stopPropagation();_fecharAcoesMenus();_pularPerguntaMotorista(' + idx + ')" title="Já sei o motivo por outro canal, ou motorista sem WhatsApp — libera Gerar Relatório sem perguntar">' + _icon("skipForward") + ' Pular pergunta</button>');
             }
           }
         }
@@ -3610,6 +3651,46 @@
           perguntarBtn.removeAttribute("title");
           perguntarBtn.setAttribute("onclick", "event.stopPropagation();_abrirPerguntaMotorista(" + idx + ")");
         }
+      }
+
+      // Linha de comparação que fica INLINE no card da ocorrência (não no
+      // painel do grupo, que passou a mostrar só a linha vinculada). Apoio:
+      // previsto x real; rodoviária: horário de sessão + saiu antes/depois.
+      // Reaproveita o visual de _htmlLinhaSessao (mesmas cores cedo/atraso/
+      // excedeu/ok).
+      function _htmlCmpInline(item, pontoMatch) {
+        if (item.modo === "apoio") {
+          if (!pontoMatch || item.permitidoSeg == null) {
+            var realFora = Math.round(item.permanenciaSeg / 60);
+            return _htmlLinhaSessao('Local <b>não consta no roteiro</b> deste esquema — a permanência inteira (<b>' +
+              realFora + ' min</b>) conta como excedente.', "atraso");
+          }
+          var previstoMin = Math.round(item.permitidoSeg / 60);
+          var realMin = Math.round(item.permanenciaSeg / 60);
+          var diffMin = realMin - previstoMin;
+          var origemTxt = item._esquemaSemParadaPrevista ? ' <i>(padrão — sem cadastro específico nesse esquema)</i>' : '';
+          var txt = 'previsto <b>' + previstoMin + ' min</b>' + origemTxt + ' · real <b>' + realMin + ' min</b>';
+          if (diffMin > 0) return _htmlLinhaSessao(txt + ' — excedeu em <b>' + diffMin + ' min</b>', "excedeu");
+          return _htmlLinhaSessao(txt + ' — dentro do esquema' + (diffMin < 0 ? ' (' + Math.abs(diffMin) + ' min a menos)' : ''), "ok");
+        }
+        // Rodoviária
+        if (!pontoMatch) return "";
+        var txtR = 'horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+          (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '');
+        var cmpR = pontoMatch.horarioComercial ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial) : null;
+        if (cmpR === "cedo") txtR += ' — saiu <b>antes</b> do horário';
+        else if (cmpR === "atraso") txtR += ' — saiu <b>depois</b> do horário';
+        else if (cmpR === "ok") txtR += ' — saiu <b>no horário</b>';
+        return _htmlLinhaSessao(txtR, cmpR);
+      }
+
+      function _atualizarCmpInline(idx, pontoMatch) {
+        var el = document.querySelector('.perm-item[data-idx="' + idx + '"]');
+        if (!el) return;
+        var slot = el.querySelector('[data-role="cmp"]');
+        if (!slot) return;
+        var item = _relatorioItens[idx];
+        slot.innerHTML = item ? _htmlCmpInline(item, pontoMatch) : "";
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -3725,7 +3806,7 @@
         if (gerarBtn && gerarBtn.hasAttribute("disabled")) {
           gerarBtn.removeAttribute("disabled");
           gerarBtn.removeAttribute("title");
-          gerarBtn.setAttribute("onclick", "event.stopPropagation();abrirModalRelatorio(" + idx + ")");
+          gerarBtn.setAttribute("onclick", "event.stopPropagation();_fecharAcoesMenus();abrirModalRelatorio(" + idx + ")");
         }
         var pularBtn = el.querySelector('[data-role="pular-pergunta-btn"]');
         if (pularBtn) pularBtn.remove();
@@ -4243,28 +4324,6 @@
         return _htmlLinhaSessao(texto, "atraso");
       }
 
-      // Bloco de UMA parada de apoio no painel de esquema do grupo: nome do
-      // local (copiável) + a comparação previsto x real numa linha só. Antes
-      // eram duas linhas — "LOCAL: parada prevista X" e a linha verde
-      // "Parada prevista no esquema X · real Y" — repetindo o "parada
-      // prevista". Aqui o nome fica em cima e o resultado logo abaixo, como
-      // um par visual (ver .perm-esquema-parada).
-      function _htmlBlocoParadaApoio(localSpanHtml, item, pontoMatch) {
-        var nome = '<div class="perm-esquema-parada-nome"><b>' + localSpanHtml + '</b></div>';
-        if (!pontoMatch || item.permitidoSeg == null) {
-          return '<div class="perm-esquema-parada">' + nome + _htmlForaDoRoteiroApoio(item) + '</div>';
-        }
-        var previstoMin = Math.round(item.permitidoSeg / 60);
-        var realMin = Math.round(item.permanenciaSeg / 60);
-        var diffMin = realMin - previstoMin;
-        var origemTxt = item._esquemaSemParadaPrevista ? ' <i>(padrão — sem cadastro específico nesse esquema)</i>' : '';
-        var texto = 'previsto <b>' + previstoMin + ' min</b>' + origemTxt + ' · real <b>' + realMin + ' min</b>';
-        var cmp;
-        if (diffMin > 0) { texto += ' — excedeu em <b>' + diffMin + ' min</b>'; cmp = "excedeu"; }
-        else { texto += ' — dentro do esquema' + (diffMin < 0 ? ' (' + Math.abs(diffMin) + ' min a menos)' : ''); cmp = "ok"; }
-        return '<div class="perm-esquema-parada">' + nome + _htmlLinhaSessao(texto, cmp) + '</div>';
-      }
-
       function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml, idx) {
         var salvoHtml = "";
         if (idx != null && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave)) {
@@ -4278,7 +4337,6 @@
               ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtnHtml + salvoHtml + '</div>' +
           '</div>' +
-          _htmlNaoPercorridosTP(item.veiculo, json.pontos || [], null, pontoMatch) +
           _htmlParadasIrregularesTP(item, json.pontos || [], null);
 
         var blocoResultado = "";
@@ -4362,6 +4420,7 @@
           var pontoMatch = _aplicarEsquemaAoItem(idx, json);
           corpo.innerHTML = _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtn, idx);
           _atualizarCardApoioPosEsquema(idx);
+          _atualizarCmpInline(idx, pontoMatch);
         });
       }
 
@@ -4475,20 +4534,24 @@
               return;
             }
 
-            // Não acumulativo: cada ocorrência do grupo compara só a
-            // perna DESDE a ocorrência anterior (ver _locaisNaoPercorridosTP)
-            // — sem isso, todas repetiam os mesmos pontos pulados lá no
-            // início do dia (ver print do RNSP00530460, 24416).
+            // pontoAnteriorMatch: ponto casado na ocorrência anterior do
+            // grupo — passado a _aplicarEsquemaAoItem só pra alimentar
+            // item._locaisNaoPercorridos (não acumulativo), usado depois
+            // pela observação automática de "Chegou antecipadamente".
             var pontoAnteriorMatch = null;
 
-            var linhasHtml = idxs.map(function (idx) {
+            idxs.forEach(function (idx) {
               var item = _relatorioItens[idx];
-              if (!item) return "";
+              if (!item) return;
               var pontoMatch = _aplicarEsquemaAoItem(idx, json, pontoAnteriorMatch);
               _atualizarCardApoioPosEsquema(idx);
+              // Comparação previsto x real vai INLINE no card da ocorrência,
+              // não mais no painel do grupo (que agora só mostra a linha).
+              _atualizarCmpInline(idx, pontoMatch);
+              if (pontoMatch) pontoAnteriorMatch = pontoMatch;
 
-              // Pré-preenche o painel individual do item — abrir "Ver esquema"
-              // ali já mostra o resultado vinculado aqui, sem buscar de novo.
+              // Pré-preenche o painel individual "Ver esquema" do item —
+              // abrir ali já mostra o resultado sem buscar de novo.
               var painelItem = document.getElementById("esquema-" + idx);
               if (painelItem) {
                 var alterarBtnItem = '<button type="button" class="perm-esquema-editar-btn" title="Alterar busca" ' +
@@ -4498,52 +4561,12 @@
                   _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnItem, idx) + '</div>';
                 painelItem.setAttribute("data-init", "1");
               }
+            });
 
-              var pontoEscLinha = String(item.descResumida || item.ponto || "").replace(/'/g, "\\'");
-              var localSpan = '<span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span>';
-              var ehApoioLinha = item.modo === "apoio";
-
-              // Indicadores B e D — cortados NESTE ponto, não no fim do
-              // roteiro, e só desde a ocorrência ANTERIOR do grupo (não
-              // acumulativo — ver _locaisNaoPercorridosTP/_paradasIrregularesTP):
-              // "quantos pulou/quantas paradas irregulares nesta perna",
-              // não "desde o início do dia".
-              var naoPercorridoHtml = _htmlNaoPercorridosTP(item.veiculo, json.pontos || [], pontoAnteriorMatch, pontoMatch);
-              var irregularHtml = _htmlParadasIrregularesTP(item, json.pontos || [], pontoAnteriorMatch);
-              if (pontoMatch) pontoAnteriorMatch = pontoMatch;
-
-              // Ponto de apoio: nome + comparação previsto x real num bloco
-              // só (ver _htmlBlocoParadaApoio) — antes eram duas linhas
-              // repetindo "parada prevista".
-              if (ehApoioLinha) {
-                return _htmlBlocoParadaApoio(localSpan, item, pontoMatch) +
-                  naoPercorridoHtml + irregularHtml;
-              }
-
-              // Rodoviária: a linha carrega a comparação de horário de
-              // sessão (saiu antes/depois) — eixo diferente da parada
-              // prevista, então não há a redundância do caso de apoio.
-              var textoLinha = '<b>' + localSpan + '</b>: ' +
-                (pontoMatch
-                  ? ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
-                     (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : ''))
-                  : 'local não encontrado no roteiro deste esquema');
-              var cmpLinha = (pontoMatch && pontoMatch.horarioComercial)
-                ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial)
-                : null;
-              if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
-              if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
-              if (cmpLinha === "ok") textoLinha += ' — saiu <b>no horário</b>';
-
-              return '<div class="perm-esquema-parada">' + _htmlLinhaSessao(textoLinha, cmpLinha) + '</div>' +
-                naoPercorridoHtml + irregularHtml;
-            }).join("");
-
-            // A volta idxs.map() acima já chamou _htmlEsquemaDetalhe(...,
-            // idx) pra cada ponto — inclusive pros já analisados, que já
-            // salvaram a linha automaticamente nesse processo (ver
-            // _salvarLinhaNaAnalise dentro de _htmlEsquemaDetalhe). Aqui é
-            // só o aviso informativo de quantos foram.
+            // A volta acima já chamou _htmlEsquemaDetalhe(..., idx) pra cada
+            // ponto — inclusive pros já analisados, que já salvaram a linha
+            // automaticamente nesse processo (ver _salvarLinhaNaAnalise).
+            // Aqui é só o aviso informativo de quantos foram.
             var qtdSalvos = idxs.filter(function (idx) {
               var it = _relatorioItens[idx];
               return it && it.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(it.chave);
@@ -4560,8 +4583,7 @@
                 '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtn + salvoGrupoHtml + '</div>' +
               '</div>' +
               '<div class="perm-esquema-vinc">Vinculado a ' + idxs.length +
-                ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo:</div>' +
-              linhasHtml +
+                ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo — comparação em cada card abaixo.</div>' +
             '</div>';
 
             var btn = document.getElementById("esquema-grupo-btn-" + gidx);
