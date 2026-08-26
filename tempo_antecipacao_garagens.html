@@ -3217,12 +3217,16 @@
         }).catch(function (err) {
           clearTimeout(timer);
           if (tentativasRestantes <= 0) { console.error("[esquemas] falha ao buscar " + url + ":", err); throw err; }
+          // Timeout progressivo: 1ª tentativa curta (15s) só pra não travar a
+          // UI se o Apps Script estiver fora do ar; a retentativa dá até 45s,
+          // porque aí o provável é o script "frio" ainda respondendo.
+          var proxTimeout = Math.min(timeoutMs * 2, 45000);
           return new Promise(function (resolve) { setTimeout(resolve, 700); })
-            .then(function () { return _fetchComRetryAG(url, tentativasRestantes - 1, timeoutMs); });
+            .then(function () { return _fetchComRetryAG(url, tentativasRestantes - 1, proxTimeout); });
         });
       }
 
-      function _carregarEsquemasAG(cb) {
+      function _carregarEsquemasAG(cb, _jaRetentou) {
         if (_esquemasCacheAG !== null) { cb(_esquemasCacheAG, null); return; }
         if (!_esquemasCarregandoAG) {
           _esquemasCarregandoAG = _fetchComRetryAG(ESQUEMAS_API_URL + "?action=getLinhas", 1)
@@ -3241,7 +3245,14 @@
             .catch(function (err) { _esquemasCarregandoAG = null; throw err; });
         }
         _esquemasCarregandoAG.then(function (esquemas) { _esquemasCarregandoAG = null; cb(esquemas, null); })
-          .catch(function (err) { cb([], err || true); });
+          .catch(function (err) {
+            // Se a promessa compartilhada falhou (ex.: clique que pegou
+            // carona numa 1ª chamada já em curso), as tentativas dela já
+            // "esquentaram" o Apps Script — dispara UMA busca nova e fresca
+            // antes de mostrar erro (_esquemasCarregandoAG já foi zerado).
+            if (!_jaRetentou) { _carregarEsquemasAG(cb, true); return; }
+            cb([], err || true);
+          });
       }
 
       function _carregarRoteiroAG(esquemaId, cb) {

@@ -3942,14 +3942,20 @@
             console.error("[esquemas] falha ao buscar " + url + ":", err);
             throw err;
           }
+          // Timeout progressivo: a 1ª tentativa usa a janela curta (15s) só
+          // pra não travar a UI se o Apps Script estiver mesmo fora do ar; a
+          // retentativa dá bem mais tempo (até 45s), porque aí o cenário
+          // provável é o script "frio" ainda respondendo — a 1ª chamada já
+          // começou a esquentá-lo, cortar em 15s de novo desperdiçaria isso.
+          var proxTimeout = Math.min(timeoutMs * 2, 45000);
           return new Promise(function (resolve) { setTimeout(resolve, 700); })
-            .then(function () { return _fetchComRetry(url, tentativasRestantes - 1, timeoutMs); });
+            .then(function () { return _fetchComRetry(url, tentativasRestantes - 1, proxTimeout); });
         });
       }
 
       var _esquemasCarregando = null; // Promise em andamento — evita disparar um 2º fetch em paralelo (ex.: pré-aquecimento + clique do usuário ao mesmo tempo)
 
-      function _carregarEsquemas(cb) {
+      function _carregarEsquemas(cb, _jaRetentou) {
         // _esquemasCache só é considerado "carregado" quando não é null —
         // [] é um resultado válido (nenhum esquema), então não pode ser
         // confundido com "ainda não tentei buscar". Falha de rede/parse
@@ -3984,7 +3990,17 @@
         _esquemasCarregando.then(function (esquemas) {
           _esquemasCarregando = null;
           cb(esquemas, null);
-        }).catch(function (err) { cb([], err || true); });
+        }).catch(function (err) {
+          // A promessa que acabou de falhar pode ter sido a do
+          // _preAquecerEsquemas() (disparado no load da página, antes de
+          // qualquer clique). Nesse caso as tentativas dela já "esquentaram"
+          // o Apps Script; em vez de repassar o erro direto pra quem só
+          // agora abriu "Ver esquema", dispara UMA busca nova e fresca antes
+          // de desistir (o _esquemasCarregando já foi zerado no catch acima).
+          // _jaRetentou corta o loop se essa 2ª tentativa também falhar.
+          if (!_jaRetentou) { _carregarEsquemas(cb, true); return; }
+          cb([], err || true);
+        });
       }
 
       // Dispara a busca de esquemas assim que a página abre, antes do
