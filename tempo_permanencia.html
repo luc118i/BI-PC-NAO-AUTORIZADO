@@ -1986,6 +1986,7 @@
         document.getElementById("justDescricaoOcorrencia").value = "";
         document.getElementById("justLocalOperAlimentacao").checked = false;
         document.getElementById("justLocalOperLimpeza").checked = false;
+        document.getElementById("justLocalOperTrocaMotorista").checked = false;
         document.getElementById("justLocalOperOutro").value = "";
         document.getElementById("justObservacao").value = "";
         document.getElementById("justStatus").textContent = "";
@@ -2086,6 +2087,7 @@
           var atividades = [];
           if (document.getElementById("justLocalOperAlimentacao").checked) atividades.push("alimentação");
           if (document.getElementById("justLocalOperLimpeza").checked) atividades.push("limpeza");
+          if (document.getElementById("justLocalOperTrocaMotorista").checked) atividades.push("troca de motorista");
           var outroOper = document.getElementById("justLocalOperOutro").value.trim();
           if (outroOper) atividades.push(outroOper);
           if (!atividades.length) {
@@ -6930,6 +6932,10 @@
               <label class="just-opcao" style="border:none;padding:4px 0">
                 <input type="checkbox" id="justLocalOperLimpeza" />
                 <span class="just-opcao-texto"><span class="just-opcao-titulo">Limpeza</span></span>
+              </label>
+              <label class="just-opcao" style="border:none;padding:4px 0">
+                <input type="checkbox" id="justLocalOperTrocaMotorista" />
+                <span class="just-opcao-texto"><span class="just-opcao-titulo">Troca de motorista</span></span>
               </label>
             </div>
             <div class="oc-field">
