@@ -369,8 +369,10 @@
       .perm-esquema-detalhe { margin: 8px 0 6px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); }
       .perm-esquema-detalhe b { color: var(--texto); }
       .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
-      .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--borda2); }
-      .perm-esquema-vinc { margin-top: 6px; font-size: 11px; color: var(--texto3); }
+      .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      /* divisória só quando há conteúdo abaixo (painel individual "Ver
+         esquema"); no painel do grupo o head é a única linha. */
+      .perm-esquema-detalhe-head:not(:last-child) { padding-bottom: 8px; border-bottom: 1px solid var(--borda2); }
       /* Bloco de resultado no painel individual "Ver esquema" (_htmlEsquemaDetalhe)
          — respiro entre o cabeçalho e a comparação. */
       .perm-esquema-parada { margin-top: 12px; }
@@ -4582,8 +4584,6 @@
                   ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
                 '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtn + salvoGrupoHtml + '</div>' +
               '</div>' +
-              '<div class="perm-esquema-vinc">Vinculado a ' + idxs.length +
-                ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo — comparação em cada card abaixo.</div>' +
             '</div>';
 
             var btn = document.getElementById("esquema-grupo-btn-" + gidx);
