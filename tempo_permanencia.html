@@ -2123,14 +2123,33 @@
         _mostrarProximaJustificativa();
       }
 
+      // Normalização mais forte que _normTP só pra CASAR nome de ponto com
+      // o cadastro: além de acento/caixa/espaço, dobra qualquer pontuação
+      // (hífen, barra, ponto, vírgula) em espaço — assim
+      // "POSTO PICHILAU PIONEIRO-AL" casa com "POSTO PICHILAU PIONEIRO - AL"
+      // (col. D da aba PONTOS_CONTROLE), que só diferem no separador.
+      function _normMatchPC(s) {
+        return String(s || "")
+          .normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+      }
+
       function _matchPC(pontoNome) {
         if (!_pcsCache || !pontoNome) return null;
-        var normPonto = _normTP(pontoNome);
+        var normPonto = _normMatchPC(pontoNome);
+        if (!normPonto) return null;
+        // 1ª passada: match exato (col. D ou col. C) — mais confiável.
         for (var i = 0; i < _pcsCache.length; i++) {
           var p = _pcsCache[i];
-          var nd = _normTP(p.descCompleta || p.descResumida || "");
-          if (!nd) continue;
-          if (normPonto === nd || normPonto.includes(nd) || nd.includes(normPonto)) return p;
+          if (_normMatchPC(p.descCompleta) === normPonto || _normMatchPC(p.descResumida) === normPonto) return p;
+        }
+        // 2ª passada: um contém o outro (nome do CSV às vezes traz sufixo
+        // extra) — exige pelo menos 5 chars pra não casar cadastro curto
+        // demais com qualquer ponto.
+        for (var j = 0; j < _pcsCache.length; j++) {
+          var q = _pcsCache[j];
+          var nd = _normMatchPC(q.descCompleta) || _normMatchPC(q.descResumida);
+          if (nd.length >= 5 && (nd.indexOf(normPonto) !== -1 || normPonto.indexOf(nd) !== -1)) return q;
         }
         return null;
       }
@@ -2161,27 +2180,6 @@
           if (tokens[i].length === 2 && UF_REGIAO[tokens[i]]) return tokens[i];
         }
         return null;
-      }
-
-      // Nome "resumido" pra COPIAR (o card mostra o nome completo do CSV).
-      // Quando o ponto não tem cadastro em PONTOS_CONTROLE (col. "Desc.
-      // Resumida" vazia), tira só o sufixo de UF no fim do nome —
-      // "POSTO PICHILAU PIONEIRO-AL" → "POSTO PICHILAU PIONEIRO",
-      // "RESTAURANTE 2 IRMAOS JEQUIE BA" → "RESTAURANTE 2 IRMAOS JEQUIE".
-      // Só mexe se o último token for uma UF de verdade (senão devolve o
-      // nome como veio) e nunca toca numa UF no meio do nome
-      // (ex.: "SALVADOR - BA / NOVO TERMINAL" fica intacto).
-      function _nomeResumidoLocal(nome) {
-        var s = String(nome || "").trim();
-        // A UF precisa ser um token separado no FIM (colada por "-" ou "/"
-        // ou "," ou espaço) — "PIONEIRO-AL"/"JEQUIE BA" cortam, mas
-        // "NOVO TERMINAL" (AL grudado em TERMIN) e "PIONEIRO" (RO no fim
-        // da palavra) NÃO, porque não há separador antes dos 2 dígitos.
-        var m = s.match(/^(.+?)[\s\-/,]+([A-Za-z]{2})\s*$/);
-        if (m && m[1].trim() && UF_REGIAO[m[2].toUpperCase()]) {
-          return m[1].replace(/[\s\-/,]+$/, "").trim();
-        }
-        return s;
       }
 
       function _resolverRegiao(pontoNome, ufRef) {
@@ -3466,7 +3464,7 @@
         var idx = _relatorioItens.length;
         _relatorioItens.push(r);
         var chaveAttr = String(r.chave || "").replace(/"/g, "&quot;");
-        var pontoEsc = String(_nomeResumidoLocal(r.descResumida || r.ponto) || "").replace(/'/g, "\\'");
+        var pontoEsc = String(r.descResumida || r.ponto || "").replace(/'/g, "\\'");
         // Único jeito de ficar pendente agora é o esquema nem ter sido
         // vinculado ainda — ponto sem "parada prevista" cadastrada nesse
         // esquema específico (_esquemaSemParadaPrevista) já usa um
@@ -4449,7 +4447,7 @@
                 painelItem.setAttribute("data-init", "1");
               }
 
-              var pontoEscLinha = String(_nomeResumidoLocal(item.descResumida || item.ponto) || "").replace(/'/g, "\\'");
+              var pontoEscLinha = String(item.descResumida || item.ponto || "").replace(/'/g, "\\'");
               // Ponto de apoio não tem "horário de sessão" (isso é conceito
               // de rodoviária — horário previsto de SAÍDA) — só mostra a
               // parada prevista, que é o que de fato se compara ali (ver
