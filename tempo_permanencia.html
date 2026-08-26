@@ -361,16 +361,27 @@
       .perm-esquema-item:hover { border-color: var(--laranja); color: var(--texto); }
       .perm-esquema-item b { color: var(--texto); }
       .perm-esquema-item .esquema-sub { display: block; font-size: 11px; color: var(--texto3); margin-top: 2px; }
-      .perm-esquema-detalhe { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); }
+      .perm-esquema-detalhe { margin: 8px 0 6px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--preto2); border: 1px solid var(--borda2); font-size: 12px; color: var(--texto2); }
       .perm-esquema-detalhe b { color: var(--texto); }
       .perm-esquema-detalhe .esquema-cedo { color: var(--laranja); font-weight: 700; }
-      .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .perm-esquema-detalhe-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--borda2); }
+      .perm-esquema-vinc { margin-top: 6px; font-size: 11px; color: var(--texto3); }
+      /* Cada parada vinculada é um bloco visual: mais espaço ENTRE blocos
+         (12px) do que DENTRO (nome→resultado ~3px) — deixa o painel
+         escaneável em vez de uma parede de linhas. Ver _htmlBlocoParadaApoio. */
+      .perm-esquema-parada { margin-top: 12px; }
+      .perm-esquema-parada-nome { font-size: 12px; margin-bottom: 3px; }
+      .perm-esquema-parada > :first-child { margin-top: 0; }
+      /* resultado colado logo abaixo do nome da parada (par visual) */
+      .perm-esquema-parada-nome + .esquema-sessao-linha,
+      .perm-esquema-parada-nome + .esquema-linha-txt { margin-top: 2px; }
+      .esquema-linha-txt { margin-top: 6px; }
 
       /* Saída real vs. horário de sessão do esquema (sessão = horário
          previsto de SAÍDA do veículo, não de chegada) — amarelo quando
          saiu antes do horário (não atrasou a partida), vermelho quando
          saiu depois (atraso real na partida, mesmo se chegou cedo). */
-      .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; }
+      .esquema-sessao-linha { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; margin-top: 6px; }
       .esquema-sessao-linha.cedo { background: rgba(240,192,64,0.10); border-bottom: 3px solid var(--amarelo); }
       .esquema-sessao-linha.atraso { background: rgba(224,80,80,0.10); border-bottom: 3px solid var(--vermelho); }
       .esquema-sessao-linha.excedeu { background: rgba(224,142,42,0.10); border-bottom: 3px solid var(--laranja); }
@@ -2291,14 +2302,15 @@
       }
 
       function _htmlLinhaSessao(textoHtml, comparacao, estiloExtra) {
+        var estilo = estiloExtra ? ' style="' + estiloExtra + '"' : '';
         if (!comparacao) {
-          return '<div style="' + (estiloExtra || "margin-top:6px") + '">' + textoHtml + '</div>';
+          return '<div class="esquema-linha-txt"' + estilo + '>' + textoHtml + '</div>';
         }
         var icone = comparacao === "cedo" ? "alertTriangle"
           : comparacao === "atraso" ? "alertOctagon"
           : comparacao === "excedeu" ? "clock"
           : "check";
-        return '<div class="esquema-sessao-linha ' + comparacao + '" style="margin-top:6px">' +
+        return '<div class="esquema-sessao-linha ' + comparacao + '"' + estilo + '>' +
           '<span class="esquema-sessao-icone">' + _icon(icone, 14) + '</span><span>' + textoHtml + '</span>' +
         '</div>';
       }
@@ -4231,6 +4243,28 @@
         return _htmlLinhaSessao(texto, "atraso");
       }
 
+      // Bloco de UMA parada de apoio no painel de esquema do grupo: nome do
+      // local (copiável) + a comparação previsto x real numa linha só. Antes
+      // eram duas linhas — "LOCAL: parada prevista X" e a linha verde
+      // "Parada prevista no esquema X · real Y" — repetindo o "parada
+      // prevista". Aqui o nome fica em cima e o resultado logo abaixo, como
+      // um par visual (ver .perm-esquema-parada).
+      function _htmlBlocoParadaApoio(localSpanHtml, item, pontoMatch) {
+        var nome = '<div class="perm-esquema-parada-nome"><b>' + localSpanHtml + '</b></div>';
+        if (!pontoMatch || item.permitidoSeg == null) {
+          return '<div class="perm-esquema-parada">' + nome + _htmlForaDoRoteiroApoio(item) + '</div>';
+        }
+        var previstoMin = Math.round(item.permitidoSeg / 60);
+        var realMin = Math.round(item.permanenciaSeg / 60);
+        var diffMin = realMin - previstoMin;
+        var origemTxt = item._esquemaSemParadaPrevista ? ' <i>(padrão — sem cadastro específico nesse esquema)</i>' : '';
+        var texto = 'previsto <b>' + previstoMin + ' min</b>' + origemTxt + ' · real <b>' + realMin + ' min</b>';
+        var cmp;
+        if (diffMin > 0) { texto += ' — excedeu em <b>' + diffMin + ' min</b>'; cmp = "excedeu"; }
+        else { texto += ' — dentro do esquema' + (diffMin < 0 ? ' (' + Math.abs(diffMin) + ' min a menos)' : ''); cmp = "ok"; }
+        return '<div class="perm-esquema-parada">' + nome + _htmlLinhaSessao(texto, cmp) + '</div>';
+      }
+
       function _htmlEsquemaDetalhe(item, json, pontoMatch, alterarBtnHtml, idx) {
         var salvoHtml = "";
         if (idx != null && item.chave && _statusAnalisadoCache && _statusAnalisadoCache.has(item.chave)) {
@@ -4247,6 +4281,7 @@
           _htmlNaoPercorridosTP(item.veiculo, json.pontos || [], null, pontoMatch) +
           _htmlParadasIrregularesTP(item, json.pontos || [], null);
 
+        var blocoResultado = "";
         if (pontoMatch) {
           // Ponto de apoio não tem "horário de sessão" (é conceito de
           // rodoviária — horário previsto de SAÍDA); só a comparação de
@@ -4259,14 +4294,15 @@
             if (cmp === "cedo") textoSessao += ' — saiu <b>antes</b> do horário de sessão';
             if (cmp === "atraso") textoSessao += ' — saiu <b>depois</b> do horário de sessão';
             if (cmp === "ok") textoSessao += ' — saiu <b>no horário</b> de sessão';
-            html += _htmlLinhaSessao(textoSessao, cmp);
+            blocoResultado += _htmlLinhaSessao(textoSessao, cmp);
           }
-          html += _htmlComparacaoApoio(item, pontoMatch);
+          blocoResultado += _htmlComparacaoApoio(item, pontoMatch);
         } else if (item.modo === "apoio") {
-          html += _htmlForaDoRoteiroApoio(item);
+          blocoResultado += _htmlForaDoRoteiroApoio(item);
         } else {
-          html += '<div style="margin-top:6px" class="perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
+          blocoResultado += '<div class="esquema-linha-txt perm-esquema-msg">Local "' + item.ponto + '" não encontrado no roteiro deste esquema.</div>';
         }
+        if (blocoResultado) html += '<div class="perm-esquema-parada">' + blocoResultado + '</div>';
 
         html += '</div>';
         return html;
@@ -4464,26 +4500,8 @@
               }
 
               var pontoEscLinha = String(item.descResumida || item.ponto || "").replace(/'/g, "\\'");
-              // Ponto de apoio não tem "horário de sessão" (isso é conceito
-              // de rodoviária — horário previsto de SAÍDA) — só mostra a
-              // parada prevista, que é o que de fato se compara ali (ver
-              // _htmlComparacaoApoio, que já cobre real x previsto embaixo).
+              var localSpan = '<span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span>';
               var ehApoioLinha = item.modo === "apoio";
-              var textoLinha = '<b><span class="perm-local-copy" onclick="event.stopPropagation();_copiarPrefixo(this,\'' + pontoEscLinha + '\')" title="Clique para copiar o nome do local">' + item.ponto + '</span></b>: ' +
-                (pontoMatch
-                  ? (ehApoioLinha
-                      ? (item.permitidoSeg != null
-                          ? 'parada prevista: <b>' + Math.round(item.permitidoSeg / 60) + ' min</b>' + (item._esquemaSemParadaPrevista ? ' <i>(padrão)</i>' : '')
-                          : '')
-                      : ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
-                        (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : '')))
-                  : 'local não encontrado no roteiro deste esquema');
-              var cmpLinha = (!ehApoioLinha && pontoMatch && pontoMatch.horarioComercial)
-                ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial)
-                : null;
-              if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
-              if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
-              if (cmpLinha === "ok") textoLinha += ' — saiu <b>no horário</b>';
 
               // Indicadores B e D — cortados NESTE ponto, não no fim do
               // roteiro, e só desde a ocorrência ANTERIOR do grupo (não
@@ -4494,9 +4512,30 @@
               var irregularHtml = _htmlParadasIrregularesTP(item, json.pontos || [], pontoAnteriorMatch);
               if (pontoMatch) pontoAnteriorMatch = pontoMatch;
 
-              return _htmlLinhaSessao(textoLinha, cmpLinha, "margin-top:4px;padding-top:4px;border-top:1px solid var(--borda2)") +
-                _htmlComparacaoApoio(item, pontoMatch) +
-                (!pontoMatch ? _htmlForaDoRoteiroApoio(item) : "") +
+              // Ponto de apoio: nome + comparação previsto x real num bloco
+              // só (ver _htmlBlocoParadaApoio) — antes eram duas linhas
+              // repetindo "parada prevista".
+              if (ehApoioLinha) {
+                return _htmlBlocoParadaApoio(localSpan, item, pontoMatch) +
+                  naoPercorridoHtml + irregularHtml;
+              }
+
+              // Rodoviária: a linha carrega a comparação de horário de
+              // sessão (saiu antes/depois) — eixo diferente da parada
+              // prevista, então não há a redundância do caso de apoio.
+              var textoLinha = '<b>' + localSpan + '</b>: ' +
+                (pontoMatch
+                  ? ('horário de sessão <b>' + (pontoMatch.horarioComercial || "—") + '</b>' +
+                     (pontoMatch.tempoLocal != null ? ' · parada prevista: <b>' + pontoMatch.tempoLocal + ' min</b>' : ''))
+                  : 'local não encontrado no roteiro deste esquema');
+              var cmpLinha = (pontoMatch && pontoMatch.horarioComercial)
+                ? _compararSaidaSessao(_fmtHM(item.saida), pontoMatch.horarioComercial)
+                : null;
+              if (cmpLinha === "cedo") textoLinha += ' — saiu <b>antes</b> do horário';
+              if (cmpLinha === "atraso") textoLinha += ' — saiu <b>depois</b> do horário';
+              if (cmpLinha === "ok") textoLinha += ' — saiu <b>no horário</b>';
+
+              return '<div class="perm-esquema-parada">' + _htmlLinhaSessao(textoLinha, cmpLinha) + '</div>' +
                 naoPercorridoHtml + irregularHtml;
             }).join("");
 
@@ -4520,7 +4559,7 @@
                   ' (' + json.esquema.sentido + ')' + (json.esquema.horario ? ' - ' + json.esquema.horario : '') + '</div>' +
                 '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' + alterarBtn + salvoGrupoHtml + '</div>' +
               '</div>' +
-              '<div style="margin-top:2px;font-size:11px;color:var(--texto3)">Vinculado a ' + idxs.length +
+              '<div class="perm-esquema-vinc">Vinculado a ' + idxs.length +
                 ' ocorrência' + (idxs.length !== 1 ? 's' : '') + ' deste veículo:</div>' +
               linhasHtml +
             '</div>';
